@@ -113,13 +113,15 @@ confidence = ''
 # no Warning level messages displayed, use "--disable=all --enable=classes
 # --disable=W".
 disable = [
-    'raw-checker-failed',
     'bad-inline-option',
-    'locally-disabled',
+    'deprecated-pragma',
     'file-ignored',
+    'locally-disabled',
+    'missing-function-docstring',
+    'missing-module-docstring',
+    'raw-checker-failed',
     'suppressed-message',
     'useless-suppression',
-    'deprecated-pragma',
     'use-symbolic-message-instead',
 ]
 
