@@ -1,6 +1,4 @@
-"""
-Version info management
-"""
+"""Version info management."""
 __all__ = ["__version__"]
 
 import os
