@@ -20,15 +20,15 @@ include = '\.pyi?$'
 exclude = '''
 /(
     \.eggs
-  | \.git
-  | \.hg
-  | \.mypy_cache
-  | \.tox
-  | \.venv
-  | _build
-  | buck-out
-  | build
-  | dist
+    | \.git
+    | \.hg
+    | \.mypy_cache
+    | \.tox
+    | \.venv
+    | _build
+    | buck-out
+    | build
+    | dist
 )/
 '''
 
@@ -372,12 +372,12 @@ function-naming-style = 'snake_case'
 
 # Good variable names which should always be accepted, separated by a comma.
 good-names = [
-	'i',
-	'j',
-	'k',
-	'ex',
-	'Run',
-	'_',
+    'i',
+    'j',
+    'k',
+    'ex',
+    'Run',
+    '_',
 ]
 
 # Good variable names regexes, separated by a comma. If names match any regex,
@@ -593,10 +593,10 @@ int-import-graph = ''
 
 # Force import order to recognize a module as part of the standard
 # compatibility libraries.
-known-standard-library = ''
+known-standard-library = []
 
 # Force import order to recognize a module as part of a third party library.
-known-third-party = 'enchant'
+known-third-party = []
 
 # Couples of modules and preferred modules, separated by a comma.
 preferred-modules = []
