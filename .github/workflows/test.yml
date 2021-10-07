@@ -17,7 +17,7 @@ jobs:
       - name: Install lint dependencies
         run: pip install '.[lint]'
       - name: Run linters
-        run: pre-commit run -a
+        run: SKIP=no-commit-to-branch pre-commit run -a --show-diff-on-failure
 
   test:
     runs-on: ${{ matrix.os }}
