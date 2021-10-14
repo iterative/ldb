@@ -117,10 +117,12 @@ disable = [
     'deprecated-pragma',
     'file-ignored',
     'locally-disabled',
+    'missing-class-docstring',
     'missing-function-docstring',
     'missing-module-docstring',
     'raw-checker-failed',
     'suppressed-message',
+    'too-few-public-methods',
     'useless-suppression',
     'use-symbolic-message-instead',
 ]
