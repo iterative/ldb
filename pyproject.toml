@@ -2,6 +2,10 @@
 requires = ['setuptools>=42', 'wheel']
 build-backend = 'setuptools.build_meta'
 
+[tool.isort]
+multi_line_output = 3  # VERTICAL_HANGING_INDENT
+include_trailing_comma = true
+
 [tool.mypy]
 show_column_numbers = true
 show_error_codes = true
