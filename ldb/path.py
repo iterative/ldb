@@ -7,7 +7,6 @@ from appdirs import site_config_dir, user_config_dir
 from ldb.app_info import APP_AUTHOR, APP_NAME
 from ldb.exceptions import LDBInstanceNotFoundError
 
-INSTANCE_DIR_NAME = ".ldb"
 CONFIG_FILENAME = "config"
 
 
@@ -46,7 +45,7 @@ INIT_CONFIG_TYPES = (
 
 
 def get_default_instance_dir() -> Path:
-    return Path.home() / INSTANCE_DIR_NAME
+    return Path.home() / DirName.LDB
 
 
 def find_instance_dir(path: Path = None) -> Path:
@@ -60,7 +59,7 @@ def find_instance_dir(path: Path = None) -> Path:
         path = Path.cwd()
     else:
         path = Path(path)
-    instance_dir = path / INSTANCE_DIR_NAME
+    instance_dir = path / DirName.LDB
     if instance_dir.is_dir():
         return instance_dir
     curr_path = path
@@ -68,7 +67,7 @@ def find_instance_dir(path: Path = None) -> Path:
     # https://docs.python.org/3.7/library/pathlib.html#pathlib.Path.is_mount
     while not os.path.ismount(curr_path):
         curr_path = curr_path.parent
-        instance_dir = curr_path / INSTANCE_DIR_NAME
+        instance_dir = curr_path / DirName.LDB
         if instance_dir.is_dir():
             return instance_dir
     instance_dir = get_default_instance_dir()

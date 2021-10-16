@@ -1,2 +1,2 @@
 class Env:
-    LDB_DIR = "LDB_DIR"
+    LDB_ROOT = "LDB_ROOT"

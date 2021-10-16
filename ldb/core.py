@@ -1,16 +1,13 @@
 import os
+import shutil
 from pathlib import Path
 
 from tomlkit.exceptions import NonExistentKey
 
 from ldb.config import load_first_path
 from ldb.env import Env
-from ldb.path import (
-    CONFIG_FILENAME,
-    INIT_CONFIG_TYPES,
-    INSTANCE_DIR_NAME,
-    DirName,
-)
+from ldb.exceptions import LDBException
+from ldb.path import CONFIG_FILENAME, INIT_CONFIG_TYPES, DirName
 
 STORAGE_FILENAME = "storage"
 
@@ -27,30 +24,40 @@ OBJECT_DIR_NAMES = (
 )
 
 
-def init(path: Path = None):
+def init(path: Path = None, force: bool = False):
+    """Create new LDB instance."""
     if path is None:
         path = find_init_location()
-    if path.is_dir() and next(path.iterdir(), None) is not None:
-        raise Exception(f"directory not empty: {repr(os.fspath(path))}")
-    path.mkdir(parents=True, exist_ok=True)
+    ldb_dir = path / DirName.LDB
+    if ldb_dir.is_dir() and next(ldb_dir.iterdir(), None) is not None:
+        if force:
+            shutil.rmtree(ldb_dir)
+        else:
+            raise LDBException(
+                "An LDB instance already exists at "
+                f"{repr(os.fspath(ldb_dir))}",
+            )
+    ldb_dir.mkdir(parents=True, exist_ok=True)
     for dir_name in ROOT_DIR_NAMES:
-        (path / dir_name).mkdir()
-    object_dir = path / DirName.OBJECTS
+        (ldb_dir / dir_name).mkdir()
+    object_dir = ldb_dir / DirName.OBJECTS
     for dir_name in OBJECT_DIR_NAMES:
         (object_dir / dir_name).mkdir()
     for filepath in (CONFIG_FILENAME, STORAGE_FILENAME):
-        (path / filepath).touch()
+        (ldb_dir / filepath).touch()
+    print(f"Initialized LDB instance at {repr(os.fspath(ldb_dir))}")
 
 
 def find_init_location() -> Path:
-    if Env.LDB_DIR in os.environ:
-        return Path(os.environ[Env.LDB_DIR])
+    """Find the directory in which `.ldb/` will be created."""
+    if Env.LDB_ROOT in os.environ:
+        return Path(os.environ[Env.LDB_ROOT])
     config = load_first_path(INIT_CONFIG_TYPES)
     if config is not None:
         try:
-            instance_dir = config["core"]["ldb_dir"]
+            instance_dir = config["core"]["ldb_root"]
         except NonExistentKey:
             pass
         else:
             return Path(instance_dir)
-    return Path.home() / INSTANCE_DIR_NAME
+    return Path.home()
