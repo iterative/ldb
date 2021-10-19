@@ -7,7 +7,7 @@ from tomlkit.exceptions import NonExistentKey
 from ldb.config import load_first_path
 from ldb.env import Env
 from ldb.exceptions import LDBException
-from ldb.path import CONFIG_FILENAME, INIT_CONFIG_TYPES, DirName
+from ldb.path import GLOBAL_CONFIG_TYPES, DirName
 
 STORAGE_FILENAME = "storage"
 
@@ -24,7 +24,7 @@ OBJECT_DIR_NAMES = (
 )
 
 
-def init(path: Path = None, force: bool = False):
+def init(path: Path = None, force: bool = False) -> Path:
     """Create new LDB instance."""
     if path is None:
         path = find_init_location()
@@ -43,16 +43,15 @@ def init(path: Path = None, force: bool = False):
     object_dir = ldb_dir / DirName.OBJECTS
     for dir_name in OBJECT_DIR_NAMES:
         (object_dir / dir_name).mkdir()
-    for filepath in (CONFIG_FILENAME, STORAGE_FILENAME):
-        (ldb_dir / filepath).touch()
     print(f"Initialized LDB instance at {repr(os.fspath(ldb_dir))}")
+    return ldb_dir
 
 
 def find_init_location() -> Path:
     """Find the directory in which `.ldb/` will be created."""
     if Env.LDB_ROOT in os.environ:
         return Path(os.environ[Env.LDB_ROOT])
-    config = load_first_path(INIT_CONFIG_TYPES)
+    config = load_first_path(GLOBAL_CONFIG_TYPES)
     if config is not None:
         try:
             instance_dir = config["core"]["ldb_root"]

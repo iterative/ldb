@@ -1,4 +1,5 @@
 import argparse
+from pathlib import Path
 from typing import Iterable
 
 from ldb.core import init
@@ -26,6 +27,7 @@ def add_parser(
     )
     parser.add_argument(
         "path",
+        type=Path,
         nargs="?",
         help="Directory in which to create .ldb/",
     )

@@ -3,7 +3,7 @@ import sys
 from typing import List
 
 from ldb import __version__
-from ldb.command import init
+from ldb.command import add_storage, init
 
 
 def main(argv: List[str] = None):
@@ -21,6 +21,7 @@ def main(argv: List[str] = None):
     subparsers = main_parser.add_subparsers()
     parents = [parent_parser]
     init.add_parser(subparsers, parents)
+    add_storage.add_parser(subparsers, parents)
     options = main_parser.parse_args(args=argv)
     try:
         func = options.func

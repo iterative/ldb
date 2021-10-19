@@ -7,8 +7,6 @@ from appdirs import site_config_dir, user_config_dir
 from ldb.app_info import APP_AUTHOR, APP_NAME
 from ldb.exceptions import LDBInstanceNotFoundError
 
-CONFIG_FILENAME = "config"
-
 
 class DirName:
     LDB = ".ldb"
@@ -34,10 +32,11 @@ class ConfigType:
 
 DEFAULT_CONFIG_TYPES = (
     ConfigType.INSTANCE,
+    ConfigType.DEFAULT,
     ConfigType.USER,
     ConfigType.SYSTEM,
 )
-INIT_CONFIG_TYPES = (
+GLOBAL_CONFIG_TYPES = (
     ConfigType.DEFAULT,
     ConfigType.USER,
     ConfigType.SYSTEM,
@@ -79,37 +78,32 @@ def find_instance_dir(path: Path = None) -> Path:
     )
 
 
-def get_instance_config_path(path: Path = None) -> Path:
+def get_instance_config_dir() -> Optional[Path]:
     try:
-        instance_dir = find_instance_dir(path=path)
+        return find_instance_dir()
     except LDBInstanceNotFoundError:
-        return get_default_config_path()
-    return instance_dir / CONFIG_FILENAME
+        return None
 
 
-def get_default_config_path() -> Path:
-    return get_default_instance_dir() / CONFIG_FILENAME
+def get_default_config_dir() -> Path:
+    return get_default_instance_dir()
 
 
-def get_user_config_path() -> Path:
-    return Path(user_config_dir(APP_NAME, APP_AUTHOR)) / CONFIG_FILENAME
+def get_user_config_dir() -> Path:
+    return Path(user_config_dir(APP_NAME, APP_AUTHOR))
 
 
-def get_system_config_path() -> Path:
-    return Path(site_config_dir(APP_NAME, APP_AUTHOR)) / CONFIG_FILENAME
+def get_system_config_dir() -> Path:
+    return Path(site_config_dir(APP_NAME, APP_AUTHOR))
 
 
-CONFIG_PATH_FUNCTIONS: Dict[str, Callable[[], Path]] = {
-    ConfigType.INSTANCE: get_instance_config_path,
-    ConfigType.DEFAULT: get_default_config_path,
-    ConfigType.USER: get_user_config_path,
-    ConfigType.SYSTEM: get_system_config_path,
+CONFIG_DIR_FUNCTIONS: Dict[str, Callable[[], Optional[Path]]] = {
+    ConfigType.INSTANCE: get_instance_config_dir,
+    ConfigType.DEFAULT: get_default_config_dir,
+    ConfigType.USER: get_user_config_dir,
+    ConfigType.SYSTEM: get_system_config_dir,
 }
 
 
-def get_first_config_path(config_types=DEFAULT_CONFIG_TYPES) -> Optional[Path]:
-    for config_type in config_types:
-        path = CONFIG_PATH_FUNCTIONS[config_type]()
-        if path.is_file():
-            return path
-    return None
+def get_config_dir(config_type):
+    return CONFIG_DIR_FUNCTIONS[config_type]()
