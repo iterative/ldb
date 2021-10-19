@@ -6,7 +6,6 @@ from pathlib import Path, PurePath
 from typing import Generator, List
 
 from ldb.exceptions import LDBException
-from ldb.path import ConfigType, Filename, get_config_dir
 
 
 @dataclass
@@ -45,7 +44,7 @@ def create_storage_location(
     add: bool = False,
 ):
     return StorageLocation(
-        path=path,
+        path=os.fspath(Path(path).absolute()),
         protocol=protocol,
         read_access_verified=os.access(path, os.R_OK),
         write_access_verified=os.access(path, os.W_OK),
@@ -54,7 +53,7 @@ def create_storage_location(
 
 
 @contextmanager
-def edit_path(path: Path) -> Generator[StorageConfig, None, None]:
+def edit(path: Path) -> Generator[StorageConfig, None, None]:
     try:
         storage_config: StorageConfig = load_from_path(path)
     except FileNotFoundError:
@@ -63,21 +62,11 @@ def edit_path(path: Path) -> Generator[StorageConfig, None, None]:
     save_to_path(storage_config, path)
 
 
-@contextmanager
-def edit(
-    config_type=ConfigType.INSTANCE,
-) -> Generator[StorageConfig, None, None]:
-    with edit_path(
-        get_config_dir(config_type) / Filename.STORAGE,
-    ) as storage_config:
-        yield storage_config
-
-
 def add_storage(
     storage_config_filepath: Path,
     storage_location: StorageLocation,
 ):
-    with edit_path(storage_config_filepath) as storage_config:
+    with edit(storage_config_filepath) as storage_config:
         for loc in storage_config.locations:
             if loc.fs_id == storage_location.fs_id:
                 old_path = PurePath(loc.path)

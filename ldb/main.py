@@ -1,3 +1,5 @@
+__all__ = ["main"]
+
 import argparse
 import sys
 from typing import List

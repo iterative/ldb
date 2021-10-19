@@ -1,15 +1,16 @@
 import argparse
 from typing import Iterable
 
+from ldb.config import get_ldb_dir
 from ldb.core import init
 from ldb.exceptions import LDBInstanceNotFoundError
-from ldb.path import Filename, find_instance_dir
+from ldb.path import Filename
 from ldb.storage import add_storage, create_storage_location
 
 
 def add_storage_command(options):
     try:
-        ldb_dir = find_instance_dir()
+        ldb_dir = get_ldb_dir()
     except LDBInstanceNotFoundError:
         print("No existing LDB instance found. Creating a new one.")
         ldb_dir = init()
