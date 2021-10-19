@@ -8,7 +8,7 @@ by [DeepLearning.AI](http://deeplearning.AI) to train a ResNet50 model to recogn
 
 ![roman numerals dataset, courtesy DeepLearning.AI](/images/numerals-deeplearningAI.png)
 
-A starter set of ~3,000 labeled training images is provided, and contestants are free to add more (up to 10,000 images) to score on a test. The task aims at demonstrating how performance improvements can be achieved with managing data alone.
+A starter set of ~3,000 labeled training images is provided, and contestants are free to add more (up to 10,000 images) to score on a leaderboard. The task aims at demonstrating how performance improvements can be achieved with managing data alone.
 
 To get the optimal performance on a sufficiently expressive deep learning network, one generally needs to solve the following data problems:
 
