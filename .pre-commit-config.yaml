@@ -20,6 +20,7 @@ repos:
       - id: debug-statements
       - id: destroyed-symlinks
       - id: end-of-file-fixer
+        exclude: '\.md$'
       - id: fix-byte-order-marker
       - id: mixed-line-ending
       - id: no-commit-to-branch
