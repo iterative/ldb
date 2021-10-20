@@ -3,17 +3,14 @@ from typing import Iterable
 
 from ldb.config import get_ldb_dir
 from ldb.core import init
-from ldb.exceptions import LDBInstanceNotFoundError
 from ldb.path import Filename
 from ldb.storage import add_storage, create_storage_location
 
 
 def add_storage_command(options):
-    try:
-        ldb_dir = get_ldb_dir()
-    except LDBInstanceNotFoundError:
-        print("No existing LDB instance found. Creating a new one.")
-        ldb_dir = init()
+    ldb_dir = get_ldb_dir()
+    if not ldb_dir.is_dir():
+        ldb_dir = init(ldb_dir)
     storage_location = create_storage_location(
         path=options.path,
         add=options.add,
@@ -23,7 +20,6 @@ def add_storage_command(options):
         storage_location,
         force=options.force,
     )
-    print(f"Added storage location {repr(storage_location.path)}")
 
 
 def add_parser(

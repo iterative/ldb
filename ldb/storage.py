@@ -110,3 +110,4 @@ def add_storage(
                 )
         new_locations.append(storage_location)
         storage_config.locations = new_locations
+    print(f"Added storage location {repr(storage_location.path)}")
