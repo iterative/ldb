@@ -1,7 +1,6 @@
 __all__ = ["main"]
 
 import argparse
-import sys
 from typing import List
 
 from ldb import __version__
@@ -29,5 +28,6 @@ def main(argv: List[str] = None):
         func = options.func
     except AttributeError:
         main_parser.print_usage()
-        sys.exit(1)
-    return func(options)
+        return 1
+    func(options)
+    return 0

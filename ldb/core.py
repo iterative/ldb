@@ -32,7 +32,7 @@ def init(path: Path = None, force: bool = False) -> Path:
                 "To create an LDB instance here, remove directory contents",
             )
     for subdir in INSTANCE_DIRS:
-        (path / subdir).mkdir(parents=True, exist_ok=True)
+        (path / subdir).mkdir(parents=True)
     print(f"Initialized LDB instance at {repr(os.fspath(path))}")
     return path
 

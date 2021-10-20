@@ -66,6 +66,10 @@ def edit(path: Path) -> Generator[TOMLDocument, None, None]:
     save_to_path(config, path)
 
 
+def get_global_base_parent():
+    return Path.home()
+
+
 def get_ldb_dir() -> Path:
     """Find the directory in which `.ldb/` will be created."""
     if Env.LDB_DIR in os.environ:
@@ -84,11 +88,11 @@ def get_ldb_dir() -> Path:
                 "Found relative path for core.ldb_dir: {repr(ldb_dir_str)}"
                 "Paths in LDB config must be absolute",
             )
-    return Path.home() / GlobalDir.DEFAULT_INSTANCE
+    return get_global_base_parent() / GlobalDir.DEFAULT_INSTANCE
 
 
 def get_default_global_config_dir() -> Path:
-    return Path.home() / GlobalDir.CONFIG
+    return get_global_base_parent() / GlobalDir.BASE
 
 
 def get_instance_config_dirs() -> List[Path]:
