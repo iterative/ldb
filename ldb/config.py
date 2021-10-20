@@ -1,7 +1,7 @@
 import os
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Callable, Dict, Generator, Optional
+from typing import Callable, Dict, Generator, List, Optional
 
 from appdirs import site_config_dir, user_config_dir
 from tomlkit import document, dumps, parse
@@ -11,7 +11,7 @@ from tomlkit.toml_document import TOMLDocument
 from ldb.app_info import APP_AUTHOR, APP_NAME
 from ldb.env import Env
 from ldb.exceptions import LDBException, LDBInstanceNotFoundError
-from ldb.path import DirName, Filename
+from ldb.path import Filename, GlobalDir
 
 
 class ConfigType:
@@ -47,8 +47,7 @@ def load_first_path(
     config_types=DEFAULT_CONFIG_TYPES,
 ) -> Optional[TOMLDocument]:
     for config_type in config_types:
-        config_dir = get_config_dir(config_type)
-        if config_dir is not None:
+        for config_dir in get_config_dirs(config_type):
             path = config_dir / Filename.CONFIG
             try:
                 return load_from_path(path)
@@ -85,46 +84,48 @@ def get_ldb_dir() -> Path:
                 "Found relative path for core.ldb_dir: {repr(ldb_dir_str)}"
                 "Paths in LDB config must be absolute",
             )
-    return Path.home() / DirName.LDB
+    return Path.home() / GlobalDir.DEFAULT_INSTANCE
 
 
-def get_default_instance_dir() -> Path:
-    return Path.home() / DirName.LDB
+def get_default_global_config_dir() -> Path:
+    return Path.home() / GlobalDir.CONFIG
 
 
-def get_instance_config_dir() -> Optional[Path]:
+def get_instance_config_dirs() -> List[Path]:
     try:
-        return get_ldb_dir()
+        return [get_ldb_dir()]
     except LDBInstanceNotFoundError:
-        return None
+        return []
 
 
-def get_default_config_dir() -> Path:
-    return get_default_instance_dir()
-
-
-def get_user_config_dir() -> Optional[Path]:
+def get_user_config_dirs() -> List[Path]:
+    config_dirs = [get_default_global_config_dir()]
     try:
-        config_dir = user_config_dir(APP_NAME, APP_AUTHOR)
+        additional_dir = user_config_dir(APP_NAME, APP_AUTHOR)
     except OSError:
-        return None
-    return Path(config_dir)
+        pass
+    else:
+        config_dirs.append(Path(additional_dir))
+    return config_dirs
 
 
-def get_system_config_dir() -> Optional[Path]:
+def get_system_config_dirs() -> List[Path]:
+    config_dirs = []
     try:
-        config_dir = site_config_dir(APP_NAME, APP_AUTHOR)
+        additional_dir = site_config_dir(APP_NAME, APP_AUTHOR)
     except OSError:
-        return None
-    return Path(config_dir)
+        pass
+    else:
+        config_dirs.append(Path(additional_dir))
+    return config_dirs
 
 
-CONFIG_DIR_FUNCTIONS: Dict[str, Callable[[], Optional[Path]]] = {
-    ConfigType.INSTANCE: get_instance_config_dir,
-    ConfigType.USER: get_user_config_dir,
-    ConfigType.SYSTEM: get_system_config_dir,
+CONFIG_DIR_FUNCTIONS: Dict[str, Callable[[], List[Path]]] = {
+    ConfigType.INSTANCE: get_instance_config_dirs,
+    ConfigType.USER: get_user_config_dirs,
+    ConfigType.SYSTEM: get_system_config_dirs,
 }
 
 
-def get_config_dir(config_type):
+def get_config_dirs(config_type):
     return CONFIG_DIR_FUNCTIONS[config_type]()

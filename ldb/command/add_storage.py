@@ -18,7 +18,11 @@ def add_storage_command(options):
         path=options.path,
         add=options.add,
     )
-    add_storage(ldb_dir / Filename.STORAGE, storage_location)
+    add_storage(
+        ldb_dir / Filename.STORAGE,
+        storage_location,
+        force=options.force,
+    )
     print(f"Added storage location {repr(storage_location.path)}")
 
 
@@ -39,12 +43,14 @@ def add_parser(
         help="Use this location for adding objects",
     )
     parser.add_argument(
-        "path",
-        help="The path to the location",
+        "-f",
+        "--force",
+        action="store_true",
+        default=False,
+        help="Replace a subdirectory with one of its parents",
     )
     parser.add_argument(
-        "name",
-        nargs="?",
-        help="The name of this location",
+        "path",
+        help="The path to the location",
     )
     parser.set_defaults(func=add_storage_command)

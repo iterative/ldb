@@ -65,9 +65,13 @@ def edit(path: Path) -> Generator[StorageConfig, None, None]:
 def add_storage(
     storage_config_filepath: Path,
     storage_location: StorageLocation,
+    force: bool = False,
 ):
     with edit(storage_config_filepath) as storage_config:
+        new_locations = []
+        children = []
         for loc in storage_config.locations:
+            new_is_parent = False
             if loc.fs_id == storage_location.fs_id:
                 old_path = PurePath(loc.path)
                 new_path = PurePath(storage_location.path)
@@ -82,8 +86,27 @@ def add_storage(
                         f"storage location {repr(loc.path)}",
                     )
                 if new_path in old_path.parents:
-                    raise LDBException(
-                        f"{repr(storage_location.path)} is a parent of "
-                        f"existing storage location {repr(loc.path)}",
-                    )
-        storage_config.locations.append(storage_location)
+                    new_is_parent = True
+            if new_is_parent:
+                children.append(loc)
+            else:
+                new_locations.append(loc)
+        if children:
+            children_str = "\n".join(
+                ["  " + repr(loc.path) for loc in children],
+            )
+            if force:
+                print(
+                    "Removing children of parent storage location "
+                    f"{repr(storage_location.path)}:\n"
+                    f"{children_str}\n",
+                )
+            else:
+                raise LDBException(
+                    f"{repr(storage_location.path)} is a parent of "
+                    f"existing storage locations:\n"
+                    f"{children_str}\n"
+                    "Use the --force option to replace them",
+                )
+        new_locations.append(storage_location)
+        storage_config.locations = new_locations

@@ -4,25 +4,7 @@ from pathlib import Path
 
 from ldb.config import get_ldb_dir
 from ldb.exceptions import LDBException
-from ldb.path import DirName
-
-ROOT_DIR_NAMES = (
-    DirName.DATA_OBJECT_INFO,
-    DirName.DATASETS,
-    DirName.OBJECTS,
-)
-OBJECT_DIR_NAMES = (
-    DirName.ANNOTATIONS,
-    DirName.COLLECTIONS,
-    DirName.DATASET_VERSIONS,
-)
-LDB_DIR_STRUCTURE = (
-    Path(DirName.DATA_OBJECT_INFO),
-    Path(DirName.DATASETS),
-    Path(DirName.OBJECTS) / DirName.ANNOTATIONS,
-    Path(DirName.OBJECTS) / DirName.COLLECTIONS,
-    Path(DirName.OBJECTS) / DirName.DATASET_VERSIONS,
-)
+from ldb.path import INSTANCE_DIRS
 
 
 def init(path: Path = None, force: bool = False) -> Path:
@@ -37,7 +19,7 @@ def init(path: Path = None, force: bool = False) -> Path:
             else:
                 raise LDBException(
                     "An LDB instance already exists at "
-                    f"{repr(os.fspath(path))}\n",
+                    f"{repr(os.fspath(path))}\n"
                     "Use the --force option to remove it",
                 )
         else:
@@ -45,11 +27,11 @@ def init(path: Path = None, force: bool = False) -> Path:
                 f"Directory not empty: {repr(os.fspath(path))}\n"
                 "To create an LDB instance here, remove directory contents",
             )
-    for subdir in LDB_DIR_STRUCTURE:
+    for subdir in INSTANCE_DIRS:
         (path / subdir).mkdir(parents=True, exist_ok=True)
     print(f"Initialized LDB instance at {repr(os.fspath(path))}")
     return path
 
 
 def is_ldb_instance(path: Path) -> bool:
-    return all((path / subdir).is_dir() for subdir in LDB_DIR_STRUCTURE)
+    return all((path / subdir).is_dir() for subdir in INSTANCE_DIRS)
