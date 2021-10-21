@@ -73,7 +73,7 @@ def get_global_base_parent():
 
 
 def get_ldb_dir() -> Path:
-    """Find the directory in which `.ldb/` will be created."""
+    """Get the directory we should use as the ldb instance."""
     if Env.LDB_DIR in os.environ:
         return Path(os.environ[Env.LDB_DIR])
     config = load_first(GLOBAL_CONFIG_TYPES)
@@ -135,3 +135,24 @@ CONFIG_DIR_FUNCTIONS: Dict[str, Callable[[], List[Path]]] = {
 
 def get_config_dirs(config_type):
     return CONFIG_DIR_FUNCTIONS[config_type]()
+
+
+def set_default_instance(path: Path, overwrite_existing: bool = False):
+    path = path.absolute()
+    config_dir = get_default_global_config_dir()
+    config_dir.mkdir(parents=True, exist_ok=True)
+    config_file = config_dir / Filename.CONFIG
+    with edit(config_file) as cfg:
+        if "core" in cfg:
+            if not overwrite_existing and "ldb_dir" in cfg["core"]:
+                value = cfg["core"]["ldb_dir"]
+                print(
+                    "Not setting core.ldb_dir as it is already set "
+                    f"to {repr(value)}",
+                )
+                return
+        else:
+            cfg["core"] = {}
+        new_value = os.fspath(path)
+        cfg["core"]["ldb_dir"] = new_value
+    print(f"Set core.ldb_dir to {repr(new_value)}")

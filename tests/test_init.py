@@ -1,17 +1,23 @@
 import os
 
+from ldb import config
 from ldb.core import is_ldb_instance
 from ldb.main import main
+from ldb.path import Filename
 
 
-def test_init_command_new_location(tmp_path):
+def test_init_command_new_location(tmp_path, mock_get_global_base_parent):
     instance_dir = tmp_path / "some" / "location"
     ret = main(["init", os.fspath(instance_dir)])
+    cfg = config.load_from_path(
+        config.get_default_global_config_dir() / Filename.CONFIG,
+    )
     assert ret == 0
     assert is_ldb_instance(instance_dir)
+    assert cfg["core"]["ldb_dir"] == os.fspath(instance_dir)
 
 
-def test_init_command_rel_path(tmp_path):
+def test_init_command_rel_path(tmp_path, mock_get_global_base_parent):
     instance_dir = tmp_path / "some" / "location"
     instance_dir.mkdir(parents=True)
     os.chdir(instance_dir)
@@ -20,7 +26,7 @@ def test_init_command_rel_path(tmp_path):
     assert is_ldb_instance(instance_dir)
 
 
-def test_init_command_existing_instance(tmp_path):
+def test_init_command_existing_instance(tmp_path, mock_get_global_base_parent):
     instance_dir = tmp_path / "some" / "location"
     argv = ["init", os.fspath(instance_dir)]
     ret1 = main(argv)
@@ -29,7 +35,10 @@ def test_init_command_existing_instance(tmp_path):
     assert ret2 == 1
 
 
-def test_init_command_force_existing_instance(tmp_path):
+def test_init_command_force_existing_instance(
+    tmp_path,
+    mock_get_global_base_parent,
+):
     instance_dir = tmp_path / "some" / "location"
     ret1 = main(["init", os.fspath(instance_dir)])
     new_filepath = instance_dir / "file"
