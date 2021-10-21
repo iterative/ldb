@@ -22,6 +22,7 @@ def init(path: Path = None, force: bool = False) -> Path:
                 shutil.rmtree(path)
             else:
                 raise LDBException(
+                    "Initialization failed\n"
                     "An LDB instance already exists at "
                     f"{repr(os.fspath(path))}\n"
                     "Use the --force option to remove it",

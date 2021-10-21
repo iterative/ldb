@@ -48,6 +48,7 @@ repos:
     hooks:
       - id: codespell
         args:
+          - --skip=*.md
           - --ignore-words-list
           - readded
   - repo: https://github.com/asottile/pyupgrade

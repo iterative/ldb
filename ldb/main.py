@@ -1,6 +1,7 @@
 __all__ = ["main"]
 
 import argparse
+import traceback
 from typing import List
 
 from ldb import __version__
@@ -29,5 +30,9 @@ def main(argv: List[str] = None):
     except AttributeError:
         main_parser.print_usage()
         return 1
-    func(options)
+    try:
+        func(options)
+    except Exception:  # pylint: disable=broad-except
+        traceback.print_exc(limit=12)
+        return 1
     return 0

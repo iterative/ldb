@@ -39,11 +39,13 @@ def load_from_path(path: Path) -> TOMLDocument:
 
 def save_to_path(config: TOMLDocument, path: Path):
     config_str = dumps(config)
+    if not path.parent.is_dir():
+        path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w") as file:
         file.write(config_str)
 
 
-def load_first_path(
+def load_first(
     config_types=DEFAULT_CONFIG_TYPES,
 ) -> Optional[TOMLDocument]:
     for config_type in config_types:
@@ -74,7 +76,7 @@ def get_ldb_dir() -> Path:
     """Find the directory in which `.ldb/` will be created."""
     if Env.LDB_DIR in os.environ:
         return Path(os.environ[Env.LDB_DIR])
-    config = load_first_path(GLOBAL_CONFIG_TYPES)
+    config = load_first(GLOBAL_CONFIG_TYPES)
     if config is not None:
         try:
             ldb_dir_str = config["core"]["ldb_dir"]
