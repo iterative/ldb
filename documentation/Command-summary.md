@@ -7,12 +7,12 @@ Every LDB command is linked to an instance where datasets and annotations are st
 [core]
 ldb_dir = '/some/absolute/path'
 ```
-3. `LDB_DIR` environment variable.
+2. `LDB_DIR` environment variable.
 
 If both ways of configuration are present, environment variable takes the precedence.
 If no method of configuration succeeds, all LDB commands will fail, a sole exception being `STAGE` command when used in QuickStart (see below).
 
-# INIT <directory>
+# INIT \<directory\>
 
 `INIT` creates a new LDB instance (repository) in a given directory. 
 
