@@ -48,7 +48,7 @@ def test_add_storage_command_add_update(mock_get_global_base_parent, tmp_path):
     path = tmp_path / "a" / "b" / "c"
     path.mkdir(parents=True, exist_ok=True)
     ret1 = main(["add-storage", os.fspath(path)])
-    ret2 = main(["add-storage", "--add", os.fspath(path)])
+    ret2 = main(["add-storage", "--read-add", os.fspath(path)])
     storage_config = storage.load_from_path(
         mock_get_global_base_parent()
         / GlobalDir.DEFAULT_INSTANCE

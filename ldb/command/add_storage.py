@@ -13,7 +13,7 @@ def add_storage_command(options):
         ldb_dir = init(ldb_dir)
     storage_location = create_storage_location(
         path=options.path,
-        add=options.add,
+        add=options.read_add,
     )
     add_storage(
         ldb_dir / Filename.STORAGE,
@@ -33,7 +33,7 @@ def add_parser(
     )
     parser.add_argument(
         "-a",
-        "--add",
+        "--read-add",
         action="store_true",
         default=False,
         help="Use this location for adding objects",
