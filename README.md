@@ -1,6 +1,6 @@
 # α README
 
-Label Database or **LDB** is an **open-source** tool for **data-centric** AI and machine learning projects. It works **upstream from model training** and intends to index data in the **existing storage or data lake** and use these data pointers to form datasets.
+Label Database or **LDB** is an **open-source** tool for **data-centric** AI and machine learning projects. It works **upstream from model training** and intends to index data in the **existing cloud storages or data lakes** and use these data pointers to form datasets.
 
 **LDB** aims to displace ad-hoc dataset management and de-duplication tools – such as file folders, spreadsheets and SQL databases. In the upstream direction, LDB can interface with labeling software, and in the downstream direction LDB integrates with model-based ML pipelines. 
 
@@ -62,7 +62,7 @@ LDB is not limited to querying existing annotations. Custom ML models can be emp
 
 | Step | Command |
 | --- | --- |
-| Add 100 objects by ML query: | `$  ldb add gs://iterative/COCO-3K —-ml clip ~= "dog dance" --num 100` |
+| Add objects by ML query: | `$  ldb add gs://iterative/COCO-3K —-ml clip ~= "dog dance" --num 100` |
 | Check the status of a staged dataset | `$  ldb list`|
 
 At this point, our workspace holds membership info for all cat images from ImageNet, randomly sampled images from COCO, and ten images that mostly resemble dancing dogs from OpenImage. Once this dataset is ready, it can be instantiated (materialized) in the desired output format to train the model.
