@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 import pytest
@@ -14,8 +15,10 @@ def monkeypatch_session():
 
 
 @pytest.fixture(scope="session", autouse=True)
-def clean_environment(monkeypatch_session):
+def clean_environment(monkeypatch_session, tmp_path_factory):
     """Make sure we have a clean environment and won't write to userspace."""
+    working_dir = tmp_path_factory.mktemp("default_working_dir")
+    os.chdir(working_dir)
     monkeypatch_session.delenv(Env.LDB_DIR, raising=False)
 
     def raise_exc():
