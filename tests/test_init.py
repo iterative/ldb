@@ -7,8 +7,7 @@ from ldb.main import main
 from ldb.path import Filename, GlobalDir
 
 
-def test_init_command_default(monkeypatch, mock_get_global_base_parent):
-    monkeypatch.delenv(Env.LDB_DIR, raising=False)
+def test_init_command_default(mock_get_global_base_parent):
     ret = main(["init"])
     instance_dir = mock_get_global_base_parent() / GlobalDir.DEFAULT_INSTANCE
     assert ret == 0
@@ -24,12 +23,10 @@ def test_init_command_with_ldb_dir_env_var(monkeypatch, tmp_path):
 
 
 def test_init_command_with_ldb_dir_config_var(
-    monkeypatch,
     mock_get_global_base_parent,
     tmp_path,
 ):
     instance_dir = tmp_path / "different" / "location"
-    monkeypatch.delenv(Env.LDB_DIR, raising=False)
     config_path = (
         mock_get_global_base_parent() / GlobalDir.BASE / Filename.CONFIG
     )
@@ -40,28 +37,20 @@ def test_init_command_with_ldb_dir_config_var(
     assert is_ldb_instance(instance_dir)
 
 
-def test_init_command_with_path(monkeypatch, tmp_path):
+def test_init_command_with_path(tmp_path):
     instance_dir = tmp_path / "some" / "location"
     ret = main(["init", os.fspath(instance_dir)])
     assert ret == 0
     assert is_ldb_instance(instance_dir)
 
 
-def test_init_command_default_existing_instance(
-    monkeypatch,
-    mock_get_global_base_parent,
-):
-    monkeypatch.delenv(Env.LDB_DIR, raising=False)
+def test_init_command_default_existing_instance(mock_get_global_base_parent):
     main(["init"])
     ret = main(["init"])
     assert ret == 1
 
 
-def test_init_command_force_existing_instance(
-    monkeypatch,
-    mock_get_global_base_parent,
-):
-    monkeypatch.delenv(Env.LDB_DIR, raising=False)
+def test_init_command_force_existing_instance(mock_get_global_base_parent):
     main(["init"])
     instance_dir = mock_get_global_base_parent() / GlobalDir.DEFAULT_INSTANCE
     new_filepath = instance_dir / "file"

@@ -2,6 +2,8 @@ from pathlib import Path
 
 import pytest
 
+from ldb.env import Env
+
 
 @pytest.fixture(scope="session")
 def monkeypatch_session():
@@ -12,8 +14,9 @@ def monkeypatch_session():
 
 
 @pytest.fixture(scope="session", autouse=True)
-def error_on_get_global_base_parent(monkeypatch_session):
-    """Make sure we don't use actual userspace for file creation."""
+def clean_environment(monkeypatch_session):
+    """Make sure we have a clean environment and won't write to userspace."""
+    monkeypatch_session.delenv(Env.LDB_DIR, raising=False)
 
     def raise_exc():
         raise NotImplementedError(
