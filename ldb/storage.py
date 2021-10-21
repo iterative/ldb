@@ -70,44 +70,62 @@ def add_storage(
     with edit(storage_config_filepath) as storage_config:
         new_locations = []
         children = []
+        to_replace = None
         for loc in storage_config.locations:
-            new_is_parent = False
+            keep = True
             if loc.fs_id == storage_location.fs_id:
                 old_path = PurePath(loc.path)
                 new_path = PurePath(storage_location.path)
                 if old_path == new_path:
-                    raise LDBException(
-                        f"The storage location {repr(storage_location.path)} "
-                        "already exists",
-                    )
-                if old_path in new_path.parents:
+                    if storage_location.read_and_add and not loc.read_and_add:
+                        to_replace = loc
+                        keep = False
+                    else:
+                        raise LDBException(
+                            "The storage location "
+                            f"{repr(storage_location.path)} already exists",
+                        )
+                elif old_path in new_path.parents:
                     raise LDBException(
                         f"{repr(storage_location.path)} is inside existing "
                         f"storage location {repr(loc.path)}",
                     )
-                if new_path in old_path.parents:
-                    new_is_parent = True
-            if new_is_parent:
-                children.append(loc)
-            else:
+                elif new_path in old_path.parents:
+                    children.append(loc)
+                    keep = False
+            if keep:
                 new_locations.append(loc)
-        if children:
+        if to_replace is not None:
+            output = get_update_output(to_replace, storage_location)
+        elif children:
             children_str = "\n".join(
-                ["  " + repr(loc.path) for loc in children],
+                [f"  {repr(loc.path)}" for loc in children],
             )
-            if force:
-                print(
-                    "Removing children of parent storage location "
-                    f"{repr(storage_location.path)}:\n"
-                    f"{children_str}\n",
-                )
-            else:
+            if not force:
                 raise LDBException(
                     f"{repr(storage_location.path)} is a parent of "
                     f"existing storage locations:\n"
                     f"{children_str}\n"
                     "Use the --force option to replace them",
                 )
+            output = (
+                "Added storage location {repr(storage_location.path)}\n"
+                "Removed its children:\n"
+                f"{children_str}",
+            )
+        else:
+            output = f"Added storage location {repr(storage_location.path)}"
+
         new_locations.append(storage_location)
         storage_config.locations = new_locations
-    print(f"Added storage location {repr(storage_location.path)}")
+    print(output)
+
+
+def get_update_output(old: StorageLocation, new: StorageLocation):
+    old_dict = asdict(old)
+    new_dict = asdict(new)
+    updates = [(k, old_dict[k], new_dict[k]) for k in new_dict]
+    update_str = "\n".join(
+        [f"  {k}: {repr(o)} -> {repr(n)}" for k, o, n in updates if o != n],
+    )
+    return "Updated storage location " f"{repr(new.path)}:\n" f"{update_str}\n"
