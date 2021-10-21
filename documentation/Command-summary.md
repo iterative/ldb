@@ -1,33 +1,25 @@
-# ldb init
+# locating an LDB instance
 
-## Quickstart defaults
-The simplest way to create a new repo is without any arguments:
-```
-ldb init
-```
+Every LDB command is linked to an instance, where datasets and annotations are stored. There are two ways to locate an instance:
 
-This is the init method used to automatically jumpstart a new instance if another command such as `ldb add` is used and there's not already an instance.
-
-By default, this will create a new LDB instance at `~/.ldb/personal_instance`, but this location can be changed without passing an argument in a couple of ways.
-
-The first is to set the `LDB_DIR` environment variable:
-```
-LDB_DIR=some/directory/path/ ldb init
-```
-
-The second is to set the `core.ldb_dir` configuration value to an absolute path in the global configuration TOML file, `~/.ldb/config`:
+1. configuration file `~/.ldb/config`
 ```
 [core]
-ldb_dir = '/some/absolute/path
+ldb_dir = '/some/absolute/path'
 ```
+3. `LDB_DIR` environment variable.
 
-## Additional Options
+If both ways of configuration are present, environment variable takes the precedence.
+If no method of configuration succeeds, all LDB commands will fail, a sole exception being `STAGE` command when used in QuickStart (see below).
 
-If the LDB dir specified already contains an existing LDB instance, then the command fails. But if the `-f` or `--force` option is used, then the existing instance will be erased and a new instance initialized.
+# INIT [directory]
 
-If the LDB dir specified contains other data, then the command fails. The user must provide an empty directory.
+`INIT` creates a new LDB instance (repository) in a given directory. 
 
-The `ldb init` command creates the following directory structure in the LDB dir specified. LDB considers any directory containing this structure to an LDB instance regardless of the presence of other files and directories.
+For most enterprise installations, this folder must be a shared directory on a fast disk.
+In addition to creating an instance, INIT makes a configuration file at `~/.ldb/config` and sets `ldb_dir` key in it to a new LDB location (this step is skipped if configuration already exists). 
+
+The `ldb init` command creates the following directory structure in the LDB dir specified:
 ```
 .
 ├── data_object_info/
@@ -37,14 +29,96 @@ The `ldb init` command creates the following directory structure in the LDB dir 
     ├── collections/
     └── dataset_versions/
 ```
+LDB considers any directory containing this structure a valid LDB instance regardless of the presence of other files and directories.
 
-The user can also pass the location of a directory as an argument. This will override the `LDB_DIR` environment variable and the `core.ldb_dir` configuration.
+If `[directory]` argument is omitted, LDB defaults to creating a *private* repository at `~/.ldb/private_instance`. 
+
+Unlike *enterprise* installation, *private* instance has a default `read-add` storage location configured at `~/.ldb/private_instance/add-storage` (see `ADD-STORAGE` below) where the locally added data objects will be copied and stored. The differences between private and enterprise LDB instances are mostly limited to how LDB treats previously unseen data objects (see `ADD` below).
+
+## flags
+
+`-f` or  `--force` 
+
+If a target directory already contains an existing LDB instance,  `INIT` fails printing a reminder to use `--force`.  Using `-f` or  `--force` erases an existing LDB installation.
+
+If the target directory contains any data other than LDB instance, `INIT` fails without an option to override. The user must provide an empty directory.
+
+
+# ADD-STORAGE \<storage-URI\>
+
+`ADD-STORAGE` registers a disk or cloud storage location into LDB and verfies the requisite permisssions. 
+
+LDB keeps track of storage location for several reasons, the primary being engineering discipline (prevent adding objects from random places). LDB supports the following URI types: fs, Google Cloud, AWS, and Azure.
+
+The minimum and sufficient set of permissions for LDB is to **list, stat and read** any objects at `<storage-URI>`. `ADD-STORAGE` fails if permissions are not sufficient, and prints a warning if permissions are too wide. `ADD-STORAGE` also checks if `<storage-URI>` falls within an already registered URI, and prints an error if this the case.
+  
+One exception to read-only permissions rule can be URI marked `read-add` which is required if the user wants to add local data objects outside of the registered storage locations (for example, from within workspace).
+
+## flags
+
+`--read-add` 
+
+Storage location registered with this flag must allow for adding files. 
+
+LDB supports at most one read-add location, and uses it to store _previously unseen_ local data files that `ADD` command may reference outside the registered storage. User can change or remove the `read-add` attribute by repeatedly adding locations with or without this flag. Attempt to add a 2nd `read-add` location to LDB should fail prompting the user to remove the attribute from existing location first. 
+
+`read-add` location should never be used to store any data objects that originate at cloud locations. If an *enterprise* user tries to `ADD` a new object from cloud URI not registered with `ADD-STORAGE`, the command should fail. If a *private-instance* user tries to `ADD` a new object from cloud URI not registered with `ADD-STORAGE`, the command should succeed.
+
+*Use scenario 1.* 
+
+There is one storage location `gs://storage` registered (no flags). User tries to add file `cat1.jpg` from his workspace to a dataset. If LDB does not have an object with identical hashsum already indexed in storage, the ADD command fails:
+
 ```
-ldb init some/path
+$ ldb add ./cat.jpg
+     error: object 0x564d is not in LDB and no read-add location configured
+$
 ```
 
+Note that this scenario does not exist for *private* instances, which have `read-add` location configured by default.
+    
+*Use scenario 2.* 
 
-# ldb add-storage
+There is one storage location `gs://storage` registered (no flags), and another location `gs://add-storage` registered with `read-add`.  User tries to add file `cat1.jpg` from his workspace to a dataset. If LDB does not have an object with identical hashsum already indexed in storage, the ADD command will copy `cat1.jpg` into `gs://add-storage` with unique folder name, index it there, and add the object to a dataset.
+
+```
+$ ldb add ./cat.jpg
+     warning: object 0x564d copied to gs://add-storage/auto-import220211-11
+$
+```
+
+## access configutation
+
+TODO define storage access configuration
+
+
+# STAGE \<ds:<name>[.v<version number>]\>  \<workspace_folder\>
+
+Stage command creates an LDB workspace in a given `<workspace_folder>` for dataset `<name>`. The destination directory is expected to be empty, and command fails otherwise. If `<workspace_folder>` already holds LDB dataset, a description of this dataset is printed, along with a prompt to use `--force`. If `<workspace_folder>` is not empty but does not hold an LDB dataset, just a prompt to use `--force` is printed. 
+    
+```
+TODO outline workspace structure    
+    
+```
+    
+LDB workspace holds an internal structure for a dataset that is being modified. If LDB holds no dataset `<name>`, a new dataset is created. If `<name>` references an existing dataset, it is staged from the repository. One user might have several workspaces in different directories.
+
+Any changes to a dataset (adding & removing objects, adding tags, etc) remain local to workspace until the `COMMIT` command. Most LDB commands – `ADD`, `DEL`, `LIST`, `STATUS`, `TAG`, `INSTANTIATE`, `COMMIT` either require to run from within a workspace, or operate on staged dataset when run from a workspace.
+
+## flags
+
+`-f` or  `--force` 
+
+allow to clobber the workspace.
+    
+## Dataset naming conventions
+
+LDB datasets support names with [a-Z0-9-_] ANSI characters (TODO: worry about UTF charset?). LDB commands require dataset names to have a mandatory `ds:` prefix, and an optional `.v[0-9]*` postfix that denotes a version number.  
+    
+## Quickstart behavior
+
+`STAGE` is the only LDB command that can be run without an LDB instance configured. 
+ As part of the first-time user QuickStart, `STAGE` detects the absence of LDB instances, and runs `ldb init` to create a new private instance before proceeding.
+
 
 # ldb add
 
@@ -55,8 +129,6 @@ ldb init some/path
 # ldb instantiate
 
 # ldb commit
-
-# ldb stage
 
 # ldb index
 
