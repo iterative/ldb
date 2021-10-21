@@ -2,26 +2,26 @@
 
 Every LDB command is linked to an instance where datasets and annotations are stored. There are two ways to locate an instance:
 
-1. configuration file `~/.ldb/config`
+1. Set `core.ldb_dir` in the global configuration file `~/.ldb/config` to an absolute path.
 ```
 [core]
 ldb_dir = '/some/absolute/path'
 ```
-2. `LDB_DIR` environment variable.
+2. Set the `LDB_DIR` environment variable to any absolute or relative path.
 
-If both ways of configuration are present, environment variable takes the precedence.
-If no method of configuration succeeds, all LDB commands will fail, a sole exception being `STAGE` command when used in QuickStart (see below).
+If both ways of configuration are present, the environment variable takes precedence.
+If no method of configuration succeeds, all LDB commands will fail, except for `INIT` which requires a path as an argument, and `STAGE` when used in QuickStart (see below).
 
 # INIT \<directory\>
 
-`INIT` creates a new LDB instance (repository) in a given directory. 
+`INIT` creates a new LDB instance (repository) in the given directory. 
 
 For most enterprise installations, this folder must be a shared directory on a fast disk.
-In addition to creating an instance, INIT makes a configuration file at `~/.ldb/config` and sets `ldb_dir` key in it to a new LDB location (this step is skipped if configuration already exists). 
+In addition to creating an instance, `INIT` makes a global configuration file at `~/.ldb/config` and sets the `core.ldb_dir` key in it to the new LDB location unless it already set to another path.
 
-The `ldb init` command creates the following directory structure:
+Running `ldb init <path>` creates the following directory structure:
 ```
-.
+path/
 ├── data_object_info/
 ├── datasets/
 └── objects/
@@ -39,12 +39,12 @@ Unlike *enterprise* installation, *private* instance has a default `read-add` st
 
 If a target directory already contains an existing LDB instance,  `INIT` fails & prints a reminder to use `--force`.  Using `-f` or  `--force` erases an existing LDB installation.
 
-If the target directory contains any data other than LDB instance, `INIT` fails without an option to override. The user must provide an empty directory.
+If the target directory contains data, but not an LDB instance, `INIT` fails without an option to override. The user must provide an empty directory.
 
 
 # ADD-STORAGE \<storage-URI\>
 
-`ADD-STORAGE` registers a disk (or cloud) storage location into LDB and verifies the requisite permisssions. 
+`ADD-STORAGE` registers a disk (or cloud) storage location into LDB and verifies the requisite permissions. 
 
 LDB keeps track of storage locations for several reasons, the primary being engineering discipline (prevent adding objects from random places), and authentication (see `access configuration` below). 
 
