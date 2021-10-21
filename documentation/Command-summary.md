@@ -12,7 +12,7 @@ ldb_dir = '/some/absolute/path'
 If both ways of configuration are present, environment variable takes the precedence.
 If no method of configuration succeeds, all LDB commands will fail, a sole exception being `STAGE` command when used in QuickStart (see below).
 
-# INIT [directory]
+# INIT <directory>
 
 `INIT` creates a new LDB instance (repository) in a given directory. 
 
@@ -31,9 +31,7 @@ The `ldb init` command creates the following directory structure:
 ```
 LDB considers any directory containing this structure a valid LDB instance regardless of the presence of other files and directories.
 
-If `[directory]` argument is omitted, LDB defaults to creating a *private* repository at `~/.ldb/private_instance`. 
-
-Unlike *enterprise* installation, *private* instance has a default `read-add` storage location configured at `~/.ldb/private_instance/add-storage` (see `ADD-STORAGE` below) where the locally added data objects will be copied and stored. The differences between private and enterprise LDB instances are mostly limited to how LDB treats previously unseen data objects (see `ADD` below).
+Unlike *enterprise* installation, *private* instance has a default `read-add` storage location configured at `~/.ldb/read_add_storage` (see `ADD-STORAGE` below) where the locally added data objects will be copied and stored. The differences between private and enterprise LDB instances are mostly limited to how LDB treats previously unseen data objects (see `ADD` below).
 
 ## flags
 
@@ -119,8 +117,8 @@ LDB datasets support names with [a-Z0-9-_] ANSI characters (TODO: worry about UT
 ## Quickstart 
 
 `STAGE` is the only LDB command that can be run without an LDB instance already configured. 
- As part of the first-time user QuickStart, `STAGE` detects the absence of LDB repositories on a system, and runs `ldb init` to create a new private instance before proceeding with staging.
- 
+As part of the first-time user QuickStart, `STAGE` detects the absence of LDB repositories on a system, and runs `ldb init ~/.ldb/private_instance` to create a new private instance before proceeding with staging.
+
 QuickStart is designed to lower barrier of trying LDB for individual users who need to get value from LDB in 1-2 commands. Under the hood, QuickStart consists of the following components:
 
 * LDB private instance initialized automatically at first use (STAGE command issued).

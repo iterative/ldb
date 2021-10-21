@@ -2,15 +2,12 @@ import os
 import shutil
 from pathlib import Path
 
-from ldb.config import get_ldb_dir
 from ldb.exceptions import LDBException
 from ldb.path import INSTANCE_DIRS
 
 
-def init(path: Path = None, force: bool = False) -> Path:
+def init(path: Path, force: bool = False) -> Path:
     """Create a new LDB instance."""
-    if path is None:
-        path = get_ldb_dir()
     path = path.absolute()
     if path.is_dir() and next(path.iterdir(), None) is not None:
         if is_ldb_instance(path):

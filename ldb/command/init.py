@@ -28,7 +28,6 @@ def add_parser(
     parser.add_argument(
         "path",
         type=Path,
-        nargs="?",
         help="Directory in which to create .ldb/",
     )
     parser.set_defaults(func=init_command)
