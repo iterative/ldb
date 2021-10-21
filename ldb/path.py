@@ -3,7 +3,7 @@ from pathlib import PurePath
 
 class GlobalDir:
     BASE = PurePath(".ldb")
-    DEFAULT_INSTANCE = BASE / "personal_instance"
+    DEFAULT_INSTANCE = BASE / "private_instance"
 
 
 class InstanceDir:
