@@ -14,10 +14,9 @@ If no method of configuration succeeds, all LDB commands will fail, except for `
 
 # INIT \<directory\>
 
-`INIT` creates a new LDB instance (repository) in the given directory. 
+`INIT` creates a new LDB instance (repository) in the given directory. For most enterprise installations, LDB repository folder must be a shared directory on a fast disk. `INIT` does not attempt to locate an active LDB instance, and permits to create a new LDB repository any time.
 
-For most enterprise installations, this folder must be a shared directory on a fast disk.
-In addition to creating an instance, `INIT` makes a global configuration file at `~/.ldb/config` and sets the `core.ldb_dir` key in it to the new LDB location unless it already set to another path.
+In addition to creating an LDB instance, `INIT` makes a global configuration file at `~/.ldb/config` and sets the `core.ldb_dir` key to point to a new LDB location. If configuration files already exist, `INIT` does not change them.
 
 Running `ldb init <path>` creates the following directory structure:
 ```
@@ -29,9 +28,7 @@ path/
     ├── collections/
     └── dataset_versions/
 ```
-LDB considers any directory containing this structure a valid LDB instance regardless of the presence of other files and directories.
-
-Unlike *enterprise* installation, *private* instance has a default `read-add` storage location configured at `~/.ldb/read_add_storage` (see `ADD-STORAGE` below) where the locally added data objects will be copied and stored. The differences between private and enterprise LDB instances are mostly limited to how LDB treats previously unseen data objects (see `ADD` below).
+After finishing, `INIT` prints the summary of work and a reminder on how to change pointer in the config file and env.variable.
 
 ## flags
 
@@ -48,11 +45,11 @@ If the target directory contains data, but not an LDB instance, `INIT` fails wit
 
 LDB keeps track of storage locations for several reasons, the primary being engineering discipline (prevent adding objects from random places), and authentication (see `access configuration` below). 
 
-LDB supports the following storage URI types: fs, Google Cloud, AWS, and Azure. If an *enterprise* user tries to `ADD` a new object from cloud URI not registered with `ADD-STORAGE`, the `ADD` command will fail. If a *private-instance* user tries to `ADD` a new object from cloud URI not registered with `ADD-STORAGE`, the `ADD` command will succeed with a warning (see `read-add` below).
+LDB supports the following storage URI types: fs, Google Cloud, AWS, and Azure. 
 
 The minimum and sufficient set of permissions for LDB is to **list, stat and read** any objects at `<storage-URI>`. `ADD-STORAGE` fails if permissions are not sufficient, and succeeds with a warning if permissions are too wide. `ADD-STORAGE` also checks if `<storage-URI>` falls within an already registered URI, and prints an error if this the case. Permissions are re-checked if existing storage location is added again.
   
-One notable exception to "read-only permissions" can be the URI marked `read-add`, which is required if user wants to add local-fs data objects outside of the registered storage locations (for example, from within personal workspace). This scenario is optional for *enterprise* LDB, and supported by default for *private* instances.
+One notable exception to "read-only permissions" can be the URI marked `read-add`, which is required if user wants to add local-fs data objects outside of the registered storage locations (for example, from within personal workspace). 
 
 ## flags
 
@@ -74,7 +71,6 @@ $ ldb add ./cat.jpg
 $
 ```
 
-Note that this scenario does not exist for *private* instances, which have `read-add` location configured by default, and all cloud locations whitelisted.
     
 *Use scenario 2.* 
 
@@ -86,56 +82,72 @@ $ ldb add ./cat.jpg
 $
 ```
 
-## access configutation
+## access configuration
 
 TODO document storage access configuration here
 
+TODO object lambda access configuration here
 
-# STAGE \<ds:\<name\>[.v\<version number\>]\>  \<workspace_folder\>
 
-`STAGE` command creates an LDB workspace at a given `<workspace_folder>` for dataset `<name>`. The destination directory is expected to be empty, and `STAGE` fails otherwise (TODO: decide if its okay to clobber a clean dataset). If `<workspace_folder>` already has another LDB dataset, a warning and status of this dataset are printed, along with a reminder to use `--force`. If `<workspace_folder>` is not empty but does not hold an LDB dataset, just a reminder for `--force` is printed. 
-    
-```
-TODO outline workspace structure    
-    
-```
+# STAGE \<ds:\<name\>[.v\<number\>]\>  \<workspace_folder\>
+
+`STAGE` command creates an LDB workspace at a given `<workspace_folder>` for dataset `<name>`. The destination directory is expected to be empty. 
+
+If workspace is not empty, `STAGE` checks if it holds a clean dataset, and clobbers it silently if true.  If `<workspace_folder>` holds a dirty dataset, a warning and a status of this dataset are printed, along with a reminder to use `--force` to clobber. If `<workspace_folder>` is not empty but does not hold an LDB dataset, just a reminder for `--force` is printed. 
     
 LDB workspace holds an internal structure for a dataset that is being modified. If LDB repository has no dataset `<name>`, a new dataset is created. If `<name>` references an existing dataset, it is staged out (but not instantiated). One user might have several workspaces in different directories.
 
-Any changes to a dataset (adding & removing objects, adding tags, etc) remain local to workspace until the `COMMIT` command. Most LDB commands – `ADD`, `DEL`, `LIST`, `STATUS`, `TAG`, `INSTANTIATE`, `COMMIT` either require to run from within a workspace, or operate on a staged dataset when launched from a workspace.
+Here is the structure of a workspace folder:
+```
+.ldb_workspace/
+            ├── collection/
+            └── workspace_dataset    
+```
+Any changes to a dataset (adding & removing objects, adding tags, etc) remain local to workspace until the `COMMIT` command. 
+
+Most LDB commands – `ADD`, `DEL`, `LIST`, `STATUS`, `TAG`, `INSTANTIATE`, `COMMIT`, `STATUS` target a staged dataset, and hence must run from a workspace.
 
 ## flags
 
 `-f` or  `--force` 
 
-allow to clobber the workspace.
+allow to clobber the workspace regardless of what is there.
     
 ## Dataset naming conventions
 
-LDB datasets support names with [a-Z0-9-_] ANSI characters (TODO: worry about UTF charset?). LDB commands require dataset names to have a mandatory `ds:` prefix, and may take an optional `.v[0-9]*` postfix that denotes a version number.  
+LDB datasets support names with [a-Z0-9-_] ANSI characters. LDB commands require dataset names to have a mandatory `ds:` prefix, and may take an optional `.v[0-9]*` postfix that denotes a version number.  
     
 ## Quickstart 
 
-`STAGE` is the only LDB command that can be run without an LDB instance already configured. 
-As part of the first-time user QuickStart, `STAGE` detects the absence of LDB repositories on a system, and runs `ldb init ~/.ldb/private_instance` to create a new private instance before proceeding with staging.
+QuickStart allows the individual user to start using LDB immediately by means of creating datasets from cloud and local locations without any additional configuration. QuickStart is designed to lower barrier of trying LDB for individual users who need to get value from LDB in 1-2 commands.
 
-QuickStart is designed to lower barrier of trying LDB for individual users who need to get value from LDB in 1-2 commands. Under the hood, QuickStart consists of the following components:
+`STAGE` is the only LDB command that trigger QuickStart. To do it, `STAGE` confirms the absence of an active LDB repository, and runs `ldb init ~/.ldb/private_instance` to create a new LDB instance before proceeding with staging a dataset.
 
-* LDB private instance initialized automatically at first use (STAGE command issued).
-* Private instance with storage location requirements relaxed: 
-    * Any cloud locations referenced are by default permitted to host data objects without registering with ADD-STORAGE
-    * Any local locations referenced are by default copied into a private LDB instance's read-add folder
+ Under the hood, QuickStart process consists of the following two steps:
 
-This allows the individual user to start using LDB immediately by means of creating datasets from cloud and local locations without additional configuration:
+* LDB instance is created in the user's home directory.
+* Default storage configuration is created with relaxed settings: 
+    * All cloud locations are permitted to host data objects.
+    * A `read-add` folder is created in user's home directory.
+ 
+Below is an example of QuickStart, where user queries a remote storage in two commands after LDB installation:
 
 ```
 $ ldb stage <new-dataset> 
-$ ldb add gs://iterative/roman-numerals
-
+$ ldb add gs://iterative/roman-numerals --query class == "i"
 ```
-Private instances share the repository structure with enterprise instances, so in principle they can be migrated to shared locations. This is not a feature supported in alpha release.
 
-# ADD \<0x\<sum\> | object_path | ds:\<name\>[.v\<num\>] \> [filters]
+# INDEX \<storage folder URI(s) | storage file(s) URI(s) \> [flags]
+
+`INDEX` command updates the LDB repository with data objects and annotations given as arguments. If folder is given and no format flag provided, this folder is traversed recursively to recover objects and annotations in a default format. `INDEX` expects argument URIs to reside within storage locations configured (see `ADD-STORAGE`) and will fail otherwise.
+
+## flags
+
+`--format < COCO | OpenImage | ImageNet` 
+
+Set the expected locations of data objects and annotations according to format specified. 
+
+# ADD  \<0x\<sum\> | object_path | ds:\<name\>[.v\<num\>] \> [filters]
 
 `ADD` is the main command of the application. It adds data sample(s) to a dataset. `ADD` takes object identifiers in various forms as the main argument, and applies optional filters specified as flags. Objects passing the filter are merged with a staged dataset. 
 
@@ -143,9 +155,9 @@ Private instances share the repository structure with enterprise instances, so i
 
 ## object identifier types supported by LDB
 
-0xFFFFFF - full hashsum of an object. Currently LDB uses MD5, so any MD5 hashsum that corresponds to an object indexed by LDB is a valid identifier.
+`0xFFFFFF` - full hashsum of an object. Currently LDB uses MD5, so any MD5 hashsum that corresponds to an object indexed by LDB is a valid identifier.
 
-<object_path> - any valid object path can be accepted as identifier. The path can be fully qualified (down to an object), or reference a folder (in which case it includes all objects that can be recursively listed there). Generally, <object_path> must fall within URIs previously registered with `ADD-STORAGE` (see discussion there). 
+`object_path` - any valid path (registered with `ADD-STORAGE`) to objects and annotations in storage can be accepted as proxy for objects. The path can be fully qualified (down to an object), or reference a folder. In all cases, `ADD` calls `INDEX` to add the content of `object_path` and simultaneously grabs relevant data samples.
 
 Note that LDB data objects can also be addressed by more than one path, so `ADD` command may return less objects than the number of identifiers received on input. Additionally, a dataset only hosts unique objects, so adding an overlapping set of identifiers does not result in duplicates. Possible collisions in annotation versions are resolved in favor of latest revisions.
 
