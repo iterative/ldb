@@ -10,7 +10,7 @@ ldb_dir = '/some/absolute/path'
 2. Set the `LDB_DIR` environment variable to any absolute or relative path.
 
 If both ways of configuration are present, the environment variable takes precedence.
-If no method of configuration succeeds, all LDB commands will fail, except for `INIT` which requires a path as an argument, and `STAGE` when used in QuickStart (see below).
+If no method of configuration succeeds, all LDB commands will fail, except for `INIT` which does not require an existing installation, and `STAGE` when used in QuickStart (see below).
 
 # INIT \<directory\>
 
@@ -28,7 +28,7 @@ path/
     ├── collections/
     └── dataset_versions/
 ```
-After finishing, `INIT` prints the summary of work and a reminder on how to change pointer in the config file and env.variable.
+After finishing, `INIT` prints the summary of work and a reminder on how to change active LDB instance pointers (see locating LDB instance).
 
 ## flags
 
@@ -45,7 +45,7 @@ If the target directory contains data, but not an LDB instance, `INIT` fails wit
 
 LDB keeps track of storage locations for several reasons, the primary being engineering discipline (prevent adding objects from random places), and authentication (see `access configuration` below). 
 
-LDB supports the following storage URI types: fs, Google Cloud, AWS, and Azure. 
+LDB supports the following storage URI types:  fs, Google Cloud, AWS, and Azure. 
 
 The minimum and sufficient set of permissions for LDB is to **list, stat and read** any objects at `<storage-URI>`. `ADD-STORAGE` fails if permissions are not sufficient, and succeeds with a warning if permissions are too wide. `ADD-STORAGE` also checks if `<storage-URI>` falls within an already registered URI, and prints an error if this the case. Permissions are re-checked if existing storage location is added again.
   
@@ -57,7 +57,7 @@ One notable exception to "read-only permissions" can be the URI marked `read-add
 
 Storage location registered with this flag must allow for adding files. 
 
-LDB supports at most one read-add location, and uses it to store _previously unseen_ local data files that `ADD` command may reference outside the registered storage. Users can change or remove the `read-add` attribute by repeatedly adding locations with or without this flag. Attempt to add a 2nd `read-add` location to LDB should fail prompting the user to remove the attribute from existing location first. 
+LDB supports at most one read-add location, and uses it to store _previously unseen_ local data files that `ADD` command may reference outside the registered storage. Users can change or remove the `read-add` attribute by repeatedly adding locations with or without this flag. Attempt to add a second`read-add` location to LDB should fail prompting the user to remove the attribute from existing location first. 
 
 `read-add` location should never be used to store any data objects that originate at cloud locations. 
 
@@ -137,13 +137,15 @@ $ ldb stage <new-dataset>
 $ ldb add gs://iterative/roman-numerals --query class == "i"
 ```
 
-# INDEX \<storage folder URI(s) | storage file(s) URI(s) \> [flags]
+# INDEX \<storage folder URI(s) | storage file(s) URI(s)\> [flags]
 
-`INDEX` command updates the LDB repository with data objects and annotations given as arguments. If folder is given and no format flag provided, this folder is traversed recursively to recover objects and annotations in a default format. `INDEX` expects argument URIs to reside within storage locations configured (see `ADD-STORAGE`) and will fail otherwise.
+`INDEX` command updates the LDB repository with data objects and annotations given as arguments. If folder is given and no format flag provided, this folder is traversed recursively to recover objects and annotations in a default format. 
+
+`INDEX` fails if cannot find annotations conformant with expected format. `INDEX` assumes argument URIs to reside within storage locations configured (see `ADD-STORAGE`) and will fail otherwise.
 
 ## flags
 
-`--format < COCO | OpenImage | ImageNet` 
+`--format < COCO | OpenImage | ImageNet | folder-labels >`  
 
 Set the expected locations of data objects and annotations according to format specified. 
 
