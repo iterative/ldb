@@ -20,20 +20,16 @@ repos:
       - id: debug-statements
       - id: destroyed-symlinks
       - id: end-of-file-fixer
+        exclude: '\.md$'
       - id: fix-byte-order-marker
       - id: mixed-line-ending
       - id: no-commit-to-branch
         args: [--branch, main]
-  - repo: https://github.com/asottile/reorder_python_imports
-    rev: v2.6.0
-    hooks:
-      - id: reorder-python-imports
-        args: [--py37-plus]
-  - hooks:
-      - id: isort
-        language_version: python3
-    repo: https://github.com/timothycrosley/isort
+  - repo: https://github.com/pycqa/isort
     rev: 5.9.3
+    hooks:
+      - id: isort
+        name: isort (python)
   - repo: https://github.com/pre-commit/mirrors-autopep8
     rev: v1.5.7
     hooks:
@@ -52,6 +48,7 @@ repos:
     hooks:
       - id: codespell
         args:
+          - --skip=*.md
           - --ignore-words-list
           - readded
   - repo: https://github.com/asottile/pyupgrade
@@ -75,7 +72,7 @@ repos:
     rev: v1.3.1
     hooks:
       - id: docformatter
-        args: [--in-place]
+        args: [--in-place, --pre-summary-newline]
   - repo: meta
     hooks:
       - id: check-hooks-apply

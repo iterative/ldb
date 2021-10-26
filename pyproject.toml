@@ -2,6 +2,10 @@
 requires = ['setuptools>=42', 'wheel']
 build-backend = 'setuptools.build_meta'
 
+[tool.isort]
+multi_line_output = 3  # VERTICAL_HANGING_INDENT
+include_trailing_comma = true
+
 [tool.mypy]
 show_column_numbers = true
 show_error_codes = true
@@ -79,7 +83,7 @@ limit-inference-results = 100
 
 # List of plugins (as comma separated values of python module names) to load,
 # usually to register additional checkers.
-load-plugins = []
+load-plugins = ['pylint_pytest']
 
 # Pickle collected data for later comparisons.
 persistent = 'yes'
@@ -117,10 +121,12 @@ disable = [
     'deprecated-pragma',
     'file-ignored',
     'locally-disabled',
+    'missing-class-docstring',
     'missing-function-docstring',
     'missing-module-docstring',
     'raw-checker-failed',
     'suppressed-message',
+    'too-few-public-methods',
     'useless-suppression',
     'use-symbolic-message-instead',
 ]
@@ -298,7 +304,7 @@ ignore-imports = 'no'
 ignore-signatures = 'no'
 
 # Minimum lines number of a similarity.
-min-similarity-lines = 4
+min-similarity-lines = 8
 
 
 [tool.pylint.BASIC]
