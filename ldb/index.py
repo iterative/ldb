@@ -8,6 +8,7 @@ from typing import Any, Dict
 import fsspec
 from fsspec.core import OpenFile
 
+from ldb.exceptions import LDBException
 from ldb.path import InstanceDir
 from ldb.utils import (
     format_datetime,
@@ -23,9 +24,26 @@ from ldb.utils import (
 
 def index(path: str, ldb_dir: Path) -> None:
     print(f"Indexing from {repr(os.fspath(path))}")
+    file = fsspec.open(path)
+    if file.fs.isdir(file.path):
+        storage_files = list(fsspec.open_files(path.rstrip("/") + "/**"))
+    elif file.fs.isfile(file.path):
+        path_without_extension = os.path.splitext(file.path)[0]
+        # include the given path with no extension or an alternate extension
+        storage_files = [
+            f
+            for f in fsspec.open_files(path_without_extension + "*")
+            if f.path.startswith(path_without_extension + ".")
+            or f.path == path_without_extension
+        ]
+    else:
+        raise LDBException(
+            f"No file or directory found at {repr(os.fspath(file.path))}",
+        )
+
     annotation_files_by_path = {}
     data_object_files = []
-    for storage_file in fsspec.open_files(path.rstrip("/") + "/**"):
+    for storage_file in storage_files:
         if storage_file.path.endswith(".json"):
             annotation_files_by_path[storage_file.path] = storage_file
         else:

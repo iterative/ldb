@@ -151,3 +151,48 @@ def test_index_same_location_twice(ldb_instance, data_dir):
     assert (
         data_object_meta2["last_indexed"] > data_object_meta1["last_indexed"]
     )
+
+
+def test_index_annotation_file(ldb_instance, data_dir):
+    path = data_dir / "fashion-mnist/original/has_both/train/00002.json"
+    ret = main(["index", f"{os.fspath(path)}"])
+    (
+        data_object_meta_paths,
+        annotation_meta_paths,
+        annotation_paths,
+    ) = get_indexed_data_paths(ldb_instance)
+
+    assert ret == 0
+    assert len(data_object_meta_paths) == 1
+    assert len(annotation_meta_paths) == 1
+    assert len(annotation_paths) == 1
+
+
+def test_index_annotation_file_without_data_object(ldb_instance, data_dir):
+    path = data_dir / "fashion-mnist/original/annotations_only/01011.json"
+    ret = main(["index", f"{os.fspath(path)}"])
+    (
+        data_object_meta_paths,
+        annotation_meta_paths,
+        annotation_paths,
+    ) = get_indexed_data_paths(ldb_instance)
+
+    assert ret == 0
+    assert len(data_object_meta_paths) == 0
+    assert len(annotation_meta_paths) == 0
+    assert len(annotation_paths) == 0
+
+
+def test_index_data_object_file(ldb_instance, data_dir):
+    path = data_dir / "fashion-mnist/original/has_both/train/00002.png"
+    ret = main(["index", f"{os.fspath(path)}"])
+    (
+        data_object_meta_paths,
+        annotation_meta_paths,
+        annotation_paths,
+    ) = get_indexed_data_paths(ldb_instance)
+
+    assert ret == 0
+    assert len(data_object_meta_paths) == 1
+    assert len(annotation_meta_paths) == 1
+    assert len(annotation_paths) == 1
