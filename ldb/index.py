@@ -2,12 +2,12 @@ import getpass
 import json
 import os
 from datetime import datetime
+from pathlib import Path
 from typing import Any, Dict
 
 import fsspec
 from fsspec.core import OpenFile
 
-from ldb.config import get_ldb_dir
 from ldb.path import InstanceDir
 from ldb.utils import (
     format_datetime,
@@ -21,8 +21,7 @@ from ldb.utils import (
 )
 
 
-def index(path: str) -> None:
-    ldb_dir = get_ldb_dir()
+def index(path: str, ldb_dir: Path) -> None:
     print(f"Indexing from {repr(os.fspath(path))}")
     annotation_files_by_path = {}
     data_object_files = []
