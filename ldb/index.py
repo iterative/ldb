@@ -23,15 +23,17 @@ from ldb.utils import (
 
 def index(path: str) -> None:
     ldb_dir = get_ldb_dir()
-    annotation_files = {}
-    data_object_files = {}
+    print(f"Indexing from {repr(os.fspath(path))}")
+    annotation_files_by_path = {}
+    data_object_files = []
     for storage_file in fsspec.open_files(path.rstrip("/") + "/**"):
         if storage_file.path.endswith(".json"):
-            annotation_files[storage_file.path] = storage_file
+            annotation_files_by_path[storage_file.path] = storage_file
         else:
-            data_object_files[storage_file.path] = storage_file
+            data_object_files.append(storage_file)
 
-    for data_object_file in data_object_files.values():
+    num_annotations_indexed = 0
+    for data_object_file in data_object_files:
         hash_str = hash_file(data_object_file)
         data_object_dir = get_hash_path(
             ldb_dir / InstanceDir.DATA_OBJECT_INFO,
@@ -56,7 +58,7 @@ def index(path: str) -> None:
         ]
 
         annotation_path = os.path.splitext(data_object_file.path)[0] + ".json"
-        annotation_file = annotation_files.get(annotation_path)
+        annotation_file = annotation_files_by_path.get(annotation_path)
         if annotation_file is not None:
             ldb_content, user_content = get_annotation_content(annotation_file)
             ldb_content_bytes = json.dumps(ldb_content).encode()
@@ -100,9 +102,15 @@ def index(path: str) -> None:
                     False,
                 ),
             )
+            num_annotations_indexed += 1
 
         for file_path, data, overwrite_existing in to_write:
             write_data_file(file_path, data, overwrite_existing)
+    print(
+        "Finished indexing:\n"
+        f"  Num data objects: {len(data_object_files):9d}\n"
+        f"  Num annotations:  {num_annotations_indexed:9d}",
+    )
 
 
 def construct_data_object_meta(
