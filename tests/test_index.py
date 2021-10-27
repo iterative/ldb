@@ -16,6 +16,7 @@ DATA_OBJECT_KEYS = (
 )
 DATA_OBJECT_FS_KEYS = (
     "fs_id",
+    "protocol",
     "path",
     "size",
     "mode",

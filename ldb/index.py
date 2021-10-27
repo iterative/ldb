@@ -138,6 +138,14 @@ def construct_data_object_meta(
         first_indexed = current_timestamp
         tags = []
         alternate_paths = []
+
+    path_info = {
+        "fs_id": "",
+        "protocol": "file",
+        "path": file.path,
+    }
+    if path_info not in alternate_paths:
+        alternate_paths.append(path_info)
     return {
         "type": get_filetype(file.path),
         "first_indexed": first_indexed,
@@ -146,8 +154,7 @@ def construct_data_object_meta(
         "tags": tags,
         "alternate_paths": alternate_paths,
         "fs": {
-            "fs_id": "",
-            "path": file.path,
+            **path_info,
             "size": fs_info.st_size,
             "mode": fs_info.st_mode,
             "uid": fs_info.st_uid,
