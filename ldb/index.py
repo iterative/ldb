@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any, Dict
 
 import fsspec
-from fsspec.core import OpenFile
+from fsspec.core import OpenFile, OpenFiles
 
 from ldb.exceptions import LDBException
 from ldb.path import InstanceDir
@@ -23,32 +23,17 @@ from ldb.utils import (
 
 
 def index(path: str, ldb_dir: Path) -> None:
-    print(f"Indexing from {repr(os.fspath(path))}")
-    file = fsspec.open(path)
-    if file.fs.isdir(file.path):
-        storage_files = list(fsspec.open_files(path.rstrip("/") + "/**"))
-    elif file.fs.isfile(file.path):
-        path_without_extension = os.path.splitext(file.path)[0]
-        # include the given path with no extension or an alternate extension
-        storage_files = [
-            f
-            for f in fsspec.open_files(path_without_extension + "*")
-            if f.path.startswith(path_without_extension + ".")
-            or f.path == path_without_extension
-        ]
-    else:
+    print(f"Indexing {repr(os.fspath(path))}")
+
+    storage_files = get_storage_files(path)
+    if not storage_files:
         raise LDBException(
-            f"No file or directory found at {repr(os.fspath(file.path))}",
+            f"No files or directories found matching {repr(path)}",
         )
 
-    annotation_files_by_path = {}
-    data_object_files = []
-    for storage_file in storage_files:
-        if storage_file.path.endswith(".json"):
-            annotation_files_by_path[storage_file.path] = storage_file
-        else:
-            data_object_files.append(storage_file)
-
+    data_object_files, annotation_files_by_path = group_storage_files_by_type(
+        storage_files,
+    )
     num_annotations_indexed = 0
     for data_object_file in data_object_files:
         hash_str = hash_file(data_object_file)
@@ -131,6 +116,41 @@ def index(path: str, ldb_dir: Path) -> None:
         f"  Num data objects: {len(data_object_files):9d}\n"
         f"  Num annotations:  {num_annotations_indexed:9d}",
     )
+
+
+def get_storage_files(path: str) -> OpenFiles:
+    fs = fsspec.filesystem("file")
+    matching_paths = fs.expand_path(path)
+    if path.rstrip("/").endswith("/**"):
+        path_globs = [path]
+    else:
+        path_globs = [path.rstrip("/") + "/**"]
+        # find corresponding data object for annotation match and vice versa
+        for mpath in matching_paths:
+            if fs.isfile(mpath):
+                path_globs.append(mpath)
+                p_without_ext, ext = os.path.splitext(path)
+                if ext == ".json":
+                    path_globs.append(p_without_ext)
+                    path_globs.append(p_without_ext + ".*")
+                else:
+                    path_globs.append(p_without_ext + ".json")
+    return fsspec.open_files(path_globs)
+
+
+def group_storage_files_by_type(storage_files: OpenFiles):
+    annotation_files_by_path = {}
+    data_object_files = []
+    seen = set()
+    for storage_file in storage_files:
+        if storage_file.path not in seen:
+            seen.add(storage_file.path)
+            if storage_files.fs.isfile(storage_file.path):
+                if storage_file.path.endswith(".json"):
+                    annotation_files_by_path[storage_file.path] = storage_file
+                else:
+                    data_object_files.append(storage_file)
+    return data_object_files, annotation_files_by_path
 
 
 def construct_data_object_meta(

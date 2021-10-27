@@ -196,3 +196,33 @@ def test_index_data_object_file(ldb_instance, data_dir):
     assert len(data_object_meta_paths) == 1
     assert len(annotation_meta_paths) == 1
     assert len(annotation_paths) == 1
+
+
+def test_index_annotation_file_glob(ldb_instance, data_dir):
+    path = data_dir / "fashion-mnist/original/*/t*/000[0-1]*.json"
+    ret = main(["index", f"{os.fspath(path)}"])
+    (
+        data_object_meta_paths,
+        annotation_meta_paths,
+        annotation_paths,
+    ) = get_indexed_data_paths(ldb_instance)
+
+    assert ret == 0
+    assert len(data_object_meta_paths) == 10
+    assert len(annotation_meta_paths) == 10
+    assert len(annotation_paths) == 6
+
+
+def test_index_glob_dir_path(ldb_instance, data_dir):
+    path = data_dir / "fashion-mnist/original/*/t*/"
+    ret = main(["index", f"{os.fspath(path)}"])
+    (
+        data_object_meta_paths,
+        annotation_meta_paths,
+        annotation_paths,
+    ) = get_indexed_data_paths(ldb_instance)
+
+    assert ret == 0
+    assert len(data_object_meta_paths) == 23
+    assert len(annotation_meta_paths) == 23
+    assert len(annotation_paths) == 10
