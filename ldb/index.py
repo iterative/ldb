@@ -101,6 +101,9 @@ def index(path: str, ldb_dir: Path) -> None:
                     False,
                 ),
             )
+            to_write.append(
+                (data_object_dir / "current", annotation_hash.encode(), True),
+            )
             num_annotations_indexed += 1
 
         for file_path, data, overwrite_existing in to_write:

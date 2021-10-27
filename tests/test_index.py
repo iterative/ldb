@@ -46,7 +46,10 @@ def is_data_object_meta(file_path: Path) -> bool:
 
 
 def is_annotation_meta(file_path: Path) -> bool:
-    return tuple(load_data_file(file_path).keys()) == ANNOTATION_META_KEYS
+    return (
+        tuple(load_data_file(file_path).keys()) == ANNOTATION_META_KEYS
+        and (file_path.parent.parent / "current").is_file()
+    )
 
 
 def is_annotation(dir_path: Path):
@@ -104,9 +107,9 @@ def test_index_first_time(ldb_instance, data_dir):
     assert len(data_object_meta_paths) == 32
     assert len(annotation_meta_paths) == 23
     assert len(annotation_paths) == 10
-    assert len(non_data_object_meta) == 0
-    assert len(non_annotation_meta) == 0
-    assert len(non_annotation) == 0
+    assert non_data_object_meta == []
+    assert non_annotation_meta == []
+    assert non_annotation == []
 
 
 def test_index_twice(ldb_instance, data_dir):
