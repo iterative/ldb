@@ -54,4 +54,4 @@ def ldb_instance(tmp_path, mock_get_global_base_parent) -> Path:
 
 @pytest.fixture
 def data_dir() -> Path:
-    return Path(__file__).parent / "data"
+    return Path(__file__).parent.parent / "data"
