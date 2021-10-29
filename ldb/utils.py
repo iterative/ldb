@@ -57,6 +57,14 @@ def parse_datetime(dt_str: str):
     return datetime.fromisoformat(dt_str)
 
 
+def timestamp_to_datetime(timestamp: float):
+    return datetime.fromtimestamp(timestamp).astimezone()
+
+
+def current_time():
+    return datetime.now().astimezone()
+
+
 def load_data_file(path: Path):
     with path.open() as file:
         return json.load(file)

@@ -1,7 +1,6 @@
 import getpass
 import json
 import os
-from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict
 
@@ -11,6 +10,7 @@ from fsspec.core import OpenFile, OpenFiles
 from ldb.exceptions import LDBException
 from ldb.path import InstanceDir
 from ldb.utils import (
+    current_time,
     format_datetime,
     get_filetype,
     get_hash_path,
@@ -18,6 +18,7 @@ from ldb.utils import (
     hash_file,
     load_data_file,
     parse_datetime,
+    timestamp_to_datetime,
     write_data_file,
 )
 
@@ -43,7 +44,7 @@ def index(path: str, ldb_dir: Path) -> None:
         )
         data_object_meta_file_path = data_object_dir / "meta"
 
-        current_timestamp = format_datetime(datetime.now())
+        current_timestamp = format_datetime(current_time())
         meta_contents = construct_data_object_meta(
             data_object_file,
             load_data_file(data_object_meta_file_path)
@@ -160,9 +161,9 @@ def construct_data_object_meta(
 ):
     fs_info = os.stat(file.path)
 
-    atime = datetime.fromtimestamp(fs_info.st_atime).astimezone()
-    mtime = datetime.fromtimestamp(fs_info.st_mtime).astimezone()
-    ctime = datetime.fromtimestamp(fs_info.st_ctime).astimezone()
+    atime = timestamp_to_datetime(fs_info.st_atime)
+    mtime = timestamp_to_datetime(fs_info.st_mtime)
+    ctime = timestamp_to_datetime(fs_info.st_ctime)
 
     if prev_meta:
         first_indexed = prev_meta["first_indexed"]
@@ -234,7 +235,7 @@ def construct_annotation_meta(
     fs_info = annotation_file.fs.info(annotation_file)
     curr_mtime = fs_info.get("created")
     if curr_mtime is not None:
-        mtimes.append(datetime.fromtimestamp(curr_mtime).astimezone())
+        mtimes.append(timestamp_to_datetime(curr_mtime))
 
     mtime = format_datetime(max(mtimes)) if mtimes else None
     return {
