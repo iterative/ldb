@@ -2,6 +2,8 @@ import argparse
 from pathlib import Path
 from typing import Iterable
 
+import shtab
+
 from ldb.config import set_default_instance
 from ldb.core import init
 
@@ -27,9 +29,9 @@ def add_parser(
         default=False,
         help="Overwrite an existing instance",
     )
-    parser.add_argument(
+    parser.add_argument(  # type: ignore[attr-defined]
         "path",
         type=Path,
         help="Directory in which to initialize new instance",
-    )
+    ).complete = shtab.DIRECTORY
     parser.set_defaults(func=init_command)

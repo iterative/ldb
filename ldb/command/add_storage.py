@@ -1,6 +1,8 @@
 import argparse
 from typing import Iterable
 
+import shtab
+
 from ldb.config import get_ldb_dir
 from ldb.core import init
 from ldb.path import Filename
@@ -45,8 +47,8 @@ def add_parser(
         default=False,
         help="Replace a subdirectory with one of its parents",
     )
-    parser.add_argument(
+    parser.add_argument(  # type: ignore[attr-defined]
         "path",
         help="The path to the location",
-    )
+    ).complete = shtab.DIRECTORY
     parser.set_defaults(func=add_storage_command)

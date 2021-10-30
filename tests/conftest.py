@@ -3,6 +3,8 @@ from pathlib import Path
 
 import pytest
 
+from ldb.config import set_default_instance
+from ldb.core import init
 from ldb.env import Env
 
 
@@ -40,3 +42,16 @@ def mock_get_global_base_parent(monkeypatch, tmp_path):
         get_tmp_global_base_parent,
     )
     return get_tmp_global_base_parent
+
+
+@pytest.fixture
+def ldb_instance(tmp_path, mock_get_global_base_parent) -> Path:
+    instance_dir = tmp_path / "ldb_instance"
+    init(instance_dir)
+    set_default_instance(instance_dir, overwrite_existing=True)
+    return instance_dir
+
+
+@pytest.fixture
+def data_dir() -> Path:
+    return Path(__file__).parent.parent / "data"
