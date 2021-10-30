@@ -1,5 +1,4 @@
 [core]
     remote = storage
 ['remote "storage"']
-    url = s3://ldb-public-temp/remote/ldb
-    region = us-east-2
+    url = https://ldb-public-temp.s3.us-east-2.amazonaws.com/remote/ldb
