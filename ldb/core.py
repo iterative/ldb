@@ -8,7 +8,7 @@ from ldb.path import INSTANCE_DIRS
 
 def init(path: Path, force: bool = False) -> Path:
     """Create a new LDB instance."""
-    path = path.absolute()
+    path = Path(os.path.normpath(path))
     if path.is_dir() and next(path.iterdir(), None) is not None:
         if is_ldb_instance(path):
             if force:

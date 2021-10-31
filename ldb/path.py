@@ -1,9 +1,12 @@
 from pathlib import PurePath
 
 
+class DirName:
+    GLOBAL_BASE = ".ldb"
+
+
 class GlobalDir:
-    BASE = PurePath(".ldb")
-    DEFAULT_INSTANCE = BASE / "private_instance"
+    DEFAULT_INSTANCE = PurePath("private_instance")
 
 
 class InstanceDir:
@@ -13,6 +16,12 @@ class InstanceDir:
     ANNOTATIONS = OBJECTS / "annotations"
     COLLECTIONS = OBJECTS / "collections"
     DATASET_VERSIONS = OBJECTS / "dataset_versions"
+
+
+class WorkspacePath:
+    BASE = PurePath(".ldb_workspace")
+    COLLECTION = BASE / "collection"
+    DATASET = BASE / "workspace_dataset"
 
 
 INSTANCE_DIRS = (

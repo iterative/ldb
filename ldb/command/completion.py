@@ -26,6 +26,6 @@ def add_parser(
         "--shell",
         help="Shell syntax for completions.",
         default="bash",
-        choices=["bash", "zsh"],
+        choices=shtab.SUPPORTED_SHELLS,
     )
     parser.set_defaults(func=completion_command)

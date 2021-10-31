@@ -11,7 +11,7 @@ from tomlkit.toml_document import TOMLDocument
 from ldb.app_info import APP_AUTHOR, APP_NAME
 from ldb.env import Env
 from ldb.exceptions import LDBException, LDBInstanceNotFoundError
-from ldb.path import Filename, GlobalDir
+from ldb.path import DirName, Filename, GlobalDir
 
 
 class ConfigType:
@@ -68,8 +68,16 @@ def edit(path: Path) -> Generator[TOMLDocument, None, None]:
     save_to_path(config, path)
 
 
-def get_global_base_parent():
+def _get_global_base_parent():
     return Path.home()
+
+
+def get_global_base():
+    return _get_global_base_parent() / DirName.GLOBAL_BASE
+
+
+def get_default_instance_dir():
+    return get_global_base() / GlobalDir.DEFAULT_INSTANCE
 
 
 def get_ldb_dir() -> Path:
@@ -90,11 +98,7 @@ def get_ldb_dir() -> Path:
                 "Found relative path for core.ldb_dir: {repr(ldb_dir_str)}"
                 "Paths in LDB config must be absolute",
             )
-    return get_global_base_parent() / GlobalDir.DEFAULT_INSTANCE
-
-
-def get_default_global_config_dir() -> Path:
-    return get_global_base_parent() / GlobalDir.BASE
+    return get_default_instance_dir()
 
 
 def get_instance_config_dirs() -> List[Path]:
@@ -105,7 +109,7 @@ def get_instance_config_dirs() -> List[Path]:
 
 
 def get_user_config_dirs() -> List[Path]:
-    config_dirs = [get_default_global_config_dir()]
+    config_dirs = [get_global_base()]
     try:
         additional_dir = user_config_dir(APP_NAME, APP_AUTHOR)
     except OSError:
@@ -139,7 +143,7 @@ def get_config_dirs(config_type):
 
 def set_default_instance(path: Path, overwrite_existing: bool = False):
     path = path.absolute()
-    config_dir = get_default_global_config_dir()
+    config_dir = get_global_base()
     config_dir.mkdir(parents=True, exist_ok=True)
     config_file = config_dir / Filename.CONFIG
     with edit(config_file) as cfg:
