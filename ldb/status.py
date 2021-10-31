@@ -1,4 +1,5 @@
 import os
+from dataclasses import dataclass
 from pathlib import Path
 
 import fsspec
@@ -6,6 +7,13 @@ import fsspec
 from ldb.exceptions import LDBException
 from ldb.path import WorkspacePath
 from ldb.utils import load_data_file
+
+
+@dataclass
+class WorkspaceStatus:
+    dataset_name: str
+    num_data_objects: int
+    num_annotations: int
 
 
 def status(workspace_path: Path):
@@ -18,7 +26,6 @@ def status(workspace_path: Path):
             "No workspace dataset staged at "
             f"{repr(os.fspath(workspace_path))}",
         ) from exc
-    ds_name = workspace_ds["dataset_name"]
     collection_dir_path = workspace_path / WorkspacePath.COLLECTION
     num_data_objects = 0
     num_annotations = 0
@@ -27,8 +34,8 @@ def status(workspace_path: Path):
             if open_file.read():
                 num_annotations += 1
         num_data_objects += 1
-    print(
-        f"On ds:{ds_name} in {repr(os.fspath(workspace_path))}\n"
-        f"  Num data objects: {num_data_objects:8d}\n"
-        f"  Num annotations:  {num_annotations:8d}",
+    return WorkspaceStatus(
+        dataset_name=workspace_ds["dataset_name"],
+        num_data_objects=num_data_objects,
+        num_annotations=num_annotations,
     )
