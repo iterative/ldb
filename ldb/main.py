@@ -1,14 +1,36 @@
 __all__ = ["main"]
 
-import traceback
+import logging
+from logging import Logger
 from typing import List
 
 from ldb.cli import get_main_parser
+
+logger = logging.getLogger(__name__)
+
+
+class QuietFormatter(logging.Formatter):
+    def formatException(self, ei):
+        return ""
+
+
+def configure_logger(log: Logger, verbose: bool):
+    log = logging.getLogger("ldb")
+    handler = logging.StreamHandler()
+    fmt = "%(levelname)s: %(message)s"
+    if verbose:
+        formatter = logging.Formatter(fmt)
+    else:
+        formatter = QuietFormatter(fmt)
+    handler.setFormatter(formatter)
+    log.addHandler(handler)
 
 
 def main(argv: List[str] = None):
     main_parser = get_main_parser()
     options = main_parser.parse_args(args=argv)
+    configure_logger(logger, options.verbose > 0)
+
     try:
         func = options.func
     except AttributeError:
@@ -16,7 +38,7 @@ def main(argv: List[str] = None):
         return 1
     try:
         func(options)
-    except Exception:  # pylint: disable=broad-except
-        traceback.print_exc(limit=12)
+    except Exception as exc:  # pylint: disable=broad-except
+        logger.exception(exc)
         return 1
     return 0

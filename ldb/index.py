@@ -2,7 +2,7 @@ import getpass
 import json
 import os
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 import fsspec
 from fsspec.core import OpenFile, OpenFiles
@@ -23,7 +23,7 @@ from ldb.utils import (
 )
 
 
-def index(path: str, ldb_dir: Path) -> None:
+def index(path: str, ldb_dir: Path) -> List[str]:
     print(f"Indexing {repr(os.fspath(path))}")
 
     storage_files = get_storage_files(path)
@@ -35,9 +35,11 @@ def index(path: str, ldb_dir: Path) -> None:
     data_object_files, annotation_files_by_path = group_storage_files_by_type(
         storage_files,
     )
+    data_object_hashes = []
     num_annotations_indexed = 0
     for data_object_file in data_object_files:
         hash_str = hash_file(data_object_file)
+        data_object_hashes.append(hash_str)
         data_object_dir = get_hash_path(
             ldb_dir / InstanceDir.DATA_OBJECT_INFO,
             hash_str,
@@ -117,6 +119,7 @@ def index(path: str, ldb_dir: Path) -> None:
         f"  Num data objects: {len(data_object_files):9d}\n"
         f"  Num annotations:  {num_annotations_indexed:9d}",
     )
+    return data_object_hashes
 
 
 def get_storage_files(path: str) -> OpenFiles:
