@@ -1,4 +1,5 @@
 import argparse
+import os
 from pathlib import Path
 from typing import Iterable
 
@@ -8,7 +9,13 @@ from ldb.status import status
 
 
 def status_command(options):
-    status(options.path)
+    ws_status = status(options.path)
+    print(
+        f"On ds:{ws_status.dataset_name} in "
+        f"{repr(os.fspath(options.path))}\n"
+        f"  Num data objects: {ws_status.num_data_objects:8d}\n"
+        f"  Num annotations:  {ws_status.num_annotations:8d}",
+    )
 
 
 def add_parser(

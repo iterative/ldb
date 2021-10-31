@@ -31,3 +31,13 @@ def test_stage_new_dataset(tmp_path, global_base):
         tuple(load_data_file(workspace_path / WorkspacePath.DATASET))
         == WORKSPACE_DATASET_KEYS
     )
+
+
+def test_stage_populated_directory(tmp_path, global_base):
+    workspace_path = tmp_path / "workspace"
+    workspace_path.mkdir()
+    (workspace_path / "file.txt").touch()
+    ds_name = "my-new-dataset"
+    ret = main(["stage", f"ds:{ds_name}", f"{os.fspath(workspace_path)}"])
+    assert ret == 1
+    assert not is_workspace(workspace_path)
