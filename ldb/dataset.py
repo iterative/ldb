@@ -34,7 +34,7 @@ class DatasetVersion:
     @classmethod
     def parse(cls, attr_dict: Dict[str, Any]) -> "DatasetVersion":
         attr_dict = attr_dict.copy()
-        commit_info = CommitInfo(**attr_dict.pop("commit_info"))
+        commit_info = CommitInfo.parse(attr_dict.pop("commit_info"))
         return cls(commit_info=commit_info, **attr_dict)
 
     def format(self) -> Dict[str, Any]:
