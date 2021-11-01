@@ -4,6 +4,7 @@ from ldb import __version__
 from ldb.command import (
     add,
     add_storage,
+    commit,
     completion,
     index,
     init,
@@ -46,6 +47,7 @@ def get_main_parser():
     add.add_parser(subparsers, parents)
     add_storage.add_parser(subparsers, parents)
     completion.add_parser(subparsers, parents)
+    commit.add_parser(subparsers, parents)
     index.add_parser(subparsers, parents)
     init.add_parser(subparsers, parents)
     stage.add_parser(subparsers, parents)
