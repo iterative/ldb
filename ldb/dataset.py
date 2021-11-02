@@ -1,8 +1,15 @@
 from dataclasses import asdict, dataclass, fields
 from datetime import datetime
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from ldb.utils import format_datetime, parse_datetime
+from ldb.path import InstanceDir, WorkspacePath
+from ldb.utils import (
+    format_datetime,
+    get_hash_path,
+    load_data_file,
+    parse_datetime,
+)
 
 
 @dataclass
@@ -61,3 +68,42 @@ class Dataset:
         attr_dict = asdict(self)
         created = format_datetime(attr_dict.pop("created"))
         return dict(created=created, **attr_dict)
+
+
+def workspace_dataset_is_clean(ldb_dir, workspace_dataset_obj, workspace_path):
+    parent = workspace_dataset_obj["parent"]
+    ws_collection = collection_dir_to_object(
+        workspace_path / WorkspacePath.COLLECTION,
+    )
+    if parent is None:
+        return not ws_collection
+    collection_obj = get_collection(ldb_dir, parent)
+    return ws_collection == collection_obj
+
+
+def collection_dir_to_object(collection_dir: Path) -> Dict[str, Optional[str]]:
+    items = []
+    for path in collection_dir.glob("*/*"):
+        data_object_hash = path.parent.name + path.name
+        with path.open() as file:
+            annotation_hash = file.read()
+        items.append((data_object_hash, annotation_hash or None))
+    items.sort()
+    return dict(items)
+
+
+def get_collection(ldb_dir, dataset_version_hash):
+    dataset_version_obj = DatasetVersion.parse(
+        load_data_file(
+            get_hash_path(
+                ldb_dir / InstanceDir.DATASET_VERSIONS,
+                dataset_version_hash,
+            ),
+        ),
+    )
+    return load_data_file(
+        get_hash_path(
+            ldb_dir / InstanceDir.COLLECTIONS,
+            dataset_version_obj.collection,
+        ),
+    )

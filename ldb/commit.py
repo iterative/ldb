@@ -3,12 +3,19 @@ import json
 import os
 from pathlib import Path
 
-from ldb.core import collection_dir_to_object
-from ldb.dataset import CommitInfo, Dataset, DatasetVersion
+from ldb.dataset import (
+    CommitInfo,
+    Dataset,
+    DatasetVersion,
+    collection_dir_to_object,
+    workspace_dataset_is_clean,
+)
 from ldb.exceptions import LDBException
 from ldb.path import InstanceDir, WorkspacePath
 from ldb.utils import (
     current_time,
+    format_dataset_identifier,
+    format_datetime,
     get_hash_path,
     hash_data,
     load_data_file,
@@ -30,6 +37,14 @@ def commit(
             "No workspace dataset staged at "
             f"{repr(os.fspath(workspace_path))}",
         ) from exc
+    dataset_name = workspace_ds["dataset_name"]
+    if workspace_dataset_is_clean(
+        ldb_dir,
+        workspace_ds,
+        workspace_path,
+    ):
+        print("Nothing to commit.")
+        return
     collection_obj = collection_dir_to_object(
         workspace_path / WorkspacePath.COLLECTION,
     )
@@ -48,7 +63,6 @@ def commit(
     curr_time = current_time()
     username = getpass.getuser()
 
-    dataset_name = workspace_ds["dataset_name"]
     dataset_file_path = ldb_dir / InstanceDir.DATASETS / dataset_name
     try:
         dataset = Dataset.parse(load_data_file(dataset_file_path))
@@ -77,10 +91,21 @@ def commit(
         dataset_version_hash,
     )
     write_data_file(dataset_version_file_path, dataset_version_bytes)
-
     dataset.versions.append(dataset_version_hash)
     write_data_file(
         dataset_file_path,
         json.dumps(dataset.format()).encode(),
         overwrite_existing=True,
     )
+    workspace_ds["staged_time"] = format_datetime(curr_time)
+    workspace_ds["parent"] = dataset_version_hash
+    write_data_file(
+        workspace_dataset_path,
+        json.dumps(workspace_ds).encode(),
+        overwrite_existing=True,
+    )
+    dataset_identifier = format_dataset_identifier(
+        dataset_name,
+        dataset_version.version,
+    )
+    print(f"Committed {dataset_identifier}")

@@ -1,7 +1,6 @@
 import os
 import shutil
 from pathlib import Path
-from typing import Dict, Optional
 
 from ldb.exceptions import LDBException
 from ldb.path import INSTANCE_DIRS
@@ -38,14 +37,3 @@ def init(path: Path, force: bool = False) -> Path:
 
 def is_ldb_instance(path: Path) -> bool:
     return all((path / subdir).is_dir() for subdir in INSTANCE_DIRS)
-
-
-def collection_dir_to_object(collection_dir: Path) -> Dict[str, Optional[str]]:
-    items = []
-    for path in collection_dir.glob("*/*"):
-        data_object_hash = path.parent.name + path.name
-        with path.open() as file:
-            annotation_hash = file.read()
-        items.append((data_object_hash, annotation_hash or None))
-    items.sort()
-    return dict(items)
