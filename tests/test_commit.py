@@ -147,3 +147,40 @@ def test_commit_multiple_versions(tmp_path, data_dir, ldb_instance):
         d.commit_info.commit_message for d in dataset_version_objects
     ] == expected_messages
     assert dataset_obj == expected_dataset_obj
+
+
+def test_commit_empty_workspace_dataset(tmp_path, data_dir, ldb_instance):
+    workspace_path = tmp_path / "workspace"
+    stage_workspace(
+        workspace_path,
+        {
+            "dataset_name": "my-dataset",
+            "staged_time": format_datetime(current_time()),
+            "parent": None,
+            "tags": [],
+        },
+    )
+    os.chdir(workspace_path)
+    ret = main(["commit", "create a new dataset"])
+    assert ret == 0
+    assert list((ldb_instance / InstanceDir.DATASETS).iterdir()) == []
+
+
+def test_commit_no_changes(tmp_path, data_dir, ldb_instance):
+    workspace_path = tmp_path / "workspace"
+    dir_to_add = data_dir / "fashion-mnist/original"
+    stage_workspace(
+        workspace_path,
+        {
+            "dataset_name": "my-dataset",
+            "staged_time": format_datetime(current_time()),
+            "parent": None,
+            "tags": [],
+        },
+    )
+    os.chdir(workspace_path)
+    main(["add", f"{os.fspath(dir_to_add)}"])
+    main(["commit", "create a new dataset"])
+    ret = main(["commit", "create another version"])
+    assert ret == 0
+    assert len(list((ldb_instance / InstanceDir.DATASETS).iterdir())) == 1
