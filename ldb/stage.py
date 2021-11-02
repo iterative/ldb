@@ -2,6 +2,7 @@ import json
 import os
 import shutil
 from pathlib import Path
+from typing import Dict, List, Optional, Tuple
 
 from ldb.dataset import Dataset, DatasetVersion, workspace_dataset_is_clean
 from ldb.exceptions import LDBException
@@ -25,26 +26,24 @@ def stage(
 ) -> None:
     workspace_path = Path(os.path.normpath(workspace_path))
     if workspace_path.is_dir():
-        workspace_ds_path = workspace_path / WorkspacePath.DATASET
-        curr_workspace_ds_obj = (
-            load_data_file(workspace_ds_path)
-            if workspace_ds_path.is_file()
-            else None
-        )
-        if (
-            not force
-            and curr_workspace_ds_obj is not None
-            and not workspace_dataset_is_clean(
-                ldb_dir,
-                curr_workspace_ds_obj,
-                workspace_path,
-            )
-        ):
-            raise LDBException(
-                "Uncommitted dataset in workspace: "
-                f"{repr(os.fspath(workspace_path))}\n"
-                "Use the --force option to delete changes and overwrite",
-            )
+        if not force:
+            try:
+                curr_workspace_ds_obj = load_data_file(
+                    workspace_path / WorkspacePath.DATASET,
+                )
+            except FileNotFoundError:
+                pass
+            else:
+                if not workspace_dataset_is_clean(
+                    ldb_dir,
+                    curr_workspace_ds_obj,
+                    workspace_path,
+                ):
+                    raise LDBException(
+                        "Unsaved changes to workspace dataset.\n"
+                        "Commit changes or use the --force option to "
+                        "overwrite them.",
+                    )
         for path in workspace_path.iterdir():
             if path.name != WorkspacePath.BASE.name or not path.is_dir():
                 if force:
@@ -149,14 +148,20 @@ def stage_workspace(
     )
 
 
-def get_workspace_collection_path_data(path, collection_obj):
+def get_workspace_collection_path_data(
+    path: Path,
+    collection_obj: Dict[str, Optional[str]],
+) -> List[Tuple[Path, str]]:
     return [
         (get_hash_path(path, data_object_hash), annotation_hash or "")
         for data_object_hash, annotation_hash in collection_obj.items()
     ]
 
 
-def write_workspace_collection(collection_path, path_data):
+def write_workspace_collection(
+    collection_path: Path,
+    path_data: List[Tuple[Path, str]],
+):
     for path, data in path_data:
         path.parent.mkdir(exist_ok=True)
         with path.open("w") as file:

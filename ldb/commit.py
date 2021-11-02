@@ -27,7 +27,7 @@ def commit(
     ldb_dir: Path,
     workspace_path: Path,
     message: str,
-):
+) -> None:
     workspace_path = Path(os.path.normpath(workspace_path))
     workspace_dataset_path = workspace_path / WorkspacePath.DATASET
     try:
