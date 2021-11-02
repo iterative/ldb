@@ -8,9 +8,9 @@ from ldb.dataset import (
     Dataset,
     DatasetVersion,
     collection_dir_to_object,
+    get_workspace_dataset,
     workspace_dataset_is_clean,
 )
-from ldb.exceptions import LDBException
 from ldb.path import InstanceDir, WorkspacePath
 from ldb.utils import (
     current_time,
@@ -29,14 +29,7 @@ def commit(
     message: str,
 ) -> None:
     workspace_path = Path(os.path.normpath(workspace_path))
-    workspace_dataset_path = workspace_path / WorkspacePath.DATASET
-    try:
-        workspace_ds = load_data_file(workspace_dataset_path)
-    except FileNotFoundError as exc:
-        raise LDBException(
-            "No workspace dataset staged at "
-            f"{repr(os.fspath(workspace_path))}",
-        ) from exc
+    workspace_ds = get_workspace_dataset(workspace_path)
     dataset_name = workspace_ds["dataset_name"]
     if workspace_dataset_is_clean(
         ldb_dir,
@@ -100,7 +93,7 @@ def commit(
     workspace_ds["staged_time"] = format_datetime(curr_time)
     workspace_ds["parent"] = dataset_version_hash
     write_data_file(
-        workspace_dataset_path,
+        workspace_path / WorkspacePath.DATASET,
         json.dumps(workspace_ds).encode(),
         overwrite_existing=True,
     )

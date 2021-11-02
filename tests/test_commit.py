@@ -1,5 +1,6 @@
 import getpass
 import os
+from pathlib import Path
 
 from ldb.dataset import CommitInfo, Dataset, DatasetVersion
 from ldb.main import main
@@ -127,9 +128,10 @@ def test_commit_multiple_versions(tmp_path, data_dir, ldb_instance):
 
     commit_times = [d.commit_info.commit_time for d in dataset_version_objects]
     expected_messages = [
-        "add fashion-mnist/original/has_both/test",
-        "add fashion-mnist/original/has_both/train/000[01]*",
-        "add fashion-mnist/updates",
+        "add " + os.fspath(Path("fashion-mnist/original/has_both/test")),
+        "add "
+        + os.fspath(Path("fashion-mnist/original/has_both/train/000[01]*")),
+        "add " + os.fspath(Path("fashion-mnist/updates")),
     ]
     expected_dataset_obj = Dataset(
         name="my-dataset",
@@ -184,3 +186,12 @@ def test_commit_no_changes(tmp_path, data_dir, ldb_instance):
     ret = main(["commit", "create another version"])
     assert ret == 0
     assert len(list((ldb_instance / InstanceDir.DATASETS).iterdir())) == 1
+
+
+def test_commit_without_workspace_dataset(tmp_path, data_dir, ldb_instance):
+    workspace_path = tmp_path / "workspace"
+    workspace_path.mkdir()
+    os.chdir(workspace_path)
+    ret = main(["commit", "create a new dataset"])
+    assert ret == 1
+    assert list((ldb_instance / InstanceDir.DATASETS).iterdir()) == []

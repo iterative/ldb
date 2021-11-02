@@ -1,8 +1,10 @@
+import os
 from dataclasses import asdict, dataclass, fields
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from ldb.exceptions import LDBException
 from ldb.path import InstanceDir, WorkspacePath
 from ldb.utils import (
     format_datetime,
@@ -68,6 +70,16 @@ class Dataset:
         attr_dict = asdict(self)
         created = format_datetime(attr_dict.pop("created"))
         return dict(created=created, **attr_dict)
+
+
+def get_workspace_dataset(workspace_path: Path) -> Dict[str, Any]:
+    try:
+        return load_data_file(workspace_path / WorkspacePath.DATASET)
+    except FileNotFoundError as exc:
+        raise LDBException(
+            "No workspace dataset staged at "
+            f"{repr(os.fspath(workspace_path))}",
+        ) from exc
 
 
 def workspace_dataset_is_clean(ldb_dir, workspace_dataset_obj, workspace_path):
