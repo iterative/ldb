@@ -1,4 +1,5 @@
 import os
+import shutil
 from pathlib import Path
 
 from ldb.main import main
@@ -226,3 +227,33 @@ def test_index_glob_dir_path(ldb_instance, data_dir):
     assert len(data_object_meta_paths) == 23
     assert len(annotation_meta_paths) == 23
     assert len(annotation_paths) == 10
+
+
+def test_index_hidden_paths(ldb_instance, data_dir, tmp_path):
+    src_path = data_dir / "fashion-mnist/original/has_both/train"
+    storage_path = tmp_path / "storage"
+    path_pairs = [
+        ("00002", ".00002"),
+        ("00007", "dir/.dir/00007"),
+        ("00010", "dir/.dir/.00010"),
+        ("00015", "dir/dir/.00015"),
+        ("00016", "dir/dir/00016"),
+    ]
+    for src, dest in path_pairs:
+        dest_path = storage_path / dest
+        dest_path.parent.mkdir(parents=True, exist_ok=True)
+        for ext in ".json", ".png":
+            shutil.copy2(
+                (src_path / src).with_suffix(ext),
+                dest_path.with_suffix(ext),
+            )
+    ret = main(["index", f"{os.fspath(storage_path)}"])
+    (
+        data_object_meta_paths,
+        annotation_meta_paths,
+        annotation_paths,
+    ) = get_indexed_data_paths(ldb_instance)
+    assert ret == 0
+    assert len(data_object_meta_paths) == 1
+    assert len(annotation_meta_paths) == 1
+    assert len(annotation_paths) == 1
