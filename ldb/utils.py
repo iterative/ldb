@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import BinaryIO
 
 from fsspec.core import OpenFile
+from tqdm import tqdm
 
 CHUNK_SIZE = 2 ** 20
 HASH_DIR_SPLIT_POINT = 3
@@ -18,14 +19,13 @@ def write_data_file(
 ) -> None:
     if overwrite_existing or not file_path.exists():
         file_path.parent.mkdir(parents=True, exist_ok=True)
-        with file_path.open("wb") as file:
-            file.write(data)
+        file_path.write_bytes(data)
 
 
-def hash_file(file: OpenFile) -> str:
+def hash_file(file: OpenFile, progress: bool = False) -> str:
     hash_obj = hashlib.md5()
     with file as open_file:
-        for chunk in iter_chunks(open_file):
+        for chunk in iter_chunks(open_file, progress=progress):
             hash_obj.update(chunk)
     return hash_obj.hexdigest()
 
@@ -34,11 +34,16 @@ def hash_data(data: bytes) -> str:
     return hashlib.md5(data).hexdigest()
 
 
-def iter_chunks(file: BinaryIO, chunk_size: int = CHUNK_SIZE):
-    data = file.read(chunk_size)
-    while data:
-        yield data
-        data = file.read(chunk_size)
+def iter_chunks(
+    file: BinaryIO,
+    chunk_size: int = CHUNK_SIZE,
+    progress: bool = False,
+):
+    with tqdm.wrapattr(file, "read", disable=not progress) as fobj:
+        data = fobj.read(chunk_size)
+        while data:
+            yield data
+            data = fobj.read(chunk_size)
 
 
 def get_hash_path(base_dir: Path, hash_str: str) -> Path:
