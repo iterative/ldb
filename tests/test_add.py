@@ -15,8 +15,7 @@ def get_staged_object_file_paths(workspace_path: Path) -> List[Path]:
 def num_empty_files(paths: Iterable[Path]) -> int:
     num = 0
     for path in paths:
-        with path.open() as file:
-            num += bool(file.read())
+        num += bool(path.read_text())
     return num
 
 

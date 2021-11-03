@@ -12,7 +12,7 @@ from ldb.exceptions import LDBInstanceNotFoundError
 def commit_command(options):
     ldb_dir = get_ldb_dir()
     if not is_ldb_instance(ldb_dir):
-        raise LDBInstanceNotFoundError(f"{repr(os.fspath(ldb_dir))}")
+        raise LDBInstanceNotFoundError(f"{os.fspath(ldb_dir)!r}")
     commit(ldb_dir, Path("."), options.message)
 
 

@@ -49,7 +49,6 @@ def get_current_annotation_hash(ldb_dir: Path, data_object_hash: str) -> str:
     if not data_object_dir.is_dir():
         raise LDBException(f"No data object found: {data_object_hash}")
     try:
-        with (data_object_dir / "current").open() as file:
-            return file.read()
+        return (data_object_dir / "current").read_text()
     except FileNotFoundError:
         return ""

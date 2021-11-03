@@ -54,7 +54,7 @@ def stage(
                 else:
                     raise LDBException(
                         "Workspace is not empty: "
-                        f"{repr(os.fspath(workspace_path))}\n"
+                        f"{os.fspath(workspace_path)!r}\n"
                         "Use the --force option to delete workspace contents",
                     )
     ds_name, ds_version_num = parse_dataset_identifier(dataset_identifier)
@@ -78,7 +78,7 @@ def stage(
         collection_obj = None
         message = (
             f"Staged new dataset {dataset_identifier} "
-            f"at {repr(os.fspath(workspace_path))}"
+            f"at {os.fspath(workspace_path)!r}"
         )
     else:
         if ds_version_num is None:
@@ -117,8 +117,7 @@ def stage(
             ds_version_num,
         )
         message = (
-            f"Staged {curr_dataset_ident} "
-            f"at {repr(os.fspath(workspace_path))}"
+            f"Staged {curr_dataset_ident} " f"at {os.fspath(workspace_path)!r}"
         )
     stage_workspace(workspace_path, workspace_ds_obj, collection_obj)
     print(message)
@@ -164,8 +163,7 @@ def write_workspace_collection(
 ):
     for path, data in path_data:
         path.parent.mkdir(exist_ok=True)
-        with path.open("w") as file:
-            file.write(data)
+        path.write_text(data)
     path_set = {d[0] for d in path_data}
     for path in collection_path.glob("*/*"):
         if path not in path_set:

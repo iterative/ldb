@@ -23,13 +23,17 @@ class CommitInfo:
     @classmethod
     def parse(cls, attr_dict: Dict[str, str]) -> "CommitInfo":
         attr_dict = attr_dict.copy()
-        commit_time = parse_datetime(attr_dict.pop("commit_time"))
-        return cls(commit_time=commit_time, **attr_dict)
+        return cls(
+            commit_time=parse_datetime(attr_dict.pop("commit_time")),
+            **attr_dict,
+        )
 
     def format(self) -> Dict[str, str]:
         attr_dict = asdict(self)
-        commit_time = format_datetime(attr_dict.pop("commit_time"))
-        return dict(commit_time=commit_time, **attr_dict)
+        return dict(
+            commit_time=format_datetime(attr_dict.pop("commit_time")),
+            **attr_dict,
+        )
 
 
 @dataclass
@@ -43,14 +47,18 @@ class DatasetVersion:
     @classmethod
     def parse(cls, attr_dict: Dict[str, Any]) -> "DatasetVersion":
         attr_dict = attr_dict.copy()
-        commit_info = CommitInfo.parse(attr_dict.pop("commit_info"))
-        return cls(commit_info=commit_info, **attr_dict)
+        return cls(
+            commit_info=CommitInfo.parse(attr_dict.pop("commit_info")),
+            **attr_dict,
+        )
 
     def format(self) -> Dict[str, Any]:
         attr_dict = {f.name: getattr(self, f.name) for f in fields(self)}
-        commit_info = attr_dict.pop("commit_info").format()
-        tags = attr_dict.pop("tags").copy()
-        return dict(commit_info=commit_info, tags=tags, **attr_dict)
+        return dict(
+            commit_info=attr_dict.pop("commit_info").format(),
+            tags=attr_dict.pop("tags").copy(),
+            **attr_dict,
+        )
 
 
 @dataclass
@@ -82,7 +90,11 @@ def get_workspace_dataset(workspace_path: Path) -> Dict[str, Any]:
         ) from exc
 
 
-def workspace_dataset_is_clean(ldb_dir, workspace_dataset_obj, workspace_path):
+def workspace_dataset_is_clean(
+    ldb_dir: Path,
+    workspace_dataset_obj: Dict[str, Any],
+    workspace_path: Path,
+) -> bool:
     parent = workspace_dataset_obj["parent"]
     ws_collection = collection_dir_to_object(
         workspace_path / WorkspacePath.COLLECTION,
@@ -97,14 +109,16 @@ def collection_dir_to_object(collection_dir: Path) -> Dict[str, Optional[str]]:
     items = []
     for path in collection_dir.glob("*/*"):
         data_object_hash = path.parent.name + path.name
-        with path.open() as file:
-            annotation_hash = file.read()
-        items.append((data_object_hash, annotation_hash or None))
+        annotation_hash = path.read_text() or None
+        items.append((data_object_hash, annotation_hash))
     items.sort()
     return dict(items)
 
 
-def get_collection(ldb_dir, dataset_version_hash):
+def get_collection(
+    ldb_dir: Path,
+    dataset_version_hash: str,
+) -> Dict[str, Optional[str]]:
     dataset_version_obj = DatasetVersion.parse(
         load_data_file(
             get_hash_path(
