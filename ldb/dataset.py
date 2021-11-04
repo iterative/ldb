@@ -2,7 +2,7 @@ import os
 from dataclasses import asdict, dataclass, fields
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Generator, List, Optional, Tuple
 
 from ldb.exceptions import LDBException
 from ldb.path import InstanceDir, WorkspacePath
@@ -133,3 +133,15 @@ def get_collection(
             dataset_version_obj.collection,
         ),
     )
+
+
+def get_root_collection_items(
+    ldb_dir: Path,
+) -> Generator[Tuple[str, Optional[str]], None, None]:
+    for path in (ldb_dir / InstanceDir.DATA_OBJECT_INFO).glob("*/*"):
+        data_object_hash = path.parent.name + path.name
+        try:
+            annotation_hash: Optional[str] = (path / "current").read_text()
+        except FileNotFoundError:
+            annotation_hash = None
+        yield data_object_hash, annotation_hash

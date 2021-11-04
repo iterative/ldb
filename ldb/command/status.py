@@ -5,14 +5,26 @@ from typing import Iterable
 
 import shtab
 
+from ldb.config import get_ldb_dir
+from ldb.core import is_ldb_instance
+from ldb.exceptions import LDBInstanceNotFoundError
 from ldb.status import status
 
 
 def status_command(options):
-    ws_status = status(options.path)
+    ldb_dir = get_ldb_dir()
+    if not is_ldb_instance(ldb_dir):
+        raise LDBInstanceNotFoundError(
+            f"No LDB instance at {os.fspath(ldb_dir)!r}",
+        )
+    ws_status = status(ldb_dir, options.path)
+    if ws_status.dataset_name == "root":
+        prefix = ""
+    else:
+        prefix = f"Workspace directory: {os.fspath(options.path)!r}\n"
     print(
-        f"On ds:{ws_status.dataset_name} in "
-        f"{repr(os.fspath(options.path))}\n"
+        f"{prefix}"
+        f"ds:{ws_status.dataset_name}\n"
         f"  Num data objects: {ws_status.num_data_objects:8d}\n"
         f"  Num annotations:  {ws_status.num_annotations:8d}",
     )

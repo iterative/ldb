@@ -2,9 +2,8 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 
-import fsspec
-
-from ldb.dataset import get_workspace_dataset
+from ldb.dataset import get_root_collection_items, get_workspace_dataset
+from ldb.exceptions import LDBException
 from ldb.path import WorkspacePath
 
 
@@ -15,19 +14,31 @@ class WorkspaceStatus:
     num_annotations: int
 
 
-def status(workspace_path: Path):
+def status(ldb_dir: Path, workspace_path: Path):
     workspace_path = Path(os.path.normpath(workspace_path))
-    workspace_ds = get_workspace_dataset(workspace_path)
-    collection_dir_path = workspace_path / WorkspacePath.COLLECTION
+    try:
+        workspace_ds = get_workspace_dataset(workspace_path)
+    except LDBException:
+        item_gen = get_root_collection_items(ldb_dir)
+        ds_name = "root"
+    else:
+        item_gen = get_collection_dir_items(workspace_path)
+        ds_name = workspace_ds["dataset_name"]
+
     num_data_objects = 0
     num_annotations = 0
-    for file in fsspec.open_files(os.fspath(collection_dir_path / "*/*")):
-        with file as open_file:
-            if open_file.read():
-                num_annotations += 1
+    for _, annotation_hash in item_gen:
         num_data_objects += 1
+        num_annotations += bool(annotation_hash)
     return WorkspaceStatus(
-        dataset_name=workspace_ds["dataset_name"],
+        dataset_name=ds_name,
         num_data_objects=num_data_objects,
         num_annotations=num_annotations,
     )
+
+
+def get_collection_dir_items(workspace_path: Path):
+    for path in (workspace_path / WorkspacePath.COLLECTION).glob("*/*"):
+        data_object_hash = path.parent.name + path.name
+        annotation_hash = path.read_text()
+        yield data_object_hash, annotation_hash
