@@ -107,8 +107,9 @@ def index(ldb_dir: Path, paths: List[str]) -> List[str]:
             to_write.append(
                 (annotation_meta_file_path, annotation_meta_bytes, True),
             )
-            if not annotation_dir.is_dir():
+            if not annotation_meta_file_path.is_file():
                 num_new_annotations += 1
+            if not annotation_dir.is_dir():
                 to_write.append(
                     (annotation_dir / "ldb", ldb_content_bytes, False),
                 )
