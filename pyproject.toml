@@ -41,6 +41,13 @@ exclude = '''
 )/
 '''
 
+[tool.autopep8]
+max_line_length = 79
+ignore = ["E203"]
+in-place = true
+recursive = true
+aggressive = 3
+
 [tool.pylint.MASTER]
 
 # A comma-separated list of package or module names from where C extensions may
@@ -383,12 +390,13 @@ function-naming-style = 'snake_case'
 
 # Good variable names which should always be accepted, separated by a comma.
 good-names = [
+    'Run',
+    'ex',
     'fs',
     'i',
     'j',
     'k',
-    'ex',
-    'Run',
+    'ls',
     '_',
 ]
 
