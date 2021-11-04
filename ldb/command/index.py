@@ -13,7 +13,9 @@ from ldb.index import index
 def index_command(options):
     ldb_dir = get_ldb_dir()
     if not is_ldb_instance(ldb_dir):
-        raise LDBInstanceNotFoundError(f"{repr(os.fspath(ldb_dir))}")
+        raise LDBInstanceNotFoundError(
+            f"No LDB instance at {os.fspath(ldb_dir)!r}",
+        )
     index(ldb_dir, options.paths)
 
 
