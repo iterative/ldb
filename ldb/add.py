@@ -4,19 +4,16 @@ from typing import List
 
 from ldb.exceptions import LDBException
 from ldb.path import InstanceDir, WorkspacePath
-from ldb.utils import get_hash_path, load_data_file
+from ldb.utils import (
+    format_dataset_identifier,
+    get_hash_path,
+    load_workspace_dataset,
+)
 
 
 def add(ldb_dir: Path, workspace_path: Path, data_object_hashes: List[str]):
     workspace_path = Path(os.path.normpath(workspace_path))
-    workspace_dataset_path = workspace_path / WorkspacePath.DATASET
-    try:
-        workspace_ds = load_data_file(workspace_dataset_path)
-    except FileNotFoundError as exc:
-        raise LDBException(
-            "No workspace dataset staged at "
-            f"{repr(os.fspath(workspace_path))}",
-        ) from exc
+    workspace_ds = load_workspace_dataset(workspace_path)
     ds_name = workspace_ds["dataset_name"]
     collection_dir_path = workspace_path / WorkspacePath.COLLECTION
     collection_dir_path.mkdir(exist_ok=True)
@@ -42,5 +39,5 @@ def add(ldb_dir: Path, workspace_path: Path, data_object_hashes: List[str]):
         collection_member_path.parent.mkdir(exist_ok=True)
         with collection_member_path.open("w") as file:
             file.write(annotation_hash)
-    ds_ident = "ds:" + ds_name
-    print(f"Added {len(data_object_hashes)} data objects to {repr(ds_ident)}")
+    ds_ident = format_dataset_identifier(ds_name)
+    print(f"Added {len(data_object_hashes)} data objects to {ds_ident!r}")

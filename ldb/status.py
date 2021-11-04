@@ -4,9 +4,8 @@ from pathlib import Path
 
 import fsspec
 
-from ldb.exceptions import LDBException
 from ldb.path import WorkspacePath
-from ldb.utils import load_data_file
+from ldb.utils import load_workspace_dataset
 
 
 @dataclass
@@ -18,14 +17,7 @@ class WorkspaceStatus:
 
 def status(workspace_path: Path):
     workspace_path = Path(os.path.normpath(workspace_path))
-    workspace_dataset_path = workspace_path / WorkspacePath.DATASET
-    try:
-        workspace_ds = load_data_file(workspace_dataset_path)
-    except FileNotFoundError as exc:
-        raise LDBException(
-            "No workspace dataset staged at "
-            f"{repr(os.fspath(workspace_path))}",
-        ) from exc
+    workspace_ds = load_workspace_dataset(workspace_path)
     collection_dir_path = workspace_path / WorkspacePath.COLLECTION
     num_data_objects = 0
     num_annotations = 0
