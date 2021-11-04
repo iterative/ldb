@@ -3,14 +3,8 @@ from pathlib import Path
 
 from ldb.main import main
 from ldb.path import WorkspacePath
-from ldb.utils import load_data_file
-
-WORKSPACE_DATASET_KEYS = (
-    "dataset_name",
-    "staged_time",
-    "parent",
-    "tags",
-)
+from ldb.utils import current_time, load_data_file
+from ldb.workspace import WorkspaceDataset
 
 
 def is_workspace(dir_path: Path):
@@ -25,12 +19,21 @@ def test_stage_new_dataset(tmp_path, global_base):
     workspace_path = tmp_path / "workspace"
     ds_name = "my-new-dataset"
     ret = main(["stage", f"ds:{ds_name}", f"{os.fspath(workspace_path)}"])
+
+    curr_time = current_time()
+    workspace_ds = WorkspaceDataset.parse(
+        load_data_file(workspace_path / WorkspacePath.DATASET),
+    )
+    workspace_ds.staged_time = curr_time
+    expected_workspace_ds = WorkspaceDataset(
+        dataset_name=ds_name,
+        staged_time=curr_time,
+        parent="",
+        tags=[],
+    )
     assert ret == 0
     assert is_workspace(workspace_path)
-    assert (
-        tuple(load_data_file(workspace_path / WorkspacePath.DATASET))
-        == WORKSPACE_DATASET_KEYS
-    )
+    assert workspace_ds == expected_workspace_ds
 
 
 def test_stage_populated_directory(tmp_path, global_base):
