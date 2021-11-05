@@ -4,18 +4,18 @@ import shutil
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
-from ldb.dataset import Dataset, DatasetVersion, workspace_dataset_is_clean
-from ldb.exceptions import LDBException
+from ldb.dataset import Dataset, DatasetVersion
+from ldb.exceptions import LDBException, WorkspaceError
 from ldb.path import InstanceDir, WorkspacePath
 from ldb.utils import (
     current_time,
     format_dataset_identifier,
-    format_datetime,
     get_hash_path,
     load_data_file,
     parse_dataset_identifier,
     write_data_file,
 )
+from ldb.workspace import WorkspaceDataset, workspace_dataset_is_clean
 
 
 def stage(
@@ -52,18 +52,18 @@ def stage(
                     else:
                         path.unlink()
                 else:
-                    raise LDBException(
+                    raise WorkspaceError(
                         "Workspace is not empty: "
                         f"{os.fspath(workspace_path)!r}\n"
                         "Use the --force option to delete workspace contents",
                     )
     ds_name, ds_version_num = parse_dataset_identifier(dataset_identifier)
-    workspace_ds_obj = {
-        "dataset_name": ds_name,
-        "staged_time": format_datetime(current_time()),
-        "parent": None,
-        "tags": [],
-    }
+    workspace_ds_obj = WorkspaceDataset(
+        dataset_name=ds_name,
+        staged_time=current_time(),
+        parent="",
+        tags=[],
+    )
     try:
         dataset_obj = Dataset.parse(
             load_data_file(ldb_dir / InstanceDir.DATASETS / ds_name),
@@ -104,8 +104,8 @@ def stage(
                 ),
             ),
         )
-        workspace_ds_obj["parent"] = dataset_version_hash
-        workspace_ds_obj["tags"] = dataset_version_obj.tags.copy()
+        workspace_ds_obj.parent = dataset_version_hash
+        workspace_ds_obj.tags = dataset_version_obj.tags.copy()
         collection_obj = load_data_file(
             get_hash_path(
                 ldb_dir / InstanceDir.COLLECTIONS,
@@ -125,11 +125,11 @@ def stage(
 
 def stage_workspace(
     workspace_path: Path,
-    workspace_ds_obj,
+    workspace_ds_obj: WorkspaceDataset,
     collection_obj=None,
 ) -> None:
     collection_path = workspace_path / WorkspacePath.COLLECTION
-    workspace_ds_bytes = json.dumps(workspace_ds_obj).encode()
+    workspace_ds_bytes = json.dumps(workspace_ds_obj.format()).encode()
     if collection_obj:
         collection_path_data = get_workspace_collection_path_data(
             collection_path,

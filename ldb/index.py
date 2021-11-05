@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any, Dict, Iterable, List
 
 import fsspec
-from fsspec.core import OpenFile, OpenFiles
+from fsspec.core import OpenFile
 
 from ldb.exceptions import LDBException
 from ldb.path import InstanceDir
@@ -137,24 +137,46 @@ def index(ldb_dir: Path, paths: List[str]) -> List[str]:
     return data_object_hashes
 
 
-def get_storage_files(path: str) -> OpenFiles:
+def get_storage_files(path: str) -> List[OpenFile]:
+    """
+    Get storage files for indexing that match the glob, `path`.
+
+    Because every file path under `path` is returned, any final "/**" does not
+    change the result. First `path` is expanded with any final "/**" removed
+    and any matching files are included in the result. Corresponding data
+    object file paths are added for matched annotation file paths and vice
+    versa. Then everything under matched directories will be added to the
+    result.
+
+    The current implementation may result in some directory paths and some
+    duplicate paths being included, which should be filtered out.
+    """
+    if is_hidden_fsspec_path(path):
+        return []
     fs = fsspec.filesystem("file")
-    matching_paths = fs.expand_path(path)
-    if path.rstrip("/").endswith("/**"):
-        path_globs = [path]
-    else:
-        path_globs = [path.rstrip("/") + "/**"]
-        # find corresponding data object for annotation match and vice versa
-        for mpath in matching_paths:
-            if fs.isfile(mpath):
-                path_globs.append(mpath)
-                p_without_ext, ext = os.path.splitext(path)
-                if ext == ".json":
-                    path_globs.append(p_without_ext)
-                    path_globs.append(p_without_ext + ".*")
-                else:
-                    path_globs.append(p_without_ext + ".json")
-    return fsspec.open_files(path_globs)
+    # "path/**", "path/**/**" or "path/**/" are treated the same as just "path"
+    # so we strip off any "/**" or "/**/" at the end
+    path = re.sub(r"(?:/\*\*)+/?$", "", path)
+    # find corresponding data object for annotation match and vice versa
+    # for any files the expanded `path` glob matches
+    file_match_globs = []
+    for mpath in fs.expand_path(path):
+        if not is_hidden_fsspec_path(mpath) and fs.isfile(mpath):
+            file_match_globs.append(mpath)
+            p_without_ext, ext = os.path.splitext(path)
+            if ext == ".json":
+                file_match_globs.append(p_without_ext)
+                file_match_globs.append(p_without_ext + ".*")
+            else:
+                file_match_globs.append(p_without_ext + ".json")
+    files = (
+        list(fsspec.open_files(file_match_globs)) if file_match_globs else []
+    )
+    # capture everything under any directories the `path` glob matches
+    for file in fsspec.open_files(path + "/**"):
+        if not is_hidden_fsspec_path(file.path):
+            files.append(file)
+    return files
 
 
 def is_hidden_fsspec_path(path: str):

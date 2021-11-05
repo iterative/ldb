@@ -1,8 +1,10 @@
 import os
 import shutil
 from pathlib import Path
+from typing import Optional
 
-from ldb.exceptions import LDBException
+from ldb.config import get_ldb_dir
+from ldb.exceptions import LDBException, LDBInstanceNotFoundError
 from ldb.path import INSTANCE_DIRS
 
 
@@ -37,3 +39,13 @@ def init(path: Path, force: bool = False) -> Path:
 
 def is_ldb_instance(path: Path) -> bool:
     return all((path / subdir).is_dir() for subdir in INSTANCE_DIRS)
+
+
+def get_ldb_instance(path: Optional[Path] = None):
+    if path is None:
+        path = get_ldb_dir()
+    if not is_ldb_instance(path):
+        raise LDBInstanceNotFoundError(
+            f"No LDB instance at {os.fspath(path)!r}",
+        )
+    return path
