@@ -1,24 +1,21 @@
 import argparse
-import os
 from pathlib import Path
 from typing import Iterable
 
 import shtab
 
-from ldb.config import get_ldb_dir
-from ldb.core import is_ldb_instance
-from ldb.exceptions import LDBInstanceNotFoundError
+from ldb.core import get_ldb_instance
 from ldb.ls import ls
 from ldb.utils import format_dataset_identifier
+from ldb.workspace import load_workspace_dataset
 
 
 def ls_command(options):
-    ldb_dir = get_ldb_dir()
-    if not is_ldb_instance(ldb_dir):
-        raise LDBInstanceNotFoundError(f"{os.fspath(ldb_dir)!r}")
-    ds_workspace, ds_listings = ls(ldb_dir, options.path)
-    ds_ident = format_dataset_identifier(ds_workspace["dataset_name"])
+    ldb_dir = get_ldb_instance()
+    workspace_ds = load_workspace_dataset(options.path)
+    ds_ident = format_dataset_identifier(workspace_ds.dataset_name)
     print(f"Listing {ds_ident} members:\n")
+    ds_listings = ls(ldb_dir, options.path)
     print(f"{'Data Object Hash':37} {'Annot.':8} Data Object Path")
     for item in ds_listings:
         annotation_version = str(item.annotation_version or "-")
