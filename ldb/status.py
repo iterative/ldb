@@ -4,8 +4,8 @@ from pathlib import Path
 
 import fsspec
 
-from ldb.dataset import get_workspace_dataset
 from ldb.path import WorkspacePath
+from ldb.workspace import load_workspace_dataset
 
 
 @dataclass
@@ -17,7 +17,7 @@ class WorkspaceStatus:
 
 def status(workspace_path: Path):
     workspace_path = Path(os.path.normpath(workspace_path))
-    workspace_ds = get_workspace_dataset(workspace_path)
+    workspace_ds = load_workspace_dataset(workspace_path)
     collection_dir_path = workspace_path / WorkspacePath.COLLECTION
     num_data_objects = 0
     num_annotations = 0
@@ -27,7 +27,7 @@ def status(workspace_path: Path):
                 num_annotations += 1
         num_data_objects += 1
     return WorkspaceStatus(
-        dataset_name=workspace_ds["dataset_name"],
+        dataset_name=workspace_ds.dataset_name,
         num_data_objects=num_data_objects,
         num_annotations=num_annotations,
     )

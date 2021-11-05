@@ -4,7 +4,7 @@ import shutil
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
-from ldb.dataset import Dataset, DatasetVersion, workspace_dataset_is_clean
+from ldb.dataset import Dataset, DatasetVersion
 from ldb.exceptions import LDBException, WorkspaceError
 from ldb.path import InstanceDir, WorkspacePath
 from ldb.utils import (
@@ -15,7 +15,7 @@ from ldb.utils import (
     parse_dataset_identifier,
     write_data_file,
 )
-from ldb.workspace import WorkspaceDataset
+from ldb.workspace import WorkspaceDataset, workspace_dataset_is_clean
 
 
 def stage(

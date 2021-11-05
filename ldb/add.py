@@ -4,11 +4,8 @@ from typing import List
 
 from ldb.exceptions import LDBException
 from ldb.path import InstanceDir, WorkspacePath
-from ldb.utils import (
-    format_dataset_identifier,
-    get_hash_path,
-    load_workspace_dataset,
-)
+from ldb.utils import format_dataset_identifier, get_hash_path
+from ldb.workspace import load_workspace_dataset
 
 
 def add(
@@ -17,8 +14,7 @@ def add(
     data_object_hashes: List[str],
 ) -> None:
     workspace_path = Path(os.path.normpath(workspace_path))
-    workspace_ds = load_workspace_dataset(workspace_path)
-    ds_name = workspace_ds["dataset_name"]
+    ds_name = load_workspace_dataset(workspace_path).dataset_name
     collection_dir_path = workspace_path / WorkspacePath.COLLECTION
     collection_dir_path.mkdir(exist_ok=True)
 

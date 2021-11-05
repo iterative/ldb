@@ -55,7 +55,7 @@ def test_commit_new_dataset(tmp_path, data_dir, ldb_instance):
     expected_username = getpass.getuser()
     expected_dataset_version_obj = DatasetVersion(
         version=1,
-        parent=None,
+        parent="",
         collection=collection_hash,
         tags=[],
         commit_info=CommitInfo(
@@ -159,7 +159,7 @@ def test_commit_empty_workspace_dataset(tmp_path, data_dir, ldb_instance):
         WorkspaceDataset(
             dataset_name="my-dataset",
             staged_time=current_time(),
-            parent=None,
+            parent="",
             tags=[],
         ),
     )
@@ -177,7 +177,7 @@ def test_commit_no_changes(tmp_path, data_dir, ldb_instance):
         WorkspaceDataset(
             dataset_name="my-dataset",
             staged_time=current_time(),
-            parent=None,
+            parent="",
             tags=[],
         ),
     )
