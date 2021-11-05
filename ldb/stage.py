@@ -1,44 +1,174 @@
 import json
 import os
+import shutil
 from pathlib import Path
+from typing import Dict, List, Optional, Tuple
 
-from ldb.exceptions import WorkspaceError
-from ldb.path import WorkspacePath
-from ldb.utils import current_time, parse_dataset_identifier, write_data_file
-from ldb.workspace import WorkspaceDataset
+from ldb.dataset import Dataset, DatasetVersion
+from ldb.exceptions import LDBException, WorkspaceError
+from ldb.path import InstanceDir, WorkspacePath
+from ldb.utils import (
+    current_time,
+    format_dataset_identifier,
+    get_hash_path,
+    load_data_file,
+    parse_dataset_identifier,
+    write_data_file,
+)
+from ldb.workspace import WorkspaceDataset, workspace_dataset_is_clean
 
 
 def stage(
-    ldb_dir: Path,  # pylint: disable=unused-argument
-    dataset: str,
+    ldb_dir: Path,
+    dataset_identifier: str,
     workspace_path: Path,
-    force: bool = False,  # pylint: disable=unused-argument
+    force: bool = False,
 ) -> None:
     workspace_path = Path(os.path.normpath(workspace_path))
-    ds_name = parse_dataset_identifier(dataset)[0]
-    if workspace_path.is_dir() and any(workspace_path.iterdir()):
-        raise WorkspaceError(
-            f"Workspace is not empty {repr(os.fspath(workspace_path))}",
-        )
-    stage_new_workspace(ds_name, workspace_path)
-    print(
-        f"Staged new dataset ds:{ds_name} "
-        f"at {repr(os.fspath(workspace_path))}",
-    )
-
-
-def stage_new_workspace(dataset_name: str, workspace_path: Path) -> None:
+    if workspace_path.is_dir():
+        if not force:
+            try:
+                curr_workspace_ds_obj = load_data_file(
+                    workspace_path / WorkspacePath.DATASET,
+                )
+            except FileNotFoundError:
+                pass
+            else:
+                if not workspace_dataset_is_clean(
+                    ldb_dir,
+                    curr_workspace_ds_obj,
+                    workspace_path,
+                ):
+                    raise LDBException(
+                        "Unsaved changes to workspace dataset.\n"
+                        "Commit changes or use the --force option to "
+                        "overwrite them.",
+                    )
+        for path in workspace_path.iterdir():
+            if path.name != WorkspacePath.BASE.name or not path.is_dir():
+                if force:
+                    if path.is_dir():
+                        shutil.rmtree(path)
+                    else:
+                        path.unlink()
+                else:
+                    raise WorkspaceError(
+                        "Workspace is not empty: "
+                        f"{os.fspath(workspace_path)!r}\n"
+                        "Use the --force option to delete workspace contents",
+                    )
+    ds_name, ds_version_num = parse_dataset_identifier(dataset_identifier)
     workspace_ds_obj = WorkspaceDataset(
-        dataset_name=dataset_name,
+        dataset_name=ds_name,
         staged_time=current_time(),
         parent="",
         tags=[],
     )
-    workspace_path.mkdir(parents=True, exist_ok=True)
-    (workspace_path / WorkspacePath.BASE).mkdir()
-    (workspace_path / WorkspacePath.COLLECTION).mkdir()
+    try:
+        dataset_obj = Dataset.parse(
+            load_data_file(ldb_dir / InstanceDir.DATASETS / ds_name),
+        )
+    except FileNotFoundError as exc:
+        if ds_version_num is not None:
+            ds_ident = format_dataset_identifier(ds_name)
+            raise LDBException(
+                f"{dataset_identifier} does not exist\n"
+                f"To stage a new dataset, use {ds_ident}",
+            ) from exc
+        collection_obj = None
+        message = (
+            f"Staged new dataset {dataset_identifier} "
+            f"at {os.fspath(workspace_path)!r}"
+        )
+    else:
+        if ds_version_num is None:
+            dataset_version_hash = dataset_obj.versions[-1]
+            ds_version_num = len(dataset_obj.versions)
+        else:
+            try:
+                dataset_version_hash = dataset_obj.versions[ds_version_num - 1]
+            except IndexError as exc:
+                latest_dataset = format_dataset_identifier(
+                    ds_name,
+                    len(dataset_obj.versions),
+                )
+                raise LDBException(
+                    f"{dataset_identifier} does not exist\n"
+                    f"The latest version is {latest_dataset}",
+                ) from exc
+        dataset_version_obj = DatasetVersion.parse(
+            load_data_file(
+                get_hash_path(
+                    ldb_dir / InstanceDir.DATASET_VERSIONS,
+                    dataset_version_hash,
+                ),
+            ),
+        )
+        workspace_ds_obj.parent = dataset_version_hash
+        workspace_ds_obj.tags = dataset_version_obj.tags.copy()
+        collection_obj = load_data_file(
+            get_hash_path(
+                ldb_dir / InstanceDir.COLLECTIONS,
+                dataset_version_obj.collection,
+            ),
+        )
+        curr_dataset_ident = format_dataset_identifier(
+            ds_name,
+            ds_version_num,
+        )
+        message = (
+            f"Staged {curr_dataset_ident} " f"at {os.fspath(workspace_path)!r}"
+        )
+    stage_workspace(workspace_path, workspace_ds_obj, collection_obj)
+    print(message)
+
+
+def stage_workspace(
+    workspace_path: Path,
+    workspace_ds_obj: WorkspaceDataset,
+    collection_obj=None,
+) -> None:
+    collection_path = workspace_path / WorkspacePath.COLLECTION
+    workspace_ds_bytes = json.dumps(workspace_ds_obj.format()).encode()
+    if collection_obj:
+        collection_path_data = get_workspace_collection_path_data(
+            collection_path,
+            collection_obj,
+        )
+        collection_path.mkdir(parents=True, exist_ok=True)
+        write_workspace_collection(collection_path, collection_path_data)
+    else:
+        if collection_path.exists():
+            shutil.rmtree(collection_path)
+        collection_path.mkdir(parents=True)
     write_data_file(
         workspace_path / WorkspacePath.DATASET,
-        json.dumps(workspace_ds_obj.format()).encode(),
-        overwrite_existing=True,
+        workspace_ds_bytes,
     )
+
+
+def get_workspace_collection_path_data(
+    path: Path,
+    collection_obj: Dict[str, Optional[str]],
+) -> List[Tuple[Path, str]]:
+    return [
+        (get_hash_path(path, data_object_hash), annotation_hash or "")
+        for data_object_hash, annotation_hash in collection_obj.items()
+    ]
+
+
+def write_workspace_collection(
+    collection_path: Path,
+    path_data: List[Tuple[Path, str]],
+):
+    for path, data in path_data:
+        path.parent.mkdir(exist_ok=True)
+        path.write_text(data)
+    path_set = {d[0] for d in path_data}
+    for path in collection_path.glob("*/*"):
+        if path not in path_set:
+            path.unlink()
+    path_parent_set = {p.parent for p in path_set}
+    for path in collection_path.glob("*"):
+        if path not in path_parent_set:
+            path.rmdir()
