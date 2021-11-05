@@ -1,19 +1,13 @@
 import argparse
-import os
 from pathlib import Path
 from typing import Iterable
 
 from ldb.commit import commit
-from ldb.config import get_ldb_dir
-from ldb.core import is_ldb_instance
-from ldb.exceptions import LDBInstanceNotFoundError
+from ldb.core import get_ldb_instance
 
 
 def commit_command(options):
-    ldb_dir = get_ldb_dir()
-    if not is_ldb_instance(ldb_dir):
-        raise LDBInstanceNotFoundError(f"{os.fspath(ldb_dir)!r}")
-    commit(ldb_dir, Path("."), options.message)
+    commit(get_ldb_instance(), Path("."), options.message)
 
 
 def add_parser(

@@ -1,20 +1,14 @@
 import argparse
-import os
 from typing import Iterable
 
 import shtab
 
-from ldb.config import get_ldb_dir
-from ldb.core import is_ldb_instance
-from ldb.exceptions import LDBInstanceNotFoundError
+from ldb.core import get_ldb_instance
 from ldb.index import index
 
 
 def index_command(options):
-    ldb_dir = get_ldb_dir()
-    if not is_ldb_instance(ldb_dir):
-        raise LDBInstanceNotFoundError(f"{repr(os.fspath(ldb_dir))}")
-    index(options.path, ldb_dir)
+    index(get_ldb_instance(), options.paths)
 
 
 def add_parser(
@@ -27,7 +21,9 @@ def add_parser(
         help="Index a storage location",
     )
     parser.add_argument(  # type: ignore[attr-defined]
-        "path",
-        help="Directory or path prefix to index",
+        "paths",
+        metavar="path",
+        nargs="+",
+        help="File, directory, or path prefix. Supports glob syntax.",
     ).complete = shtab.FILE
     parser.set_defaults(func=index_command)
