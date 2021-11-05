@@ -3,7 +3,8 @@ import os
 from ldb.main import main
 from ldb.stage import stage_workspace
 from ldb.status import WorkspaceStatus, status
-from ldb.utils import current_time, format_datetime
+from ldb.utils import current_time
+from ldb.workspace import WorkspaceDataset
 
 
 def test_add_storage_location(tmp_path, data_dir, ldb_instance):
@@ -11,12 +12,12 @@ def test_add_storage_location(tmp_path, data_dir, ldb_instance):
     dir_to_add = data_dir / "fashion-mnist/original"
     stage_workspace(
         workspace_path,
-        {
-            "dataset_name": "my-dataset",
-            "staged_time": format_datetime(current_time()),
-            "parent": None,
-            "tags": [],
-        },
+        WorkspaceDataset(
+            dataset_name="my-dataset",
+            staged_time=current_time(),
+            parent="",
+            tags=[],
+        ),
     )
     os.chdir(workspace_path)
     main(["add", f"{os.fspath(dir_to_add)}"])

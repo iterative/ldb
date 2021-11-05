@@ -4,11 +4,12 @@ import os
 import re
 from datetime import datetime
 from pathlib import Path
-from typing import BinaryIO, Optional, Tuple
+from typing import Any, BinaryIO, Dict, Optional, Tuple
 
 from fsspec.core import OpenFile
 
 from ldb.exceptions import LDBException
+from ldb.path import WorkspacePath
 
 CHUNK_SIZE = 2 ** 20
 HASH_DIR_SPLIT_POINT = 3
@@ -71,6 +72,16 @@ def current_time():
 def load_data_file(path: Path):
     with path.open() as file:
         return json.load(file)
+
+
+def load_workspace_dataset(workspace_path: Path) -> Dict[str, Any]:
+    try:
+        return load_data_file(workspace_path / WorkspacePath.DATASET)
+    except FileNotFoundError as exc:
+        raise LDBException(
+            "No workspace dataset staged at "
+            f"{repr(os.fspath(workspace_path))}",
+        ) from exc
 
 
 def get_filetype(path: str) -> str:

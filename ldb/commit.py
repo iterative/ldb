@@ -68,7 +68,7 @@ def commit(
         )
     dataset_version = DatasetVersion(
         version=len(dataset.versions) + 1,
-        parent=workspace_ds["parent"],
+        parent=workspace_ds["parent"] or None,
         collection=collection_hash,
         tags=workspace_ds["tags"].copy(),
         commit_info=CommitInfo(

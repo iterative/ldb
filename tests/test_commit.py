@@ -6,7 +6,8 @@ from ldb.dataset import CommitInfo, Dataset, DatasetVersion
 from ldb.main import main
 from ldb.path import InstanceDir
 from ldb.stage import stage_workspace
-from ldb.utils import current_time, format_datetime, load_data_file
+from ldb.utils import current_time, load_data_file
+from ldb.workspace import WorkspaceDataset
 
 
 def test_commit_new_dataset(tmp_path, data_dir, ldb_instance):
@@ -14,12 +15,12 @@ def test_commit_new_dataset(tmp_path, data_dir, ldb_instance):
     dir_to_add = data_dir / "fashion-mnist/original"
     stage_workspace(
         workspace_path,
-        {
-            "dataset_name": "my-dataset",
-            "staged_time": format_datetime(current_time()),
-            "parent": None,
-            "tags": [],
-        },
+        WorkspaceDataset(
+            dataset_name="my-dataset",
+            staged_time=current_time(),
+            parent="",
+            tags=[],
+        ),
     )
     os.chdir(workspace_path)
     main(["add", f"{os.fspath(dir_to_add)}"])
@@ -89,12 +90,12 @@ def test_commit_multiple_versions(tmp_path, data_dir, ldb_instance):
     ]
     stage_workspace(
         workspace_path,
-        {
-            "dataset_name": "my-dataset",
-            "staged_time": format_datetime(current_time()),
-            "parent": None,
-            "tags": [],
-        },
+        WorkspaceDataset(
+            dataset_name="my-dataset",
+            staged_time=current_time(),
+            parent=None,
+            tags=[],
+        ),
     )
     os.chdir(workspace_path)
     for path in paths:
@@ -155,12 +156,12 @@ def test_commit_empty_workspace_dataset(tmp_path, data_dir, ldb_instance):
     workspace_path = tmp_path / "workspace"
     stage_workspace(
         workspace_path,
-        {
-            "dataset_name": "my-dataset",
-            "staged_time": format_datetime(current_time()),
-            "parent": None,
-            "tags": [],
-        },
+        WorkspaceDataset(
+            dataset_name="my-dataset",
+            staged_time=current_time(),
+            parent=None,
+            tags=[],
+        ),
     )
     os.chdir(workspace_path)
     ret = main(["commit", "create a new dataset"])
@@ -173,12 +174,12 @@ def test_commit_no_changes(tmp_path, data_dir, ldb_instance):
     dir_to_add = data_dir / "fashion-mnist/original"
     stage_workspace(
         workspace_path,
-        {
-            "dataset_name": "my-dataset",
-            "staged_time": format_datetime(current_time()),
-            "parent": None,
-            "tags": [],
-        },
+        WorkspaceDataset(
+            dataset_name="my-dataset",
+            staged_time=current_time(),
+            parent=None,
+            tags=[],
+        ),
     )
     os.chdir(workspace_path)
     main(["add", f"{os.fspath(dir_to_add)}"])

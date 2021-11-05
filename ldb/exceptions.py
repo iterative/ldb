@@ -4,3 +4,7 @@ class LDBException(Exception):
 
 class LDBInstanceNotFoundError(LDBException):
     pass
+
+
+class WorkspaceError(LDBException):
+    pass

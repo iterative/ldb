@@ -99,7 +99,7 @@ def workspace_dataset_is_clean(
     ws_collection = collection_dir_to_object(
         workspace_path / WorkspacePath.COLLECTION,
     )
-    if parent is None:
+    if not parent:
         return not ws_collection
     collection_obj = get_collection(ldb_dir, parent)
     return ws_collection == collection_obj
