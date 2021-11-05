@@ -1,22 +1,14 @@
 import argparse
-import os
 from typing import Iterable
 
 import shtab
 
-from ldb.config import get_ldb_dir
-from ldb.core import is_ldb_instance
-from ldb.exceptions import LDBInstanceNotFoundError
+from ldb.core import get_ldb_instance
 from ldb.index import index
 
 
 def index_command(options):
-    ldb_dir = get_ldb_dir()
-    if not is_ldb_instance(ldb_dir):
-        raise LDBInstanceNotFoundError(
-            f"No LDB instance at {os.fspath(ldb_dir)!r}",
-        )
-    index(ldb_dir, options.paths)
+    index(get_ldb_instance(), options.paths)
 
 
 def add_parser(

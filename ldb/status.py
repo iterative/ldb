@@ -2,9 +2,10 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 
-from ldb.dataset import get_root_collection_items, get_workspace_dataset
+from ldb.dataset import get_root_collection_items
 from ldb.exceptions import LDBException
 from ldb.path import WorkspacePath
+from ldb.workspace import load_workspace_dataset
 
 
 @dataclass
@@ -17,13 +18,13 @@ class WorkspaceStatus:
 def status(ldb_dir: Path, workspace_path: Path):
     workspace_path = Path(os.path.normpath(workspace_path))
     try:
-        workspace_ds = get_workspace_dataset(workspace_path)
+        workspace_ds = load_workspace_dataset(workspace_path)
     except LDBException:
         item_gen = get_root_collection_items(ldb_dir)
         ds_name = "root"
     else:
         item_gen = get_collection_dir_items(workspace_path)
-        ds_name = workspace_ds["dataset_name"]
+        ds_name = workspace_ds.dataset_name
 
     num_data_objects = 0
     num_annotations = 0

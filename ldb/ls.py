@@ -3,10 +3,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
-from ldb.dataset import collection_dir_to_object
 from ldb.exceptions import LDBException
 from ldb.path import InstanceDir, WorkspacePath
 from ldb.utils import get_hash_path, load_data_file
+from ldb.workspace import collection_dir_to_object
 
 
 @dataclass
