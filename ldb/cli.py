@@ -8,6 +8,7 @@ from ldb.command import (
     completion,
     index,
     init,
+    ls,
     stage,
     status,
 )
@@ -50,6 +51,7 @@ def get_main_parser():
     commit.add_parser(subparsers, parents)
     index.add_parser(subparsers, parents)
     init.add_parser(subparsers, parents)
+    ls.add_parser(subparsers, parents)
     stage.add_parser(subparsers, parents)
     status.add_parser(subparsers, parents)
     return main_parser
