@@ -1,5 +1,6 @@
 import os
 import re
+from pathlib import Path
 
 from ldb.ls import ls
 from ldb.main import main
@@ -34,7 +35,9 @@ def test_ls_workspace_dataset(tmp_path, data_dir, ldb_instance):
 
     ds_listings = ls(ldb_instance, workspace_path)
     annot_versions = [d.annotation_version for d in ds_listings]
-    paths = [d.data_object_path for d in ds_listings]
+    # fsspec's LocalFileSystem._strip_protocol does some normalization during
+    # indexing, so we cast everything to Path objects for comparison
+    paths = [Path(d.data_object_path) for d in ds_listings]
 
     expected_annot_versions = [1, 1, 1, 2, 1, 1, 1, 1, 2, 2, 1, 1, 0, 2]
     expected_paths = [
@@ -53,7 +56,7 @@ def test_ls_workspace_dataset(tmp_path, data_dir, ldb_instance):
         "original/data_objects_only/00011.png",
         "updates/diff_inference/00002.png",
     ]
-    expected_paths = [os.fspath(data_dir / "fashion-mnist" / p) for p in paths]
+    expected_paths = [data_dir / "fashion-mnist" / p for p in paths]
     assert annot_versions == expected_annot_versions
     assert paths == expected_paths
     assert all(is_hash(d.data_object_hash) for d in ds_listings)
