@@ -102,3 +102,10 @@ def format_dataset_identifier(
 ) -> str:
     version_suffix = f".v{version}" if version is not None else ""
     return f"ds:{name}{version_suffix}"
+
+
+def get_fsspec_path_suffix(path: str) -> str:
+    match = re.search(r"\.[^/]*/*$", path)
+    if match is None:
+        return ""
+    return match.group()

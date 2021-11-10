@@ -2,7 +2,7 @@ import os
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Generator, List, Optional
 
 from ldb.dataset import get_collection
 from ldb.exceptions import LDBException
@@ -69,3 +69,9 @@ def collection_dir_to_object(collection_dir: Path) -> Dict[str, Optional[str]]:
         items.append((data_object_hash, annotation_hash))
     items.sort()
     return dict(items)
+
+
+def iter_workspace_dir(workspace_path: Path) -> Generator[Path, None, None]:
+    for path in workspace_path.iterdir():
+        if path.name != WorkspacePath.BASE.name or not path.is_dir():
+            yield path

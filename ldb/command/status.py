@@ -21,7 +21,7 @@ def status_command(options):
     if ws_status.dataset_name == "root":
         prefix = ""
     else:
-        prefix = f"Workspace directory: {os.fspath(options.path)!r}\n"
+        prefix = f"Workspace directory: {os.fspath(options.path)!r}\n\n"
     print(
         f"{prefix}"
         f"ds:{ws_status.dataset_name}\n"
