@@ -11,11 +11,15 @@ from ldb.index import index
 
 def add_command(options):
     ldb_dir = get_ldb_instance()
-    data_object_hashes = index(ldb_dir, options.paths)
+    print("Indexing paths...")
+    indexing_result = index(ldb_dir, options.paths)
+    print(indexing_result.summary())
+    print()
+    print("Adding to working dataset...")
     add(
         ldb_dir,
         Path("."),
-        data_object_hashes,
+        indexing_result.data_object_hashes,
     )
 
 
