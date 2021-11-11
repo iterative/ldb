@@ -1,7 +1,7 @@
 from dataclasses import asdict, dataclass, fields
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Generator, List, Optional, Tuple
 
 from ldb.path import InstanceDir
 from ldb.utils import (
@@ -96,3 +96,31 @@ def get_collection(
             dataset_version_obj.collection,
         ),
     )
+
+
+def get_collection_dir_items(
+    collection_dir: Path,
+    is_workspace: bool = True,
+) -> Generator[Tuple[str, Optional[str]], None, None]:
+    annotation_hash_func = (
+        get_workspace_collection_annotation_hash
+        if is_workspace
+        else get_root_collection_annotation_hash
+    )
+    for path in collection_dir.glob("*/*"):
+        yield path.parent.name + path.name, annotation_hash_func(path)
+
+
+def get_root_collection_annotation_hash(
+    data_object_path: Path,
+) -> Optional[str]:
+    try:
+        return (data_object_path / "current").read_text()
+    except FileNotFoundError:
+        return None
+
+
+def get_workspace_collection_annotation_hash(
+    data_object_path: Path,
+) -> Optional[str]:
+    return data_object_path.read_text() or None

@@ -21,7 +21,7 @@ def test_add_storage_location(tmp_path, data_dir, ldb_instance):
     )
     os.chdir(workspace_path)
     main(["add", f"{os.fspath(dir_to_add)}"])
-    ws_status = status(workspace_path)
+    ws_status = status(ldb_instance, workspace_path)
     expected_ws_status = WorkspaceStatus(
         dataset_name="my-dataset",
         num_data_objects=32,

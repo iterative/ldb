@@ -5,14 +5,18 @@ from typing import Iterable
 
 import shtab
 
+from ldb.core import get_ldb_instance
 from ldb.status import status
 
 
 def status_command(options):
-    ws_status = status(options.path)
+    ws_status = status(get_ldb_instance(), options.path)
+    prefix = ""
+    if ws_status.dataset_name != "root":
+        prefix = f"Workspace directory: {os.fspath(options.path)!r}\n"
     print(
-        f"On ds:{ws_status.dataset_name} in "
-        f"{repr(os.fspath(options.path))}\n"
+        f"{prefix}"
+        f"ds:{ws_status.dataset_name}\n"
         f"  Num data objects: {ws_status.num_data_objects:8d}\n"
         f"  Num annotations:  {ws_status.num_annotations:8d}",
     )
