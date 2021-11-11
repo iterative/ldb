@@ -4,7 +4,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from ldb.dataset import get_collection
+from ldb.dataset import get_collection, get_collection_dir_items
 from ldb.exceptions import LDBException
 from ldb.path import WorkspacePath
 from ldb.utils import format_datetime, load_data_file, parse_datetime
@@ -62,10 +62,6 @@ def load_workspace_dataset(workspace_path: Path) -> WorkspaceDataset:
 
 
 def collection_dir_to_object(collection_dir: Path) -> Dict[str, Optional[str]]:
-    items = []
-    for path in collection_dir.glob("*/*"):
-        data_object_hash = path.parent.name + path.name
-        annotation_hash = path.read_text() or None
-        items.append((data_object_hash, annotation_hash))
-    items.sort()
-    return dict(items)
+    return dict(
+        sorted(get_collection_dir_items(collection_dir, is_workspace=True)),
+    )
