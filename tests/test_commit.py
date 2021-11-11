@@ -5,24 +5,11 @@ from pathlib import Path
 from ldb.dataset import CommitInfo, Dataset, DatasetVersion
 from ldb.main import main
 from ldb.path import InstanceDir
-from ldb.stage import stage_workspace
 from ldb.utils import current_time, load_data_file
-from ldb.workspace import WorkspaceDataset
 
 
-def test_commit_new_dataset(tmp_path, data_dir, ldb_instance):
-    workspace_path = tmp_path / "workspace"
+def test_commit_new_dataset(data_dir, ldb_instance, workspace_path):
     dir_to_add = data_dir / "fashion-mnist/original"
-    stage_workspace(
-        workspace_path,
-        WorkspaceDataset(
-            dataset_name="my-dataset",
-            staged_time=current_time(),
-            parent="",
-            tags=[],
-        ),
-    )
-    os.chdir(workspace_path)
     main(["add", f"{os.fspath(dir_to_add)}"])
     ret = main(["commit", "create a new dataset"])
 
@@ -81,23 +68,12 @@ def test_commit_new_dataset(tmp_path, data_dir, ldb_instance):
     assert dataset_version_obj == expected_dataset_version_obj
 
 
-def test_commit_multiple_versions(tmp_path, data_dir, ldb_instance):
-    workspace_path = tmp_path / "workspace"
+def test_commit_multiple_versions(data_dir, ldb_instance, workspace_path):
     paths = [
         data_dir / "fashion-mnist/original/has_both/test",
         data_dir / "fashion-mnist/original/has_both/train/000[01]*",
         data_dir / "fashion-mnist/updates",
     ]
-    stage_workspace(
-        workspace_path,
-        WorkspaceDataset(
-            dataset_name="my-dataset",
-            staged_time=current_time(),
-            parent=None,
-            tags=[],
-        ),
-    )
-    os.chdir(workspace_path)
     for path in paths:
         main(["add", f"{os.fspath(path)}"])
         main(
@@ -152,36 +128,18 @@ def test_commit_multiple_versions(tmp_path, data_dir, ldb_instance):
     assert dataset_obj == expected_dataset_obj
 
 
-def test_commit_empty_workspace_dataset(tmp_path, data_dir, ldb_instance):
-    workspace_path = tmp_path / "workspace"
-    stage_workspace(
-        workspace_path,
-        WorkspaceDataset(
-            dataset_name="my-dataset",
-            staged_time=current_time(),
-            parent="",
-            tags=[],
-        ),
-    )
-    os.chdir(workspace_path)
+def test_commit_empty_workspace_dataset(
+    data_dir,
+    ldb_instance,
+    workspace_path,
+):
     ret = main(["commit", "create a new dataset"])
     assert ret == 0
     assert list((ldb_instance / InstanceDir.DATASETS).iterdir()) == []
 
 
-def test_commit_no_changes(tmp_path, data_dir, ldb_instance):
-    workspace_path = tmp_path / "workspace"
+def test_commit_no_changes(data_dir, ldb_instance, workspace_path):
     dir_to_add = data_dir / "fashion-mnist/original"
-    stage_workspace(
-        workspace_path,
-        WorkspaceDataset(
-            dataset_name="my-dataset",
-            staged_time=current_time(),
-            parent="",
-            tags=[],
-        ),
-    )
-    os.chdir(workspace_path)
     main(["add", f"{os.fspath(dir_to_add)}"])
     main(["commit", "create a new dataset"])
     ret = main(["commit", "create another version"])

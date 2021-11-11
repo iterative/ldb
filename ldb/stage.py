@@ -15,7 +15,11 @@ from ldb.utils import (
     parse_dataset_identifier,
     write_data_file,
 )
-from ldb.workspace import WorkspaceDataset, workspace_dataset_is_clean
+from ldb.workspace import (
+    WorkspaceDataset,
+    iter_workspace_dir,
+    workspace_dataset_is_clean,
+)
 
 
 def stage(
@@ -28,8 +32,10 @@ def stage(
     if workspace_path.is_dir():
         if not force:
             try:
-                curr_workspace_ds_obj = load_data_file(
-                    workspace_path / WorkspacePath.DATASET,
+                curr_workspace_ds_obj = WorkspaceDataset.parse(
+                    load_data_file(
+                        workspace_path / WorkspacePath.DATASET,
+                    ),
                 )
             except FileNotFoundError:
                 pass
@@ -44,19 +50,18 @@ def stage(
                         "Commit changes or use the --force option to "
                         "overwrite them.",
                     )
-        for path in workspace_path.iterdir():
-            if path.name != WorkspacePath.BASE.name or not path.is_dir():
-                if force:
-                    if path.is_dir():
-                        shutil.rmtree(path)
-                    else:
-                        path.unlink()
+        for path in iter_workspace_dir(workspace_path):
+            if force:
+                if path.is_dir():
+                    shutil.rmtree(path)
                 else:
-                    raise WorkspaceError(
-                        "Workspace is not empty: "
-                        f"{os.fspath(workspace_path)!r}\n"
-                        "Use the --force option to delete workspace contents",
-                    )
+                    path.unlink()
+            else:
+                raise WorkspaceError(
+                    "Workspace is not empty: "
+                    f"{os.fspath(workspace_path)!r}\n"
+                    "Use the --force option to delete workspace contents",
+                )
     ds_name, ds_version_num = parse_dataset_identifier(dataset_identifier)
     workspace_ds_obj = WorkspaceDataset(
         dataset_name=ds_name,

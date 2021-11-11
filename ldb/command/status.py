@@ -13,7 +13,7 @@ def status_command(options):
     ws_status = status(get_ldb_instance(), options.path)
     prefix = ""
     if ws_status.dataset_name != "root":
-        prefix = f"Workspace directory: {os.fspath(options.path)!r}\n"
+        prefix = f"Workspace directory: {os.fspath(options.path)!r}\n\n"
     print(
         f"{prefix}"
         f"ds:{ws_status.dataset_name}\n"

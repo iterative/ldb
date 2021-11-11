@@ -22,6 +22,7 @@ class WorkspacePath:
     BASE = PurePath(".ldb_workspace")
     COLLECTION = BASE / "collection"
     DATASET = BASE / "workspace_dataset"
+    TMP = BASE / "tmp"
 
 
 INSTANCE_DIRS = (
