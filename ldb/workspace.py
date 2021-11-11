@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from ldb.dataset import get_collection, get_collection_dir_items
-from ldb.exceptions import LDBException
+from ldb.exceptions import WorkspaceDatasetNotFoundError
 from ldb.path import WorkspacePath
 from ldb.utils import format_datetime, load_data_file, parse_datetime
 
@@ -55,7 +55,7 @@ def load_workspace_dataset(workspace_path: Path) -> WorkspaceDataset:
             load_data_file(workspace_path / WorkspacePath.DATASET),
         )
     except FileNotFoundError as exc:
-        raise LDBException(
+        raise WorkspaceDatasetNotFoundError(
             "No workspace dataset staged at "
             f"{repr(os.fspath(workspace_path))}",
         ) from exc

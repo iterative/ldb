@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from ldb.dataset import get_collection_dir_items
-from ldb.exceptions import LDBException
+from ldb.exceptions import WorkspaceDatasetNotFoundError
 from ldb.path import InstanceDir, WorkspacePath
 from ldb.workspace import load_workspace_dataset
 
@@ -19,7 +19,7 @@ def status(ldb_dir: Path, workspace_path: Path):
     workspace_path = Path(os.path.normpath(workspace_path))
     try:
         workspace_ds = load_workspace_dataset(workspace_path)
-    except LDBException:
+    except WorkspaceDatasetNotFoundError:
         ds_name = "root"
         item_gen = get_collection_dir_items(
             ldb_dir / InstanceDir.DATA_OBJECT_INFO,

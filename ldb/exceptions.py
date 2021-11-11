@@ -8,3 +8,7 @@ class LDBInstanceNotFoundError(LDBException):
 
 class WorkspaceError(LDBException):
     pass
+
+
+class WorkspaceDatasetNotFoundError(WorkspaceError):
+    pass
