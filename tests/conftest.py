@@ -6,6 +6,9 @@ import pytest
 from ldb.config import get_global_base, set_default_instance
 from ldb.core import init
 from ldb.env import Env
+from ldb.stage import stage_workspace
+from ldb.utils import current_time
+from ldb.workspace import WorkspaceDataset
 
 
 @pytest.fixture(scope="session")
@@ -58,3 +61,19 @@ def ldb_instance(tmp_path, global_base) -> Path:
 @pytest.fixture
 def data_dir() -> Path:
     return Path(__file__).parent.parent / "data"
+
+
+@pytest.fixture
+def workspace_path(tmp_path, ldb_instance) -> Path:
+    path = tmp_path / "workspace"
+    stage_workspace(
+        path,
+        WorkspaceDataset(
+            dataset_name="my-dataset",
+            staged_time=current_time(),
+            parent="",
+            tags=[],
+        ),
+    )
+    os.chdir(path)
+    return path
