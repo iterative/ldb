@@ -8,7 +8,10 @@ from ldb.index import index
 
 
 def index_command(options):
-    index(get_ldb_instance(), options.paths)
+    ldb_dir = get_ldb_instance()
+    print("Indexing paths...")
+    result = index(ldb_dir, options.paths)
+    print(result.summary())
 
 
 def add_parser(

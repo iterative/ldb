@@ -2,6 +2,7 @@ import getpass
 import json
 import os
 import re
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, Iterable, List
 
@@ -24,15 +25,26 @@ from ldb.utils import (
 )
 
 
-def index(ldb_dir: Path, paths: List[str]) -> List[str]:
-    print("Indexing paths")
+@dataclass
+class IndexingResult:
+    num_found_data_objects: int
+    num_found_annotations: int
+    num_new_data_objects: int
+    num_new_annotations: int
+    data_object_hashes: List[str]
 
-    storage_files = [
-        f
-        for p in paths
-        for f in get_storage_files(p)
-        if not is_hidden_fsspec_path(f.path)
-    ]
+    def summary(self) -> str:
+        return (
+            "Finished indexing:\n"
+            f"  Found data objects: {self.num_found_data_objects:9d}\n"
+            f"  Found annotations:  {self.num_found_annotations:9d}\n"
+            f"  New data objects:   {self.num_new_data_objects:9d}\n"
+            f"  New annotations:    {self.num_new_annotations:9d}"
+        )
+
+
+def index(ldb_dir: Path, paths: List[str]) -> IndexingResult:
+    storage_files = [f for p in paths for f in get_storage_files(p)]
     if not storage_files:
         raise LDBException(
             "No files or directories found matching the given paths.",
@@ -127,14 +139,14 @@ def index(ldb_dir: Path, paths: List[str]) -> List[str]:
 
         for file_path, data, overwrite_existing in to_write:
             write_data_file(file_path, data, overwrite_existing)
-    print(
-        "Finished indexing:\n"
-        f"  Found data objects: {len(data_object_files):9d}\n"
-        f"  Found annotations:  {num_annotations_indexed:9d}\n"
-        f"  New data objects:   {num_new_data_objects:9d}\n"
-        f"  New annotations:    {num_new_annotations:9d}",
+
+    return IndexingResult(
+        num_found_data_objects=len(data_object_files),
+        num_found_annotations=num_annotations_indexed,
+        num_new_data_objects=num_new_data_objects,
+        num_new_annotations=num_new_annotations,
+        data_object_hashes=data_object_hashes,
     )
-    return data_object_hashes
 
 
 def get_storage_files(path: str) -> List[OpenFile]:
@@ -142,14 +154,14 @@ def get_storage_files(path: str) -> List[OpenFile]:
     Get storage files for indexing that match the glob, `path`.
 
     Because every file path under `path` is returned, any final "/**" does not
-    change the result. First `path` is expanded with any final "/**" removed
+    change the result. First, `path` is expanded with any final "/**" removed
     and any matching files are included in the result. Corresponding data
     object file paths are added for matched annotation file paths and vice
     versa. Then everything under matched directories will be added to the
     result.
 
     The current implementation may result in some directory paths and some
-    duplicate paths being included, which should be filtered out.
+    duplicate paths being included.
     """
     if is_hidden_fsspec_path(path):
         return []

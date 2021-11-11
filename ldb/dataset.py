@@ -98,13 +98,29 @@ def get_collection(
     )
 
 
-def get_root_collection_items(
-    ldb_dir: Path,
+def get_collection_dir_items(
+    collection_dir: Path,
+    is_workspace: bool = True,
 ) -> Generator[Tuple[str, Optional[str]], None, None]:
-    for path in (ldb_dir / InstanceDir.DATA_OBJECT_INFO).glob("*/*"):
-        data_object_hash = path.parent.name + path.name
-        try:
-            annotation_hash: Optional[str] = (path / "current").read_text()
-        except FileNotFoundError:
-            annotation_hash = None
-        yield data_object_hash, annotation_hash
+    annotation_hash_func = (
+        get_workspace_collection_annotation_hash
+        if is_workspace
+        else get_root_collection_annotation_hash
+    )
+    for path in collection_dir.glob("*/*"):
+        yield path.parent.name + path.name, annotation_hash_func(path)
+
+
+def get_root_collection_annotation_hash(
+    data_object_path: Path,
+) -> Optional[str]:
+    try:
+        return (data_object_path / "current").read_text()
+    except FileNotFoundError:
+        return None
+
+
+def get_workspace_collection_annotation_hash(
+    data_object_path: Path,
+) -> Optional[str]:
+    return data_object_path.read_text() or None
