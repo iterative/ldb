@@ -1,7 +1,7 @@
 
 ## LDB datasets
 
-LDB defines datasets as collections of pointers to data objects in immutable storage locations, paired with optional annotations and metadata. 
+LDB defines datasets as collections of pointers to immutable data objects paired with optional annotations and metadata. 
 
 Since datasets are just collections, LDB can modify them without moving the underlying data objects. To examine the physical data objects or annotations in dataset, it must be partially or fully instantiated (see `INSTANTIATE` below). 
 
@@ -46,12 +46,13 @@ QuickStart allows the individual user to begin working with LDB without explicit
 
 `STAGE` is the only LDB command that can trigger QuickStart. To do it, `STAGE` confirms the absence of an active LDB instance, and calls `INIT` to create a new LDB repository before proceeding with staging a dataset.
 
- Under the hood, QuickStart consists of the following two steps:
+ Under the hood, QuickStart consists of the following three steps:
 
 * New LDB instance is created in user's home directory: `~/.ldb/private_instance`
-* Default storage configuration defaults to wide-open settings: 
+* Storage configuration defaults to wide-open settings: 
     * All cloud locations are permitted to host data objects.
     * A `read-add` folder is created in user's home directory (see `ADD-STORAGE`).
+* An `auto-index` option is set in LDB config, permitting `ADD` to process previously unindexed storage (see `ADD`)
  
 Below is an example of QuickStart, where user queries a remote storage in two commands right after the LDB installation:
 
@@ -97,7 +98,7 @@ LDB supports the following storage URI types: fs, Google Cloud, AWS, and Azure.
 
 The minimum and sufficient set of permissions for LDB is to **list, stat and read** any objects at `<storage-URI>`. `ADD-STORAGE` fails if permissions are not sufficient, and succeeds with a warning if permissions are too wide. `ADD-STORAGE` also checks if `<storage-URI>` falls within an already registered URI, and prints an error if this the case. Permissions are re-checked if an existing storage location is re-added.
 
-Since LDB assumes that storage is immutable, it never attempts to alter or move data files. However, LDB may be required to push *new* files to storage if user chooses to source objects from ephemeral _fs_ locations (for example, a personal workspace). Destination configured as `read-add` will permit LDB to automatically save such objects into immutable storage.
+Since LDB assumes that storage objects are immutable, it never attempts to alter or move them. However, LDB may be required to push *new* files to storage if user chooses to source objects from ephemeral _fs_ paths (for example, from a personal workspace). Destination configured as `read-add` will permit LDB to automatically save such objects into immutable storage.
 
 ## flags
 
@@ -208,9 +209,27 @@ $ ldb stage ds:cats ./
 $ ldb add 0x456FED 0x5656FED    # result: objects id 0x456FED 0x5656FED added to dataset
 ```
 
-2. `object_path` - any fully qualified (down to an object), or folder path within registered storage locations. If `object-path` is a folder, `ADD` calls `INDEX` to recursively process all objects in this folder. If `object-path` is fully qualified, `ADD` will first check if this object is already indexed, and will call `INDEX` (assuming default format) otherwise. Shell GLOB patterns are supported.
+2. `object_path` - any fully qualified (down to an object), or folder path within registered storage locations. Shell GLOB patterns are supported.
 
-In all cases of implicit `INDEX` involvement within `ADD`, it will fail if objects are not in the default format (one annotation file per each data objects).
+By default, `ADD` checks if the specified objects (or a list of objects recursively found in folder) were previously indexed by LDB, and uses the indexed annotations if this is the case. If some objects in the list are not found in index, `ADD` command fails with a reminder to run `INDEX` first.
+
+*Use case:*
+```
+$ ldb stage ds:cats ./
+$ ldb add gs://my-datasets/cats/black-cats/  # previously indexed location
+  12 objects added to workspace (ds:cats)
+```
+
+
+*Use case:*
+```
+$ ldb stage ds:cats ./
+$ ldb add gs://my-datasets/cats/white-cats/  # location is registered but folder contains new data
+  error: 23 objects detected that are not found in ds:root
+  Please run INDEX command first to process this storage location
+```
+
+This behavior can be altered with `auto-index` option in LDB configuration file. If set, this option allows `ADD` to implicitly `INDEX` to process objects in the folder or paths. This implicit call to `INDEX` assumes the objects are in the default format (one annotation file per each data objects), and will fail otherwise.
 
 *Use case:*
 ```
@@ -411,6 +430,16 @@ The optional `message` flag will be added as the commit message and shown in `ld
 
 `LIST` can take the exact same arguments as `ADD` but only prints matching objects instead of actually adding them.
 Unlike `ADD`, `LIST` without arguments targets objects in a staged dataset. To target objects in LDB index, use `ds-root` as the object source.
+
+## flags
+
+`-s` or  `--summary` 
+
+just prints object counts
+
+`-v` or  `--verbose`
+
+detailed object information
 
 # STATUS  [ds:\<name\>[.v<number>]
 
