@@ -9,8 +9,9 @@ from typing import Any, Dict, Iterable, List
 import fsspec
 from fsspec.core import OpenFile
 
-from ldb.exceptions import LDBException
-from ldb.path import InstanceDir
+from ldb.exceptions import LDBException, NotAStorageLocationError
+from ldb.path import Filename, InstanceDir
+from ldb.storage import StorageLocation, load_from_path
 from ldb.utils import (
     current_time,
     format_datetime,
@@ -43,12 +44,25 @@ class IndexingResult:
         )
 
 
-def index(ldb_dir: Path, paths: List[str]) -> IndexingResult:
+def index(
+    ldb_dir: Path,
+    paths: List[str],
+    read_any_cloud_location: bool = False,
+) -> IndexingResult:
+    print(read_any_cloud_location)
+    storage_path = ldb_dir / Filename.STORAGE
+    storage_locations = []
+    if storage_path.is_file():
+        storage_locations = load_from_path(storage_path).locations
+
     storage_files = [f for p in paths for f in get_storage_files(p)]
     if not storage_files:
         raise LDBException(
             "No files or directories found matching the given paths.",
         )
+
+    for file in storage_files:
+        validate_file(file, read_any_cloud_location, storage_locations)
 
     data_object_files, annotation_files_by_path = group_storage_files_by_type(
         storage_files,
@@ -191,7 +205,31 @@ def get_storage_files(path: str) -> List[OpenFile]:
     return files
 
 
-def is_hidden_fsspec_path(path: str):
+def validate_file(
+    storage_file: OpenFile,
+    read_any_cloud_location: bool,
+    storage_locations: List[StorageLocation],
+) -> bool:
+    if storage_file.fs.protocol == "file" and not in_storage_locations(
+        storage_file.path,
+        storage_locations,
+    ):
+        return True
+    if not read_any_cloud_location and not in_storage_locations(
+        storage_file.path,
+        storage_locations,
+    ):
+        raise NotAStorageLocationError(
+            "Found matching files outside of configured storage locations",
+        )
+    return False
+
+
+def in_storage_locations(path: str, storage_locations) -> bool:
+    return any(path.startswith(loc.path) for loc in storage_locations)
+
+
+def is_hidden_fsspec_path(path: str) -> bool:
     return re.search(r"^\.|/\.", path) is not None
 
 

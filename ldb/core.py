@@ -3,12 +3,17 @@ import shutil
 from pathlib import Path
 from typing import Optional
 
-from ldb.config import get_ldb_dir
+from ldb import config
+from ldb.config import get_default_instance_dir, get_ldb_dir
 from ldb.exceptions import LDBException, LDBInstanceNotFoundError
-from ldb.path import INSTANCE_DIRS
+from ldb.path import INSTANCE_DIRS, Filename
 
 
-def init(path: Path, force: bool = False) -> Path:
+def init(
+    path: Path,
+    force: bool = False,
+    read_any_cloud_location: bool = False,
+) -> Path:
     """Create a new LDB instance."""
     path = Path(os.path.normpath(path))
     if path.is_dir() and next(path.iterdir(), None) is not None:
@@ -33,6 +38,8 @@ def init(path: Path, force: bool = False) -> Path:
             )
     for subdir in INSTANCE_DIRS:
         (path / subdir).mkdir(parents=True)
+    with config.edit(get_default_instance_dir() / Filename.CONFIG) as cfg:
+        cfg["core"] = {"read_any_cloud_location": read_any_cloud_location}
     print(f"Initialized LDB instance at {repr(os.fspath(path))}")
     return path
 

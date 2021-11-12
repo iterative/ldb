@@ -3,9 +3,9 @@ from contextlib import contextmanager
 from dataclasses import asdict, dataclass, field
 from json import dump, load
 from pathlib import Path, PurePath
-from typing import Generator, List
+from typing import Generator, Iterable, List
 
-from ldb.exceptions import LDBException
+from ldb.exceptions import LDBException, StorageConfigurationError
 
 
 @dataclass
@@ -117,6 +117,7 @@ def add_storage(
             output = f"Added storage location {repr(storage_location.path)}"
 
         new_locations.append(storage_location)
+        validate_storage_locations(new_locations)
         storage_config.locations = new_locations
     print(output)
 
@@ -129,3 +130,10 @@ def get_update_output(old: StorageLocation, new: StorageLocation):
         [f"  {k}: {repr(o)} -> {repr(n)}" for k, o, n in updates if o != n],
     )
     return "Updated storage location " f"{repr(new.path)}:\n" f"{update_str}\n"
+
+
+def validate_storage_locations(locations: Iterable[StorageLocation]) -> None:
+    if sum(loc.read_and_add for loc in locations) > 1:
+        raise StorageConfigurationError(
+            "Only one storage location may be set as read-add",
+        )
