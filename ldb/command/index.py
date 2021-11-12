@@ -3,6 +3,8 @@ from typing import Iterable
 
 import shtab
 
+from ldb import config
+from ldb.config import ConfigType
 from ldb.core import get_ldb_instance
 from ldb.index import index
 
@@ -10,7 +12,15 @@ from ldb.index import index
 def index_command(options):
     ldb_dir = get_ldb_instance()
     print("Indexing paths...")
-    result = index(ldb_dir, options.paths)
+    result = index(
+        ldb_dir,
+        options.paths,
+        read_any_cloud_location=(
+            (config.load_first([ConfigType.INSTANCE]) or {})
+            .get("core", {})
+            .get("read_any_cloud_location", False)
+        ),
+    )
     print(result.summary())
 
 

@@ -10,7 +10,10 @@ from ldb.stage import stage
 def stage_command(options):
     ldb_dir = get_ldb_dir()
     if not ldb_dir.is_dir():
-        ldb_dir = init(get_default_instance_dir())
+        ldb_dir = init(
+            get_default_instance_dir(),
+            read_any_cloud_location=True,
+        )
     stage(
         ldb_dir,
         options.dataset,

@@ -9,7 +9,7 @@ from ldb.core import init
 
 
 def init_command(options):
-    init(options.path, force=options.force)
+    init(options.path, force=options.force, read_any_cloud_location=False)
     set_default_instance(options.path, overwrite_existing=False)
 
 
