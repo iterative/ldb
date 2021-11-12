@@ -6,6 +6,7 @@ import shtab
 
 from ldb.core import get_ldb_instance
 from ldb.ls import ls
+from ldb.string_utils import left_truncate
 from ldb.utils import format_dataset_identifier
 from ldb.workspace import load_workspace_dataset
 
@@ -25,14 +26,6 @@ def ls_command(options):
             else left_truncate(item.data_object_path)
         )
         print(f"  0x{item.data_object_hash:35} {annotation_version:8} {path}")
-
-
-def left_truncate(item: str, max_len=36) -> str:
-    return (
-        item
-        if len(item) <= max_len
-        else "..." + item[-(max_len - 3) :]  # noqa: E203
-    )
 
 
 def add_parser(
