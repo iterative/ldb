@@ -12,3 +12,7 @@ class WorkspaceError(LDBException):
 
 class WorkspaceDatasetNotFoundError(WorkspaceError):
     pass
+
+
+class NotAStorageLocationError(LDBException):
+    pass

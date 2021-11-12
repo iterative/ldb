@@ -9,7 +9,7 @@ from typing import Any, Dict, Iterable, List
 import fsspec
 from fsspec.core import OpenFile
 
-from ldb.exceptions import LDBException
+from ldb.exceptions import LDBException, NotAStorageLocationError
 from ldb.path import Filename, InstanceDir
 from ldb.storage import StorageLocation, load_from_path
 from ldb.utils import (
@@ -219,7 +219,7 @@ def validate_file(
         storage_file.path,
         storage_locations,
     ):
-        raise LDBException(
+        raise NotAStorageLocationError(
             "Found matching files outside of configured storage locations",
         )
     return False
