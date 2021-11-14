@@ -4,32 +4,25 @@ from typing import Iterable
 
 import shtab
 
-from ldb import config
-from ldb.add import add
-from ldb.config import ConfigType
+from ldb.add import add, process_paths
 from ldb.core import get_ldb_instance
-from ldb.index import index
 
 
 def add_command(options):
     ldb_dir = get_ldb_instance()
-    print("Indexing paths...")
-    indexing_result = index(
+    data_object_hashes, annotation_hashes, message = process_paths(
         ldb_dir,
         options.paths,
-        read_any_cloud_location=(
-            (config.load_first([ConfigType.INSTANCE]) or {})
-            .get("core", {})
-            .get("read_any_cloud_location", False)
-        ),
     )
-    print(indexing_result.summary())
-    print()
+    if message:
+        print(message)
+        print()
     print("Adding to working dataset...")
     add(
         ldb_dir,
         Path("."),
-        indexing_result.data_object_hashes,
+        data_object_hashes,
+        annotation_hashes,
     )
 
 
@@ -45,7 +38,7 @@ def add_parser(
     parser.add_argument(  # type: ignore[attr-defined]
         "paths",
         metavar="path",
-        nargs="+",
+        nargs="*",
         help="Storage location, data object identifier, or dataset",
     ).complete = shtab.FILE
     parser.set_defaults(func=add_command)

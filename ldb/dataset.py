@@ -1,10 +1,13 @@
+from collections import defaultdict
 from dataclasses import asdict, dataclass, fields
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Generator, List, Optional, Tuple
 
+from ldb.exceptions import DatasetNotFoundError, LDBException
 from ldb.path import InstanceDir
 from ldb.utils import (
+    format_dataset_identifier,
     format_datetime,
     get_hash_path,
     load_data_file,
@@ -98,6 +101,16 @@ def get_collection(
     )
 
 
+def get_collection_from_dataset_identifier(
+    ldb_dir,
+    dataset_name,
+    dataset_version=None,
+):
+    dataset = get_dataset(ldb_dir, dataset_name)
+    dataset_version_hash = get_dataset_version_hash(dataset, dataset_version)
+    return get_collection(ldb_dir, dataset_version_hash)
+
+
 def get_collection_dir_items(
     collection_dir: Path,
     is_workspace: bool = True,
@@ -124,3 +137,63 @@ def get_workspace_collection_annotation_hash(
     data_object_path: Path,
 ) -> Optional[str]:
     return data_object_path.read_text() or None
+
+
+def combine_collections(ldb_dir, collections):
+    all_versions = defaultdict(list)
+    for collection in collections:
+        for data_object_hash, annotation_hash in collection.items():
+            lst = all_versions[data_object_hash]
+            if annotation_hash:
+                lst.append(annotation_hash)
+    combined_collection = {}
+    for data_object_hash, annotation_hashes in all_versions.items():
+        if len(annotation_hashes) > 1:
+            annotation_dir = (
+                get_hash_path(
+                    ldb_dir / InstanceDir.DATA_OBJECT_INFO,
+                    data_object_hash,
+                )
+                / "annotations"
+            )
+            latest_annotation_hash = max(
+                (load_data_file(annotation_dir / h)["version"], h)
+                for h in annotation_hashes
+            )[1]
+        elif annotation_hashes:
+            latest_annotation_hash = annotation_hashes[0]
+        else:
+            latest_annotation_hash = ""
+        combined_collection[data_object_hash] = latest_annotation_hash
+    return combined_collection
+
+
+def get_dataset(ldb_dir, dataset_name):
+    try:
+        return Dataset.parse(
+            load_data_file(ldb_dir / InstanceDir.DATASETS / dataset_name),
+        )
+    except FileNotFoundError as exc:
+        raise DatasetNotFoundError(
+            f"Dataset not found with name {dataset_name!r}",
+        ) from exc
+
+
+def get_dataset_version_hash(dataset, dataset_version=None):
+    if not dataset_version:
+        dataset_version = len(dataset.versions)
+    try:
+        return dataset.versions[dataset_version - 1]
+    except IndexError as exc:
+        dataset_identifier = format_dataset_identifier(
+            dataset.name,
+            dataset_version,
+        )
+        latest_dataset_identifier = format_dataset_identifier(
+            dataset.name,
+            len(dataset.versions),
+        )
+        raise LDBException(
+            f"{dataset_identifier} does not exist\n"
+            f"The latest version is {latest_dataset_identifier}",
+        ) from exc

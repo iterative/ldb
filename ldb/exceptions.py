@@ -6,6 +6,14 @@ class LDBInstanceNotFoundError(LDBException):
     pass
 
 
+class DatasetError(LDBException):
+    pass
+
+
+class DatasetNotFoundError(DatasetError):
+    pass
+
+
 class WorkspaceError(LDBException):
     pass
 
