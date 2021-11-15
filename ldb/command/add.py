@@ -4,14 +4,15 @@ from typing import Iterable
 
 import shtab
 
-from ldb.add import add, process_paths
+from ldb.add import add, get_arg_type, process_args_for_add
 from ldb.core import get_ldb_instance
 
 
 def add_command(options):
     ldb_dir = get_ldb_instance()
-    data_object_hashes, annotation_hashes, message = process_paths(
+    data_object_hashes, annotation_hashes, message = process_args_for_add(
         ldb_dir,
+        get_arg_type(options.paths),
         options.paths,
     )
     if message:
