@@ -33,7 +33,7 @@ def add_parser(
     parser.add_argument(  # type: ignore[attr-defined]
         "paths",
         metavar="path",
-        nargs="*",
+        nargs="+",
         help="Storage location, data object identifier, or dataset",
     ).complete = shtab.FILE
     parser.set_defaults(func=delete_command)

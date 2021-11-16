@@ -32,7 +32,7 @@ class ArgType(Enum):
 
 
 def get_arg_type(paths: List[str]) -> ArgType:
-    if not paths:
+    if any(p == "ds:root" for p in paths):
         return ArgType.ROOT_DATASET
     if any(p.startswith("ds:") for p in paths):
         return ArgType.DATASET

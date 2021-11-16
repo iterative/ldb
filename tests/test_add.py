@@ -76,3 +76,13 @@ def test_add_datasets(workspace_path, data_dir):
     assert ret == 0
     assert len(object_file_paths) == 7
     assert num_empty_files(object_file_paths) == 3
+
+
+def test_add_root_dataset(workspace_path, data_dir):
+    dir_to_add = data_dir / "fashion-mnist/original"
+    main(["index", f"{os.fspath(dir_to_add)}"])
+    ret = main(["add", "ds:root"])
+    object_file_paths = get_staged_object_file_paths(workspace_path)
+    assert ret == 0
+    assert len(object_file_paths) == 32
+    assert num_empty_files(object_file_paths) == 23
