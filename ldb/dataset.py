@@ -111,6 +111,13 @@ def get_collection_from_dataset_identifier(
     return get_collection(ldb_dir, dataset_version_hash)
 
 
+def get_collection_dir_keys(
+    collection_dir: Path,
+) -> Generator[str, None, None]:
+    for path in collection_dir.glob("*/*"):
+        yield path.parent.name + path.name
+
+
 def get_collection_dir_items(
     collection_dir: Path,
     is_workspace: bool = True,
