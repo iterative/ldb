@@ -1,6 +1,8 @@
 import os
 from dataclasses import asdict
 
+from fsspec.implementations.local import make_path_posix
+
 from ldb import storage
 from ldb.main import main
 from ldb.path import Filename, GlobalDir
@@ -20,7 +22,7 @@ def test_add_storage_command_default(global_base, tmp_path):
     expected = {
         "locations": [
             {
-                "path": os.fspath(path1.absolute()),
+                "path": make_path_posix(os.fspath(path1)),
                 "protocol": "file",
                 "fs_id": "",
                 "read_access_verified": True,
@@ -28,7 +30,7 @@ def test_add_storage_command_default(global_base, tmp_path):
                 "read_and_add": False,
             },
             {
-                "path": os.fspath(path2.absolute()),
+                "path": make_path_posix(os.fspath(path2)),
                 "protocol": "file",
                 "fs_id": "",
                 "read_access_verified": True,
@@ -54,7 +56,7 @@ def test_add_storage_command_add_update(global_base, tmp_path):
     expected = {
         "locations": [
             {
-                "path": os.fspath(path.absolute()),
+                "path": make_path_posix(os.fspath(path)),
                 "protocol": "file",
                 "fs_id": "",
                 "read_access_verified": True,
@@ -82,7 +84,7 @@ def test_add_storage_command_child(global_base, tmp_path):
     expected = {
         "locations": [
             {
-                "path": os.fspath(path1.absolute()),
+                "path": make_path_posix(os.fspath(path1)),
                 "protocol": "file",
                 "fs_id": "",
                 "read_access_verified": True,
@@ -110,7 +112,7 @@ def test_add_storage_command_parent(global_base, tmp_path):
     expected = {
         "locations": [
             {
-                "path": os.fspath(path1.absolute()),
+                "path": make_path_posix(os.fspath(path1)),
                 "protocol": "file",
                 "fs_id": "",
                 "read_access_verified": True,
@@ -141,7 +143,7 @@ def test_add_storage_command_force_parent(
     expected = {
         "locations": [
             {
-                "path": os.fspath(path2.absolute()),
+                "path": make_path_posix(os.fspath(path2)),
                 "protocol": "file",
                 "fs_id": "",
                 "read_access_verified": True,
