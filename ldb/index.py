@@ -2,7 +2,6 @@ import getpass
 import json
 import os
 import re
-import uuid
 from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
@@ -25,6 +24,7 @@ from ldb.utils import (
     load_data_file,
     parse_datetime,
     timestamp_to_datetime,
+    unique_id,
     write_data_file,
 )
 
@@ -91,7 +91,7 @@ def copy_to_read_add_storage(
             read_add_location.path,
             "ldb-autoimport",
             date.today().isoformat(),
-            uuid.uuid4().hex,
+            unique_id(),
         ],
     )
     new_files = []

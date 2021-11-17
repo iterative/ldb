@@ -1,7 +1,9 @@
 import hashlib
 import json
 import os
+import random
 import re
+import string
 from datetime import datetime
 from pathlib import Path
 from typing import BinaryIO, Optional, Tuple
@@ -12,6 +14,7 @@ from ldb.exceptions import LDBException
 
 CHUNK_SIZE = 2 ** 20
 HASH_DIR_SPLIT_POINT = 3
+UNIQUE_ID_ALPHABET = string.ascii_lowercase + string.digits
 
 
 def write_data_file(
@@ -119,3 +122,7 @@ def parse_data_object_hash_identifier(hash_identifier: str) -> str:
             "characters",
         )
     return match.group(1)
+
+
+def unique_id(n: int = 8) -> str:
+    return "".join(random.choices(UNIQUE_ID_ALPHABET, k=n))
