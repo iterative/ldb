@@ -10,6 +10,7 @@ from typing import Any, Dict, Iterable, List, Sequence, Tuple
 
 import fsspec
 from fsspec.core import OpenFile
+from fsspec.implementations.local import make_path_posix
 
 from ldb.exceptions import LDBException, NotAStorageLocationError
 from ldb.path import InstanceDir
@@ -95,14 +96,15 @@ def copy_to_read_add_storage(
     )
     new_files = []
     for file in files:
-        path = file.path
+        dest = file.path
         if file.fs.protocol == "file":
-            path_obj = Path(path)
-            path = os.fspath(path_obj.relative_to(path_obj.anchor))
-        else:
-            path = path.lstrip(file.fs.sep)
-        dest = fs.sep.join([base_dir] + path.split(file.fs.sep))
-        fs.makedirs(dest.rsplit(fs.sep, 1)[0], exist_ok=True)
+            dest = make_path_posix(dest)
+        dest = fs.sep.join(
+            [base_dir] + dest.lstrip(file.fs.sep).split(file.fs.sep),
+        )
+        fs.makedirs(dest.rstrip(fs.sep).rsplit(fs.sep, 1)[0], exist_ok=True)
+        print("  src:", file.path)
+        print("  dst:", dest)
         file.fs.put_file(file.path, dest, protocol=fs.protocol)
         new_files.append(fsspec.core.OpenFile(fs, dest))
     return new_files
