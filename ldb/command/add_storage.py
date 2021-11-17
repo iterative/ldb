@@ -15,7 +15,7 @@ def add_storage_command(options):
         ldb_dir = init(ldb_dir)
     storage_location = create_storage_location(
         path=options.path,
-        add=options.read_add,
+        read_and_add=options.read_add,
     )
     add_storage(
         ldb_dir / Filename.STORAGE,

@@ -276,10 +276,12 @@ def validate_and_separate_ephemeral_files(
         if storage_file.fs.protocol == "file":
             is_ephemeral = not in_storage_locations(
                 storage_file.path,
+                storage_file.fs.protocol,
                 storage_locations,
             )
         elif not read_any_cloud_location and not in_storage_locations(
             storage_file.path,
+            storage_file.fs.protocol,
             storage_locations,
         ):
             raise NotAStorageLocationError(
@@ -293,8 +295,11 @@ def validate_and_separate_ephemeral_files(
     return ephemeral, storage
 
 
-def in_storage_locations(path: str, storage_locations) -> bool:
-    return any(path.startswith(loc.path) for loc in storage_locations)
+def in_storage_locations(path: str, protocol: str, storage_locations) -> bool:
+    return any(
+        loc.protocol == protocol and path.startswith(loc.path)
+        for loc in storage_locations
+    )
 
 
 def is_hidden_fsspec_path(path: str) -> bool:

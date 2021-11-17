@@ -21,7 +21,7 @@ def test_add_storage_command_default(global_base, tmp_path):
         "locations": [
             {
                 "path": os.fspath(path1.absolute()),
-                "protocol": "",
+                "protocol": "file",
                 "fs_id": "",
                 "read_access_verified": True,
                 "write_access_verified": True,
@@ -29,7 +29,7 @@ def test_add_storage_command_default(global_base, tmp_path):
             },
             {
                 "path": os.fspath(path2.absolute()),
-                "protocol": "",
+                "protocol": "file",
                 "fs_id": "",
                 "read_access_verified": True,
                 "write_access_verified": True,
@@ -55,7 +55,7 @@ def test_add_storage_command_add_update(global_base, tmp_path):
         "locations": [
             {
                 "path": os.fspath(path.absolute()),
-                "protocol": "",
+                "protocol": "file",
                 "fs_id": "",
                 "read_access_verified": True,
                 "write_access_verified": True,
@@ -83,7 +83,7 @@ def test_add_storage_command_child(global_base, tmp_path):
         "locations": [
             {
                 "path": os.fspath(path1.absolute()),
-                "protocol": "",
+                "protocol": "file",
                 "fs_id": "",
                 "read_access_verified": True,
                 "write_access_verified": True,
@@ -111,7 +111,7 @@ def test_add_storage_command_parent(global_base, tmp_path):
         "locations": [
             {
                 "path": os.fspath(path1.absolute()),
-                "protocol": "",
+                "protocol": "file",
                 "fs_id": "",
                 "read_access_verified": True,
                 "write_access_verified": True,
@@ -142,7 +142,7 @@ def test_add_storage_command_force_parent(
         "locations": [
             {
                 "path": os.fspath(path2.absolute()),
-                "protocol": "",
+                "protocol": "file",
                 "fs_id": "",
                 "read_access_verified": True,
                 "write_access_verified": True,

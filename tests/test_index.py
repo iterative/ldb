@@ -4,7 +4,7 @@ from pathlib import Path
 
 from ldb.main import main
 from ldb.path import Filename, InstanceDir
-from ldb.storage import StorageLocation, add_storage
+from ldb.storage import add_storage, create_storage_location
 from ldb.utils import load_data_file
 
 DATA_OBJECT_KEYS = (
@@ -233,7 +233,7 @@ def test_index_glob_dir_path(ldb_instance, data_dir):
 def test_index_hidden_paths(ldb_instance, data_dir, tmp_path):
     src_path = data_dir / "fashion-mnist/original/has_both/train"
     storage_path = tmp_path / "storage"
-    storage_location = StorageLocation(path=os.fspath(storage_path))
+    storage_location = create_storage_location(path=os.fspath(storage_path))
     add_storage(ldb_instance / Filename.STORAGE, storage_location)
     path_pairs = [
         ("00002", ".00002"),
@@ -269,7 +269,10 @@ def test_index_ephemeral_location(ldb_instance, data_dir, tmp_path):
     read_add_path = tmp_path / "read-add-storage"
     add_storage(
         ldb_instance / Filename.STORAGE,
-        StorageLocation(path=os.fspath(read_add_path), read_and_add=True),
+        create_storage_location(
+            path=os.fspath(read_add_path),
+            read_and_add=True,
+        ),
     )
 
     ret = main(["index", f"{os.fspath(storage_path)}"])
