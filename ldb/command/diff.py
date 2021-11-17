@@ -21,10 +21,10 @@ def diff_command(options):
 
 
 def format_diff_item(diff_item, verbose) -> str:
-    if not diff_item.annotation_version1:
+    if diff_item.annotation_version2 and not diff_item.annotation_version1:
         prefix = "+"
         annotation_col = annotation_version_str(diff_item.annotation_version2)
-    elif not diff_item.annotation_version2:
+    elif not diff_item.annotation_version2 and diff_item.annotation_version1:
         prefix = "-"
         annotation_col = annotation_version_str(diff_item.annotation_version1)
     elif diff_item.annotation_version1 != diff_item.annotation_version2:

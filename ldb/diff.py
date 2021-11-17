@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, Generator, Optional, Tuple
+from typing import Dict, Generator, Iterable, Optional, Tuple
 
 from ldb.dataset import Dataset, get_collection
 from ldb.exceptions import LDBException
@@ -30,10 +30,19 @@ def diff(
     dataset1,
     dataset2=None,
 ) -> Generator[DiffItem, None, None]:
-    collection1 = get_collection(
-        ldb_dir,
-        get_dataset_version_hash(ldb_dir, dataset1),
-    )
+    if dataset1.startswith("ds:"):
+        collection1 = get_collection(
+            ldb_dir,
+            get_dataset_version_hash(ldb_dir, dataset1),
+        )
+    elif dataset1:
+        collection1 = get_collection(
+            ldb_dir,
+            dataset1,
+        )
+    else:
+        collection1 = {}
+
     if dataset2 is not None:
         collection2 = get_collection(
             ldb_dir,
@@ -47,6 +56,22 @@ def diff(
         ldb_dir,
         simple_diff(collection1, collection2),
     )
+
+
+def summarize_diff(diff_items: Iterable[DiffItem]) -> Tuple[int, int, int]:
+    additions = 0
+    deletions = 0
+    modifications = 0
+    for diff_item in diff_items:
+        if diff_item.annotation_version2 and not diff_item.annotation_version1:
+            additions += 1
+        elif (
+            not diff_item.annotation_version2 and diff_item.annotation_version1
+        ):
+            deletions += 1
+        elif diff_item.annotation_version1 != diff_item.annotation_version2:
+            modifications += 1
+    return additions, deletions, modifications
 
 
 def get_dataset_version_hash(ldb_dir: Path, dataset_identifier: str) -> str:
