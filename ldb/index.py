@@ -89,9 +89,8 @@ def copy_to_read_add_storage(
     base_dir = fs.sep.join(
         [
             read_add_location.path,
-            "ldb-autoimport",
-            date.today().isoformat(),
-            unique_id(),
+            "l",
+            unique_id(n=2),
         ],
     )
     new_files = []

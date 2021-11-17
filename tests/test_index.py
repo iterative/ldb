@@ -277,7 +277,7 @@ def test_index_ephemeral_location(ldb_instance, data_dir, tmp_path):
 
     ret = main(["index", f"{os.fspath(storage_path)}"])
 
-    read_add_index_base = list(read_add_path.glob("ldb-autoimport/*/*"))[0]
+    read_add_index_base = list(read_add_path.glob("l/*"))[0]
     read_add_rel_paths = sorted(
         os.fspath(x.relative_to(read_add_index_base))
         for x in read_add_index_base.glob(
