@@ -98,13 +98,11 @@ def copy_to_read_add_storage(
     for file in files:
         dest = file.path
         if file.fs.protocol == "file":
-            dest = make_path_posix(dest)
+            dest = re.sub("^[A-Za-z]:", "", make_path_posix(dest))
         dest = fs.sep.join(
             [base_dir] + dest.lstrip(file.fs.sep).split(file.fs.sep),
         )
         fs.makedirs(dest.rstrip(fs.sep).rsplit(fs.sep, 1)[0], exist_ok=True)
-        print("  src:", file.path)
-        print("  dst:", dest)
         file.fs.put_file(file.path, dest, protocol=fs.protocol)
         new_files.append(fsspec.core.OpenFile(fs, dest))
     return new_files
