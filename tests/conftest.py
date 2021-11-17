@@ -6,7 +6,9 @@ import pytest
 from ldb.config import get_global_base, set_default_instance
 from ldb.core import init
 from ldb.env import Env
+from ldb.path import Filename
 from ldb.stage import stage_workspace
+from ldb.storage import StorageLocation, add_storage
 from ldb.utils import current_time
 from ldb.workspace import WorkspaceDataset
 
@@ -51,10 +53,12 @@ def global_base(monkeypatch, tmp_path):
 
 
 @pytest.fixture
-def ldb_instance(tmp_path, global_base) -> Path:
+def ldb_instance(tmp_path, global_base, data_dir) -> Path:
     instance_dir = tmp_path / "ldb_instance"
     init(instance_dir)
     set_default_instance(instance_dir, overwrite_existing=True)
+    storage_location = StorageLocation(path=os.fspath(data_dir))
+    add_storage(instance_dir / Filename.STORAGE, storage_location)
     return instance_dir
 
 
