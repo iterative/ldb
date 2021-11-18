@@ -49,7 +49,6 @@ def index(
     paths: List[str],
     read_any_cloud_location: bool = False,
 ) -> IndexingResult:
-    print(read_any_cloud_location)
     storage_path = ldb_dir / Filename.STORAGE
     storage_locations = []
     if storage_path.is_file():

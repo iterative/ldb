@@ -43,10 +43,10 @@ exclude = '''
 
 [tool.autopep8]
 max_line_length = 79
-ignore = ["E203"]
+ignore = ['E203', 'E501']
 in-place = true
 recursive = true
-aggressive = 3
+aggressive = 0
 
 [tool.pylint.MASTER]
 

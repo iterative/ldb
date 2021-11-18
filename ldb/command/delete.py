@@ -4,26 +4,20 @@ from typing import Iterable
 
 import shtab
 
-from ldb.add import add, get_arg_type, process_args_for_add
+from ldb.add import delete, get_arg_type, process_args_for_delete
 from ldb.core import get_ldb_instance
 
 
-def add_command(options):
+def delete_command(options):
     ldb_dir = get_ldb_instance()
-    data_object_hashes, annotation_hashes, message = process_args_for_add(
+    data_object_hashes = process_args_for_delete(
         ldb_dir,
         get_arg_type(options.paths),
         options.paths,
     )
-    if message:
-        print(message)
-        print()
-    print("Adding to working dataset...")
-    add(
-        ldb_dir,
+    delete(
         Path("."),
         data_object_hashes,
-        annotation_hashes,
     )
 
 
@@ -32,9 +26,9 @@ def add_parser(
     parents: Iterable[argparse.ArgumentParser],
 ) -> None:
     parser = subparsers.add_parser(
-        "add",
+        "del",
         parents=parents,
-        help="Add a data objects under a certain path",
+        help="Delete data objects from workspace dataset",
     )
     parser.add_argument(  # type: ignore[attr-defined]
         "paths",
@@ -42,4 +36,4 @@ def add_parser(
         nargs="+",
         help="Storage location, data object identifier, or dataset",
     ).complete = shtab.FILE
-    parser.set_defaults(func=add_command)
+    parser.set_defaults(func=delete_command)

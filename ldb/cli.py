@@ -6,6 +6,7 @@ from ldb.command import (
     add_storage,
     commit,
     completion,
+    delete,
     diff,
     index,
     init,
@@ -51,6 +52,7 @@ def get_main_parser():
     add_storage.add_parser(subparsers, parents)
     completion.add_parser(subparsers, parents)
     commit.add_parser(subparsers, parents)
+    delete.add_parser(subparsers, parents)
     diff.add_parser(subparsers, parents)
     index.add_parser(subparsers, parents)
     init.add_parser(subparsers, parents)

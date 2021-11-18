@@ -109,3 +109,13 @@ def get_fsspec_path_suffix(path: str) -> str:
     if match is None:
         return ""
     return match.group()
+
+
+def parse_data_object_hash_identifier(hash_identifier: str) -> str:
+    match = re.search("^0x([0-9a-f]{32})$", hash_identifier)
+    if match is None:
+        raise ValueError(
+            "hash_identifier must start with '0x' followed by 32 hexadecimal "
+            "characters",
+        )
+    return match.group(1)
