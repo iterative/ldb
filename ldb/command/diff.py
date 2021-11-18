@@ -28,7 +28,7 @@ def format_diff_item(diff_item, verbose) -> str:
         prefix = "-"
         annotation_col = annotation_version_str(diff_item.annotation_version1)
     elif diff_item.annotation_version1 != diff_item.annotation_version2:
-        prefix = " "
+        prefix = "m"
         annotation_col = (
             f"{annotation_version_str(diff_item.annotation_version1)} "
             f"-> {annotation_version_str(diff_item.annotation_version2)}"
