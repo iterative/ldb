@@ -5,22 +5,32 @@ from json import dump, load
 from pathlib import Path, PurePath
 from typing import Generator, Iterable, List
 
+from fsspec.implementations.local import make_path_posix
+
 from ldb.exceptions import LDBException, StorageConfigurationError
+from ldb.path import Filename
 
 
 @dataclass
 class StorageLocation:
     path: str = ""
-    protocol: str = ""
+    protocol: str = "file"
     fs_id: str = ""
     read_access_verified: bool = False
     write_access_verified: bool = False
-    read_and_add: bool = True
+    read_and_add: bool = False
 
 
 @dataclass
 class StorageConfig:
     locations: List[StorageLocation] = field(default_factory=list)
+
+
+def get_storage_locations(ldb_dir: Path):
+    storage_path = ldb_dir / Filename.STORAGE
+    if storage_path.is_file():
+        return load_from_path(storage_path).locations
+    return []
 
 
 def load_from_path(path: Path) -> StorageConfig:
@@ -40,15 +50,15 @@ def save_to_path(storage_config: StorageConfig, path: Path) -> None:
 
 def create_storage_location(
     path: str = "",
-    protocol: str = "",
-    add: bool = False,
+    protocol: str = "file",
+    read_and_add: bool = False,
 ):
     return StorageLocation(
-        path=os.fspath(Path(path).absolute()),
+        path=make_path_posix(path),
         protocol=protocol,
         read_access_verified=os.access(path, os.R_OK),
         write_access_verified=os.access(path, os.W_OK),
-        read_and_add=add,
+        read_and_add=read_and_add,
     )
 
 

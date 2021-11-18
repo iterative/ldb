@@ -3,25 +3,29 @@ import json
 import os
 import re
 from dataclasses import dataclass
+from datetime import date
 from pathlib import Path
-from typing import Any, Dict, Iterable, List
+from typing import Any, Dict, Iterable, List, Sequence, Tuple
 
 import fsspec
 from fsspec.core import OpenFile
+from fsspec.implementations.local import make_path_posix
 
 from ldb.exceptions import LDBException, NotAStorageLocationError
-from ldb.path import Filename, InstanceDir
-from ldb.storage import StorageLocation, load_from_path
+from ldb.path import InstanceDir
+from ldb.storage import StorageLocation, get_storage_locations
 from ldb.utils import (
     current_time,
     format_datetime,
     get_filetype,
+    get_fsspec_path_suffix,
     get_hash_path,
     hash_data,
     hash_file,
     load_data_file,
     parse_datetime,
     timestamp_to_datetime,
+    unique_id,
     write_data_file,
 )
 
@@ -49,22 +53,110 @@ def index(
     paths: List[str],
     read_any_cloud_location: bool = False,
 ) -> IndexingResult:
-    storage_path = ldb_dir / Filename.STORAGE
-    storage_locations = []
-    if storage_path.is_file():
-        storage_locations = load_from_path(storage_path).locations
-
-    storage_files = [f for p in paths for f in get_storage_files(p)]
-    if not storage_files:
+    files = get_storage_files_for_paths(paths)
+    if not files:
         raise LDBException(
             "No files or directories found matching the given paths.",
         )
+    storage_locations = get_storage_locations(ldb_dir)
+    local_files, cloud_files = separate_local_and_cloud_files(files)
+    if not read_any_cloud_location:
+        validate_locations_in_storage(cloud_files, storage_locations)
+    (
+        local_storage_files,
+        ephemeral_files,
+    ) = separate_storage_and_non_storage_files(local_files, storage_locations)
 
-    for file in storage_files:
-        validate_file(file, read_any_cloud_location, storage_locations)
+    files = cloud_files + local_storage_files
+    if ephemeral_files:
+        read_add_location = next(
+            (loc for loc in storage_locations if loc.read_and_add),
+            None,
+        )
+        if read_add_location is None:
+            raise LDBException(
+                "No read-add storage configured. See 'ldb add-storage -h'",
+            )
+        added_storage_files = copy_to_read_add_storage(
+            ephemeral_files,
+            read_add_location,
+        )
+        files.extend(added_storage_files)
+    return index_files(ldb_dir, files)
 
+
+def copy_to_read_add_storage(
+    files: Sequence[OpenFile],
+    read_add_location: StorageLocation,
+) -> List[OpenFile]:
+    fs = fsspec.filesystem(read_add_location.protocol)
+    base_dir = fs.sep.join(
+        [
+            read_add_location.path,
+            "ldb-autoimport",
+            date.today().isoformat(),
+            unique_id(),
+        ],
+    )
     data_object_files, annotation_files_by_path = group_storage_files_by_type(
-        storage_files,
+        files,
+    )
+    fs.makedirs(base_dir, exist_ok=True)
+    new_files = []
+    for file in data_object_files:
+        dest = file.path
+        if file.fs.protocol == "file":
+            dest = re.sub("^[A-Za-z]:", "", make_path_posix(dest))
+        dest = fs.sep.join(
+            [base_dir] + dest.lstrip(file.fs.sep).split(file.fs.sep),
+        )
+
+        annotation_file = annotation_files_by_path.get(
+            data_object_path_to_annotation_path(file.path),
+        )
+        annotation_dest = None
+        if annotation_file is not None:
+            annotation_dest = data_object_path_to_annotation_path(dest)
+        try:
+            fs.makedirs(
+                fs._parent(dest),  # pylint: disable=protected-access)
+                exist_ok=True,
+            )
+            if annotation_dest is not None:
+                file.fs.put_file(
+                    annotation_file.path,
+                    annotation_dest,
+                    protocol=fs.protocol,
+                )
+            file.fs.put_file(file.path, dest, protocol=fs.protocol)
+        except FileNotFoundError:
+            data_object_hash = hash_file(file)
+            dest = fs.sep.join(
+                [
+                    base_dir,
+                    data_object_hash + get_fsspec_path_suffix(file.path),
+                ],
+            )
+            if annotation_file is not None:
+                annotation_dest = data_object_path_to_annotation_path(dest)
+                file.fs.put_file(
+                    annotation_file.path,
+                    annotation_dest,
+                    protocol=fs.protocol,
+                )
+            file.fs.put_file(file.path, dest, protocol=fs.protocol)
+        new_files.append(fsspec.core.OpenFile(fs, dest))
+        if annotation_file is not None:
+            new_files.append(fsspec.core.OpenFile(fs, annotation_dest))
+    return new_files
+
+
+def index_files(
+    ldb_dir: Path,
+    files: List[OpenFile],
+) -> IndexingResult:
+    data_object_files, annotation_files_by_path = group_storage_files_by_type(
+        files,
     )
     data_object_hashes = []
     num_annotations_indexed = 0
@@ -97,8 +189,9 @@ def index(
             ),
         ]
 
-        annotation_path = os.path.splitext(data_object_file.path)[0] + ".json"
-        annotation_file = annotation_files_by_path.get(annotation_path)
+        annotation_file = annotation_files_by_path.get(
+            data_object_path_to_annotation_path(data_object_file.path),
+        )
         if annotation_file is not None:
             ldb_content, user_content = get_annotation_content(annotation_file)
             ldb_content_bytes = json.dumps(ldb_content).encode()
@@ -162,6 +255,21 @@ def index(
     )
 
 
+def data_object_path_to_annotation_path(path: str) -> str:
+    return os.path.splitext(path)[0] + ".json"
+
+
+def get_storage_files_for_paths(paths: List[str]) -> List[OpenFile]:
+    seen = set()
+    storage_files = []
+    for path in paths:
+        for file in get_storage_files(path):
+            if file.path not in seen:
+                storage_files.append(file)
+                seen.add(file.path)
+    return storage_files
+
+
 def get_storage_files(path: str) -> List[OpenFile]:
     """
     Get storage files for indexing that match the glob, `path`.
@@ -204,28 +312,58 @@ def get_storage_files(path: str) -> List[OpenFile]:
     return files
 
 
-def validate_file(
-    storage_file: OpenFile,
-    read_any_cloud_location: bool,
+def separate_local_and_cloud_files(
+    storage_files: Sequence[OpenFile],
+) -> Tuple[List[OpenFile], List[OpenFile]]:
+    local = []
+    cloud = []
+    for file in storage_files:
+        if file.fs.protocol == "file":
+            local.append(file)
+        else:
+            cloud.append(file)
+    return local, cloud
+
+
+def separate_storage_and_non_storage_files(
+    files: Sequence[OpenFile],
     storage_locations: List[StorageLocation],
-) -> bool:
-    if storage_file.fs.protocol == "file" and not in_storage_locations(
-        storage_file.path,
-        storage_locations,
-    ):
-        return True
-    if not read_any_cloud_location and not in_storage_locations(
-        storage_file.path,
-        storage_locations,
-    ):
-        raise NotAStorageLocationError(
-            "Found matching files outside of configured storage locations",
-        )
-    return False
+) -> Tuple[List[OpenFile], List[OpenFile]]:
+    storage = []
+    non_storage = []
+    for file in files:
+        if in_storage_locations(
+            file.path,
+            file.fs.protocol,
+            storage_locations,
+        ):
+            storage.append(file)
+        else:
+            non_storage.append(file)
+    return storage, non_storage
 
 
-def in_storage_locations(path: str, storage_locations) -> bool:
-    return any(path.startswith(loc.path) for loc in storage_locations)
+def validate_locations_in_storage(
+    storage_files: Sequence[OpenFile],
+    storage_locations: List[StorageLocation],
+) -> None:
+    for storage_file in storage_files:
+        if in_storage_locations(
+            storage_file.path,
+            storage_file.fs.protocol,
+            storage_locations,
+        ):
+            raise NotAStorageLocationError(
+                "Found file outside of configured storage locations: "
+                f"{storage_file.path}",
+            )
+
+
+def in_storage_locations(path: str, protocol: str, storage_locations) -> bool:
+    return any(
+        loc.protocol == protocol and path.startswith(loc.path)
+        for loc in storage_locations
+    )
 
 
 def is_hidden_fsspec_path(path: str) -> bool:

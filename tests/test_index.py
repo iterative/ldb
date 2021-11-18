@@ -3,7 +3,8 @@ import shutil
 from pathlib import Path
 
 from ldb.main import main
-from ldb.path import InstanceDir
+from ldb.path import Filename, InstanceDir
+from ldb.storage import add_storage, create_storage_location
 from ldb.utils import load_data_file
 
 DATA_OBJECT_KEYS = (
@@ -232,6 +233,8 @@ def test_index_glob_dir_path(ldb_instance, data_dir):
 def test_index_hidden_paths(ldb_instance, data_dir, tmp_path):
     src_path = data_dir / "fashion-mnist/original/has_both/train"
     storage_path = tmp_path / "storage"
+    storage_location = create_storage_location(path=os.fspath(storage_path))
+    add_storage(ldb_instance / Filename.STORAGE, storage_location)
     path_pairs = [
         ("00002", ".00002"),
         ("00007", "dir/.dir/00007"),
@@ -257,3 +260,49 @@ def test_index_hidden_paths(ldb_instance, data_dir, tmp_path):
     assert len(data_object_meta_paths) == 1
     assert len(annotation_meta_paths) == 1
     assert len(annotation_paths) == 1
+
+
+def test_index_ephemeral_location(ldb_instance, data_dir, tmp_path):
+    storage_path = tmp_path / "ephemeral_location"
+    shutil.copytree(data_dir / "fashion-mnist/original/has_both", storage_path)
+
+    read_add_path = tmp_path / "read-add-storage"
+    add_storage(
+        ldb_instance / Filename.STORAGE,
+        create_storage_location(
+            path=os.fspath(read_add_path),
+            read_and_add=True,
+        ),
+    )
+
+    ret = main(["index", f"{os.fspath(storage_path)}"])
+
+    read_add_index_base = list(read_add_path.glob("ldb-autoimport/*/*"))[0]
+    num_read_add_annotation_files = len(
+        list(read_add_index_base.glob("**/*.json")),
+    )
+    num_read_add_data_object_files = len(
+        list(read_add_index_base.glob("**/*.png")),
+    )
+    (
+        data_object_meta_paths,
+        annotation_meta_paths,
+        annotation_paths,
+    ) = get_indexed_data_paths(ldb_instance)
+    non_data_object_meta = [
+        p for p in data_object_meta_paths if not is_data_object_meta(p)
+    ]
+    non_annotation_meta = [
+        p for p in annotation_meta_paths if not is_annotation_meta(p)
+    ]
+    non_annotation = [p for p in annotation_paths if not is_annotation(p)]
+
+    assert ret == 0
+    assert len(data_object_meta_paths) == 23
+    assert len(annotation_meta_paths) == 23
+    assert len(annotation_paths) == 10
+    assert non_data_object_meta == []
+    assert non_annotation_meta == []
+    assert non_annotation == []
+    assert num_read_add_data_object_files == 23
+    assert num_read_add_annotation_files == 23

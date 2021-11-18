@@ -1,7 +1,7 @@
 import os
 from enum import Enum, unique
 from pathlib import Path
-from typing import List, Optional, Sequence, Tuple
+from typing import List, NamedTuple, Optional, Sequence
 
 from ldb import config
 from ldb.config import ConfigType
@@ -15,6 +15,8 @@ from ldb.exceptions import LDBException
 from ldb.index import index
 from ldb.path import InstanceDir, WorkspacePath
 from ldb.utils import (
+    DATASET_PREFIX,
+    ROOT,
     format_dataset_identifier,
     get_hash_path,
     parse_data_object_hash_identifier,
@@ -31,8 +33,14 @@ class ArgType(Enum):
     PATH = "path"
 
 
+class AddInput(NamedTuple):
+    data_object_hashes: Sequence[str]
+    annotation_hashes: Optional[Sequence[str]]
+    message: str
+
+
 def get_arg_type(paths: List[str]) -> ArgType:
-    if any(p == "ds:root" for p in paths):
+    if any(p == f"{DATASET_PREFIX}{ROOT}" for p in paths):
         return ArgType.ROOT_DATASET
     if any(p.startswith("ds:") for p in paths):
         return ArgType.DATASET
@@ -45,7 +53,7 @@ def process_args_for_add(
     ldb_dir: Path,
     arg_type: ArgType,
     paths: List[str],
-) -> Tuple[List[str], Optional[List[str]], str]:
+) -> AddInput:
     return ADD_FUNCTIONS[arg_type](ldb_dir, paths)
 
 
@@ -61,7 +69,7 @@ def root_dataset_for_add(
     ):
         data_object_hashes.append(data_object_hash)
         annotation_hashes.append(annotation_hash or "")
-    return data_object_hashes, annotation_hashes, ""
+    return AddInput(data_object_hashes, annotation_hashes, "")
 
 
 def dataset_for_add(ldb_dir: Path, paths: List[str]):
@@ -82,9 +90,9 @@ def dataset_for_add(ldb_dir: Path, paths: List[str]):
         for ds_name, ds_version in dataset_identifiers
     ]
     combined_collection = combine_collections(ldb_dir, collections)
-    return (
-        list(combined_collection.keys()),
-        list(combined_collection.values()),
+    return AddInput(
+        combined_collection.keys(),
+        combined_collection.values(),
         "",
     )
 
@@ -94,7 +102,7 @@ def data_object_for_add(
     paths: List[str],
 ):
     try:
-        return (
+        return AddInput(
             [parse_data_object_hash_identifier(p) for p in paths],
             None,
             "",
@@ -117,7 +125,11 @@ def path_for_add(ldb_dir: Path, paths: List[str]):
             .get("read_any_cloud_location", False)
         ),
     )
-    return indexing_result.data_object_hashes, None, indexing_result.summary()
+    return AddInput(
+        indexing_result.data_object_hashes,
+        None,
+        indexing_result.summary(),
+    )
 
 
 ADD_FUNCTIONS = {
