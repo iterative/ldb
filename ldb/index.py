@@ -59,12 +59,15 @@ def index(
             "No files or directories found matching the given paths.",
         )
     storage_locations = get_storage_locations(ldb_dir)
-    ephemeral_files, storage_files = validate_and_separate_ephemeral_files(
-        files,
-        read_any_cloud_location,
-        storage_locations,
-    )
+    local_files, cloud_files = separate_local_and_cloud_files(files)
+    if not read_any_cloud_location:
+        validate_locations_in_storage(cloud_files, storage_locations)
+    (
+        local_storage_files,
+        ephemeral_files,
+    ) = separate_storage_and_non_storage_files(local_files, storage_locations)
 
+    files = cloud_files + local_storage_files
     if ephemeral_files:
         read_add_location = next(
             (loc for loc in storage_locations if loc.read_and_add),
@@ -78,7 +81,7 @@ def index(
             ephemeral_files,
             read_add_location,
         )
-        files = storage_files + added_storage_files
+        files.extend(added_storage_files)
     return index_files(ldb_dir, files)
 
 
@@ -116,7 +119,7 @@ def copy_to_read_add_storage(
             annotation_dest = data_object_path_to_annotation_path(dest)
         try:
             fs.makedirs(
-                dest.rstrip(fs.sep).rsplit(fs.sep, 1)[0],
+                fs._parent(dest),  # pylint: disable=protected-access)
                 exist_ok=True,
             )
             if annotation_dest is not None:
@@ -309,22 +312,43 @@ def get_storage_files(path: str) -> List[OpenFile]:
     return files
 
 
-def validate_and_separate_ephemeral_files(
+def separate_local_and_cloud_files(
     storage_files: Sequence[OpenFile],
-    read_any_cloud_location: bool,
+) -> Tuple[List[OpenFile], List[OpenFile]]:
+    local = []
+    cloud = []
+    for file in storage_files:
+        if file.fs.protocol == "file":
+            local.append(file)
+        else:
+            cloud.append(file)
+    return local, cloud
+
+
+def separate_storage_and_non_storage_files(
+    files: Sequence[OpenFile],
     storage_locations: List[StorageLocation],
 ) -> Tuple[List[OpenFile], List[OpenFile]]:
-    ephemeral = []
     storage = []
+    non_storage = []
+    for file in files:
+        if in_storage_locations(
+            file.path,
+            file.fs.protocol,
+            storage_locations,
+        ):
+            storage.append(file)
+        else:
+            non_storage.append(file)
+    return storage, non_storage
+
+
+def validate_locations_in_storage(
+    storage_files: Sequence[OpenFile],
+    storage_locations: List[StorageLocation],
+) -> None:
     for storage_file in storage_files:
-        is_ephemeral = False
-        if storage_file.fs.protocol == "file":
-            is_ephemeral = not in_storage_locations(
-                storage_file.path,
-                storage_file.fs.protocol,
-                storage_locations,
-            )
-        elif not read_any_cloud_location and not in_storage_locations(
+        if in_storage_locations(
             storage_file.path,
             storage_file.fs.protocol,
             storage_locations,
@@ -333,11 +357,6 @@ def validate_and_separate_ephemeral_files(
                 "Found file outside of configured storage locations: "
                 f"{storage_file.path}",
             )
-        if is_ephemeral:
-            ephemeral.append(storage_file)
-        else:
-            storage.append(storage_file)
-    return ephemeral, storage
 
 
 def in_storage_locations(path: str, protocol: str, storage_locations) -> bool:
