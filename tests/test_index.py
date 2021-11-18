@@ -264,7 +264,7 @@ def test_index_hidden_paths(ldb_instance, data_dir, tmp_path):
 
 def test_index_ephemeral_location(ldb_instance, data_dir, tmp_path):
     storage_path = tmp_path / "ephemeral_location"
-    shutil.copytree(data_dir / "fashion-mnist" / "original", storage_path)
+    shutil.copytree(data_dir / "fashion-mnist/original/has_both", storage_path)
 
     read_add_path = tmp_path / "read-add-storage"
     add_storage(
@@ -278,18 +278,8 @@ def test_index_ephemeral_location(ldb_instance, data_dir, tmp_path):
     ret = main(["index", f"{os.fspath(storage_path)}"])
 
     read_add_index_base = list(read_add_path.glob("ldb-autoimport/*/*"))[0]
-    read_add_rel_paths = sorted(
-        os.fspath(x.relative_to(read_add_index_base))
-        for x in read_add_index_base.glob(
-            os.fspath(
-                storage_path.relative_to(storage_path.anchor) / "**" / "*",
-            ),
-        )
-    )
-    storage_rel_paths = sorted(
-        os.fspath(x.relative_to(x.anchor)) for x in storage_path.glob("**/*")
-    )
-
+    num_read_add_annotation_files = len(list(read_add_index_base.glob("**/*.json")))
+    num_read_add_data_object_files = len(list(read_add_index_base.glob("**/*.png")))
     (
         data_object_meta_paths,
         annotation_meta_paths,
@@ -304,10 +294,11 @@ def test_index_ephemeral_location(ldb_instance, data_dir, tmp_path):
     non_annotation = [p for p in annotation_paths if not is_annotation(p)]
 
     assert ret == 0
-    assert len(data_object_meta_paths) == 32
+    assert len(data_object_meta_paths) == 23
     assert len(annotation_meta_paths) == 23
     assert len(annotation_paths) == 10
     assert non_data_object_meta == []
     assert non_annotation_meta == []
     assert non_annotation == []
-    assert read_add_rel_paths == storage_rel_paths
+    assert num_read_add_data_object_files == 23
+    assert num_read_add_annotation_files == 23
