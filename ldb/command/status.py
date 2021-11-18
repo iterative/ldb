@@ -6,7 +6,7 @@ from typing import Iterable
 import shtab
 
 from ldb.core import get_ldb_instance
-from ldb.diff import diff, summarize_diff
+from ldb.diff import diff, format_summary, summarize_diff
 from ldb.status import status
 from ldb.workspace import load_workspace_dataset
 
@@ -25,16 +25,15 @@ def status_command(options):
     )
     if ws_status.dataset_name != "root":
         workspace_ds = load_workspace_dataset(options.path)
-        additions, deletions, modifications = summarize_diff(
+        summary_items = summarize_diff(
             diff(ldb_dir, options.path, workspace_ds.parent),
         )
         print()
-        print(
-            "Unsaved changes:\n"
-            f"  Additions (+): {additions:8}\n"
-            f"  Deletions (-): {deletions:8}\n"
-            f"  Modifications (m): {modifications:4}",
-        )
+        if any(summary_items):
+            print("Unsaved changes:")
+            print(format_summary(*summary_items))
+        else:
+            print("No unsaved changes.")
 
 
 def add_parser(

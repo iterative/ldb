@@ -196,3 +196,11 @@ def simple_diff(
         yield SimpleDiffItem(data_object_hash1, annotation_hash1 or "", "")
     for data_object_hash2, annotation_hash2 in iter2:
         yield SimpleDiffItem(data_object_hash2, "", annotation_hash2 or "")
+
+
+def format_summary(additions: int, deletions: int, modifications: int) -> str:
+    return (
+        f"  Additions (+): {additions:8}\n"
+        f"  Deletions (-): {deletions:8}\n"
+        f"  Modifications (m): {modifications:4}"
+    )

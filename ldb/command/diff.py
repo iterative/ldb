@@ -3,21 +3,27 @@ from pathlib import Path
 from typing import Iterable
 
 from ldb.core import get_ldb_instance
-from ldb.diff import diff
+from ldb.diff import diff, format_summary, summarize_diff
 from ldb.string_utils import left_truncate
 
 
 def diff_command(options):
-    items = diff(
-        get_ldb_instance(),
-        Path("."),
-        options.dataset1,
-        options.dataset2 or None,
+    items = list(
+        diff(
+            get_ldb_instance(),
+            Path("."),
+            options.dataset1,
+            options.dataset2 or None,
+        ),
     )
     for diff_item in items:
         row = format_diff_item(diff_item, options.verbose)
         if row:
             print(row)
+    summary_items = summarize_diff(items)
+    if any(summary_items):
+        print()
+        print(format_summary(*summary_items))
 
 
 def format_diff_item(diff_item, verbose) -> str:
