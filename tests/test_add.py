@@ -4,6 +4,7 @@ from typing import Iterable, List
 
 from ldb.main import main
 from ldb.path import WorkspacePath
+from ldb.utils import DATASET_PREFIX, ROOT
 
 
 def get_staged_object_file_paths(workspace_path: Path) -> List[Path]:
@@ -81,7 +82,7 @@ def test_add_datasets(workspace_path, data_dir):
 def test_add_root_dataset(workspace_path, data_dir):
     dir_to_add = data_dir / "fashion-mnist/original"
     main(["index", f"{os.fspath(dir_to_add)}"])
-    ret = main(["add", "ds:root"])
+    ret = main(["add", f"{DATASET_PREFIX}{ROOT}"])
     object_file_paths = get_staged_object_file_paths(workspace_path)
     assert ret == 0
     assert len(object_file_paths) == 32

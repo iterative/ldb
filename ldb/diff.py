@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, Generator, Iterable, Optional, Tuple
+from typing import Dict, Generator, Iterable, NamedTuple, Optional, Tuple
 
 from ldb.dataset import Dataset, get_collection
 from ldb.exceptions import LDBException
@@ -22,6 +22,12 @@ class DiffItem:
     data_object_path: str = ""
     annotation_version1: int = 0
     annotation_version2: int = 0
+
+
+class SimpleDiffItem(NamedTuple):
+    data_object_hash: str
+    annotation_hash1: str
+    annotation_hash2: str
 
 
 def diff(
@@ -151,7 +157,7 @@ def get_annotation_version(
 def simple_diff(
     collection1: Dict[str, Optional[str]],
     collection2: Dict[str, Optional[str]],
-) -> Generator[Tuple[str, str, str], None, None]:
+) -> Generator[SimpleDiffItem, None, None]:
     iter1 = iter(collection1.items())
     iter2 = iter(collection2.items())
     cont = True
@@ -163,13 +169,21 @@ def simple_diff(
     while cont:
         try:
             if data_object_hash1 < data_object_hash2:
-                yield data_object_hash1, annotation_hash1 or "", ""
+                yield SimpleDiffItem(
+                    data_object_hash1,
+                    annotation_hash1 or "",
+                    "",
+                )
                 data_object_hash1, annotation_hash1 = next(iter1)
             elif data_object_hash1 > data_object_hash2:
-                yield data_object_hash2, "", annotation_hash2 or ""
+                yield SimpleDiffItem(
+                    data_object_hash2,
+                    "",
+                    annotation_hash2 or "",
+                )
                 data_object_hash2, annotation_hash2 = next(iter2)
             else:
-                yield (
+                yield SimpleDiffItem(
                     data_object_hash1,
                     annotation_hash1 or "",
                     annotation_hash2 or "",
@@ -179,6 +193,6 @@ def simple_diff(
         except StopIteration:
             cont = False
     for data_object_hash1, annotation_hash1 in iter1:
-        yield data_object_hash1, annotation_hash1 or "", ""
+        yield SimpleDiffItem(data_object_hash1, annotation_hash1 or "", "")
     for data_object_hash2, annotation_hash2 in iter2:
-        yield data_object_hash2, "", annotation_hash2 or ""
+        yield SimpleDiffItem(data_object_hash2, "", annotation_hash2 or "")

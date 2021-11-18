@@ -8,7 +8,7 @@ from ldb.core import init
 from ldb.env import Env
 from ldb.path import Filename
 from ldb.stage import stage_workspace
-from ldb.storage import StorageLocation, add_storage
+from ldb.storage import add_storage, create_storage_location
 from ldb.utils import current_time
 from ldb.workspace import WorkspaceDataset
 
@@ -57,7 +57,7 @@ def ldb_instance(tmp_path, global_base, data_dir) -> Path:
     instance_dir = tmp_path / "ldb_instance"
     init(instance_dir)
     set_default_instance(instance_dir, overwrite_existing=True)
-    storage_location = StorageLocation(path=os.fspath(data_dir))
+    storage_location = create_storage_location(path=os.fspath(data_dir))
     add_storage(instance_dir / Filename.STORAGE, storage_location)
     return instance_dir
 

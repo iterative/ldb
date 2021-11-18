@@ -5,6 +5,7 @@ from pathlib import Path
 from ldb.dataset import get_collection_dir_items
 from ldb.exceptions import WorkspaceDatasetNotFoundError
 from ldb.path import InstanceDir, WorkspacePath
+from ldb.utils import ROOT
 from ldb.workspace import load_workspace_dataset
 
 
@@ -20,7 +21,7 @@ def status(ldb_dir: Path, workspace_path: Path):
     try:
         workspace_ds = load_workspace_dataset(workspace_path)
     except WorkspaceDatasetNotFoundError:
-        ds_name = "root"
+        ds_name = ROOT
         item_gen = get_collection_dir_items(
             ldb_dir / InstanceDir.DATA_OBJECT_INFO,
             is_workspace=False,

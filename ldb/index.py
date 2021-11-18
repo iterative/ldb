@@ -2,7 +2,6 @@ import getpass
 import json
 import os
 import re
-import uuid
 from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
@@ -10,6 +9,7 @@ from typing import Any, Dict, Iterable, List, Sequence, Tuple
 
 import fsspec
 from fsspec.core import OpenFile
+from fsspec.implementations.local import make_path_posix
 
 from ldb.exceptions import LDBException, NotAStorageLocationError
 from ldb.path import InstanceDir
@@ -18,12 +18,14 @@ from ldb.utils import (
     current_time,
     format_datetime,
     get_filetype,
+    get_fsspec_path_suffix,
     get_hash_path,
     hash_data,
     hash_file,
     load_data_file,
     parse_datetime,
     timestamp_to_datetime,
+    unique_id,
     write_data_file,
 )
 
@@ -90,21 +92,59 @@ def copy_to_read_add_storage(
             read_add_location.path,
             "ldb-autoimport",
             date.today().isoformat(),
-            uuid.uuid4().hex,
+            unique_id(),
         ],
     )
+    data_object_files, annotation_files_by_path = group_storage_files_by_type(
+        files,
+    )
+    fs.makedirs(base_dir, exist_ok=True)
     new_files = []
-    for file in files:
-        path = file.path
+    for file in data_object_files:
+        dest = file.path
         if file.fs.protocol == "file":
-            path_obj = Path(path)
-            path = os.fspath(path_obj.relative_to(path_obj.anchor))
-        else:
-            path = path.lstrip(file.fs.sep)
-        dest = fs.sep.join([base_dir] + path.split(file.fs.sep))
-        fs.makedirs(dest.rsplit(fs.sep, 1)[0], exist_ok=True)
-        file.fs.put_file(file.path, dest, protocol=fs.protocol)
+            dest = re.sub("^[A-Za-z]:", "", make_path_posix(dest))
+        dest = fs.sep.join(
+            [base_dir] + dest.lstrip(file.fs.sep).split(file.fs.sep),
+        )
+
+        annotation_file = annotation_files_by_path.get(
+            data_object_path_to_annotation_path(file.path),
+        )
+        annotation_dest = None
+        if annotation_file is not None:
+            annotation_dest = data_object_path_to_annotation_path(dest)
+        try:
+            fs.makedirs(
+                dest.rstrip(fs.sep).rsplit(fs.sep, 1)[0],
+                exist_ok=True,
+            )
+            if annotation_dest is not None:
+                file.fs.put_file(
+                    annotation_file.path,
+                    annotation_dest,
+                    protocol=fs.protocol,
+                )
+            file.fs.put_file(file.path, dest, protocol=fs.protocol)
+        except FileNotFoundError:
+            data_object_hash = hash_file(file)
+            dest = fs.sep.join(
+                [
+                    base_dir,
+                    data_object_hash + get_fsspec_path_suffix(file.path),
+                ],
+            )
+            if annotation_file is not None:
+                annotation_dest = data_object_path_to_annotation_path(dest)
+                file.fs.put_file(
+                    annotation_file.path,
+                    annotation_dest,
+                    protocol=fs.protocol,
+                )
+            file.fs.put_file(file.path, dest, protocol=fs.protocol)
         new_files.append(fsspec.core.OpenFile(fs, dest))
+        if annotation_file is not None:
+            new_files.append(fsspec.core.OpenFile(fs, annotation_dest))
     return new_files
 
 
@@ -146,8 +186,9 @@ def index_files(
             ),
         ]
 
-        annotation_path = os.path.splitext(data_object_file.path)[0] + ".json"
-        annotation_file = annotation_files_by_path.get(annotation_path)
+        annotation_file = annotation_files_by_path.get(
+            data_object_path_to_annotation_path(data_object_file.path),
+        )
         if annotation_file is not None:
             ldb_content, user_content = get_annotation_content(annotation_file)
             ldb_content_bytes = json.dumps(ldb_content).encode()
@@ -209,6 +250,10 @@ def index_files(
         num_new_annotations=num_new_annotations,
         data_object_hashes=data_object_hashes,
     )
+
+
+def data_object_path_to_annotation_path(path: str) -> str:
+    return os.path.splitext(path)[0] + ".json"
 
 
 def get_storage_files_for_paths(paths: List[str]) -> List[OpenFile]:
@@ -276,10 +321,12 @@ def validate_and_separate_ephemeral_files(
         if storage_file.fs.protocol == "file":
             is_ephemeral = not in_storage_locations(
                 storage_file.path,
+                storage_file.fs.protocol,
                 storage_locations,
             )
         elif not read_any_cloud_location and not in_storage_locations(
             storage_file.path,
+            storage_file.fs.protocol,
             storage_locations,
         ):
             raise NotAStorageLocationError(
@@ -293,8 +340,11 @@ def validate_and_separate_ephemeral_files(
     return ephemeral, storage
 
 
-def in_storage_locations(path: str, storage_locations) -> bool:
-    return any(path.startswith(loc.path) for loc in storage_locations)
+def in_storage_locations(path: str, protocol: str, storage_locations) -> bool:
+    return any(
+        loc.protocol == protocol and path.startswith(loc.path)
+        for loc in storage_locations
+    )
 
 
 def is_hidden_fsspec_path(path: str) -> bool:
