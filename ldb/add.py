@@ -15,6 +15,8 @@ from ldb.exceptions import LDBException
 from ldb.index import index
 from ldb.path import InstanceDir, WorkspacePath
 from ldb.utils import (
+    DATASET_PREFIX,
+    ROOT,
     format_dataset_identifier,
     get_hash_path,
     parse_data_object_hash_identifier,
@@ -38,7 +40,7 @@ class AddInput(NamedTuple):
 
 
 def get_arg_type(paths: List[str]) -> ArgType:
-    if any(p == "ds:root" for p in paths):
+    if any(p == f"{DATASET_PREFIX}{ROOT}" for p in paths):
         return ArgType.ROOT_DATASET
     if any(p.startswith("ds:") for p in paths):
         return ArgType.DATASET

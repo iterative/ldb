@@ -12,6 +12,8 @@ from fsspec.core import OpenFile
 
 from ldb.exceptions import LDBException
 
+DATASET_PREFIX = "ds:"
+ROOT = "root"
 CHUNK_SIZE = 2 ** 20
 HASH_DIR_SPLIT_POINT = 3
 UNIQUE_ID_ALPHABET = string.ascii_lowercase + string.digits
@@ -84,7 +86,7 @@ def parse_dataset_identifier(
     dataset_identifier: str,
 ) -> Tuple[str, Optional[int]]:
     match = re.search(
-        r"^ds:([A-Za-z0-9_-]+)(?:\.v(\d+))?$",
+        rf"^{DATASET_PREFIX}([A-Za-z0-9_-]+)(?:\.v(\d+))?$",
         dataset_identifier,
     )
     if match is None:
@@ -104,7 +106,7 @@ def format_dataset_identifier(
     version: Optional[int] = None,
 ) -> str:
     version_suffix = f".v{version}" if version is not None else ""
-    return f"ds:{name}{version_suffix}"
+    return f"{DATASET_PREFIX}{name}{version_suffix}"
 
 
 def get_fsspec_path_suffix(path: str) -> str:
