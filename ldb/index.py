@@ -53,6 +53,7 @@ def index(
     paths: List[str],
     read_any_cloud_location: bool = False,
 ) -> IndexingResult:
+    paths = [os.path.abspath(p) for p in paths]
     files = get_storage_files_for_paths(paths)
     if not files:
         raise LDBException(
