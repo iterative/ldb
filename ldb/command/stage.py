@@ -1,10 +1,13 @@
 import argparse
+import os
 from pathlib import Path
 from typing import Iterable
 
-from ldb.config import get_default_instance_dir, get_ldb_dir
+from ldb.config import get_default_instance_dir, get_global_base, get_ldb_dir
 from ldb.core import init
+from ldb.path import Filename, GlobalDir
 from ldb.stage import stage
+from ldb.storage import StorageLocation, add_storage
 
 
 def stage_command(options):
@@ -13,6 +16,15 @@ def stage_command(options):
         ldb_dir = init(
             get_default_instance_dir(),
             read_any_cloud_location=True,
+        )
+        add_storage(
+            ldb_dir / Filename.STORAGE,
+            StorageLocation(
+                path=os.fspath(
+                    get_global_base() / GlobalDir.DEFAULT_READ_ADD_STORAGE,
+                ),
+                read_and_add=True,
+            ),
         )
     stage(
         ldb_dir,

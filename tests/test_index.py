@@ -306,3 +306,30 @@ def test_index_ephemeral_location(ldb_instance, data_dir, tmp_path):
     assert non_annotation == []
     assert num_read_add_data_object_files == 23
     assert num_read_add_annotation_files == 23
+
+
+def test_index_relative_path(ldb_instance, data_dir):
+    path = data_dir / "fashion-mnist" / "original"
+    os.chdir(path)
+    ret = main(["index", "."])
+
+    (
+        data_object_meta_paths,
+        annotation_meta_paths,
+        annotation_paths,
+    ) = get_indexed_data_paths(ldb_instance)
+    non_data_object_meta = [
+        p for p in data_object_meta_paths if not is_data_object_meta(p)
+    ]
+    non_annotation_meta = [
+        p for p in annotation_meta_paths if not is_annotation_meta(p)
+    ]
+    non_annotation = [p for p in annotation_paths if not is_annotation(p)]
+
+    assert ret == 0
+    assert len(data_object_meta_paths) == 32
+    assert len(annotation_meta_paths) == 23
+    assert len(annotation_paths) == 10
+    assert non_data_object_meta == []
+    assert non_annotation_meta == []
+    assert non_annotation == []

@@ -7,6 +7,7 @@ class DirName:
 
 class GlobalDir:
     DEFAULT_INSTANCE = PurePath("private_instance")
+    DEFAULT_READ_ADD_STORAGE = PurePath("read_add_storage")
 
 
 class InstanceDir:
