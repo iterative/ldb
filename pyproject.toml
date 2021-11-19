@@ -53,9 +53,6 @@ no_allow_redefinition = true
 no_implicit_reexport = true
 strict_equality = true
 
-#disable_error_code NAME
-#enable_error_code NAME  Enable a specific error code
-
 # Configuring error messages
 show_error_context = true
 show_column_numbers = true
