@@ -8,24 +8,26 @@ include_trailing_comma = true
 
 [tool.mypy]
 
+strict = true
+
 # Config file
 warn_unused_configs = true
 
 # Import discovery
 namespace_packages = true
 ignore_missing_imports = false
-follow_imports = 'error'
+follow_imports = 'normal'
 no_site_packages = false
-no_silence_site_packages = true
+no_silence_site_packages = false
 
 # Platform configuration
 python_version = 3.7
 
 # Disallow dynamic typing
-disallow_any_unimported = true
-disallow_any_expr = true
-disallow_any_decorated = true
-disallow_any_explicit = true
+disallow_any_unimported = false
+disallow_any_expr = false
+disallow_any_decorated = false
+disallow_any_explicit = false
 disallow_any_generics = true
 disallow_subclassing_any = true
 
@@ -50,7 +52,7 @@ warn_unreachable = true
 # Miscellaneous strictness flags
 no_allow_untyped_globals = true
 no_allow_redefinition = true
-no_implicit_reexport = true
+no_implicit_reexport = false
 strict_equality = true
 
 # Configuring error messages
@@ -71,7 +73,11 @@ scripts_are_modules = false
 no_install_types = true
 
 [[tool.mypy.overrides]]
-module = ['fsspec.*', 'shtab.*']
+module = [
+    'fsspec.*',
+    'pyannotate_runtime.*',
+    'shtab.*',
+]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
@@ -205,6 +211,7 @@ disable = [
     'bad-inline-option',
     'deprecated-pragma',
     'file-ignored',
+    'line-too-long',  # covered by flake8
     'locally-disabled',
     'missing-class-docstring',
     'missing-function-docstring',

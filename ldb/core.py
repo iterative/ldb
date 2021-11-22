@@ -48,7 +48,7 @@ def is_ldb_instance(path: Path) -> bool:
     return all((path / subdir).is_dir() for subdir in INSTANCE_DIRS)
 
 
-def get_ldb_instance(path: Optional[Path] = None):
+def get_ldb_instance(path: Optional[Path] = None) -> Path:
     if path is None:
         path = get_ldb_dir()
     if not is_ldb_instance(path):

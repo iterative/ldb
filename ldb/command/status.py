@@ -1,5 +1,6 @@
 import argparse
 import os
+from argparse import Namespace
 from pathlib import Path
 from typing import Iterable
 
@@ -11,7 +12,7 @@ from ldb.status import status
 from ldb.workspace import load_workspace_dataset
 
 
-def status_command(options):
+def status_command(options: Namespace) -> None:
     ldb_dir = get_ldb_instance()
     ws_status = status(ldb_dir, options.path)
     prefix = ""

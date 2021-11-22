@@ -12,9 +12,10 @@ def test_init_command_new_location(tmp_path, global_base):
     cfg = config.load_from_path(
         config.get_global_base() / Filename.CONFIG,
     )
+    ldb_dir = cfg["core"]["ldb_dir"]  # type: ignore[index]
     assert ret == 0
     assert is_ldb_instance(instance_dir)
-    assert cfg["core"]["ldb_dir"] == os.fspath(instance_dir)
+    assert ldb_dir == os.fspath(instance_dir)
 
 
 def test_init_command_rel_path(tmp_path, global_base):

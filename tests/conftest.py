@@ -13,6 +13,24 @@ from ldb.utils import current_time
 from ldb.workspace import WorkspaceDataset
 
 
+def pytest_addoption(parser):
+    parser.addoption(
+        "--pyannotate",
+        action="store_true",
+        default=False,
+        help="Collect typing info and output to type_info.json",
+    )
+
+
+def pytest_configure(config):
+    if config.getoption("--pyannotate"):
+        from . import (  # pylint: disable=import-outside-toplevel
+            pyannotate_conftest,
+        )
+
+        config.pluginmanager.register(pyannotate_conftest)
+
+
 @pytest.fixture(scope="session")
 def monkeypatch_session():
     """Like monkeypatch, but for session scope."""
@@ -53,7 +71,7 @@ def global_base(monkeypatch, tmp_path):
 
 
 @pytest.fixture
-def ldb_instance(tmp_path, global_base, data_dir) -> Path:
+def ldb_instance(tmp_path: Path, global_base, data_dir) -> Path:
     instance_dir = tmp_path / "ldb_instance"
     init(instance_dir)
     set_default_instance(instance_dir, overwrite_existing=True)
@@ -68,7 +86,7 @@ def data_dir() -> Path:
 
 
 @pytest.fixture
-def workspace_path(tmp_path, ldb_instance) -> Path:
+def workspace_path(tmp_path: Path, ldb_instance: Path) -> Path:
     path = tmp_path / "workspace"
     stage_workspace(
         path,

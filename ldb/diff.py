@@ -31,10 +31,10 @@ class SimpleDiffItem(NamedTuple):
 
 
 def diff(
-    ldb_dir,
-    workspace_path,
-    dataset1,
-    dataset2=None,
+    ldb_dir: Path,
+    workspace_path: Path,
+    dataset1: str,
+    dataset2: str = "",
 ) -> Generator[DiffItem, None, None]:
     if dataset1.startswith("ds:"):
         collection1 = get_collection(
@@ -49,7 +49,7 @@ def diff(
     else:
         collection1 = {}
 
-    if dataset2 is not None:
+    if dataset2:
         collection2 = get_collection(
             ldb_dir,
             get_dataset_version_hash(ldb_dir, dataset2),
@@ -150,7 +150,7 @@ def get_annotation_version(
             / "annotations"
             / annotation_hash,
         )
-        return annotation_meta["version"]
+        return annotation_meta["version"]  # type: ignore[no-any-return]
     return 0
 
 

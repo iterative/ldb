@@ -1,5 +1,6 @@
 import argparse
 import os
+from argparse import Namespace
 from pathlib import Path
 from typing import Iterable
 
@@ -10,7 +11,7 @@ from ldb.stage import stage
 from ldb.storage import StorageLocation, add_storage
 
 
-def stage_command(options):
+def stage_command(options: Namespace) -> None:
     ldb_dir = get_ldb_dir()
     if not ldb_dir.is_dir():
         ldb_dir = init(

@@ -1,4 +1,5 @@
 import argparse
+from argparse import Namespace
 from pathlib import Path
 from typing import Iterable
 
@@ -8,7 +9,7 @@ from ldb.utils import format_dataset_identifier
 from ldb.workspace import load_workspace_dataset
 
 
-def instantiate_command(options):
+def instantiate_command(options: Namespace) -> None:
     ldb_dir = get_ldb_instance()
     workspace_path = Path(".")
     workspace_ds = load_workspace_dataset(workspace_path)

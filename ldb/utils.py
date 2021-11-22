@@ -6,7 +6,7 @@ import re
 import string
 from datetime import datetime
 from pathlib import Path
-from typing import BinaryIO, Optional, Tuple
+from typing import Any, BinaryIO, Generator, Optional, Tuple
 
 from fsspec.core import OpenFile
 
@@ -42,7 +42,10 @@ def hash_data(data: bytes) -> str:
     return hashlib.md5(data).hexdigest()
 
 
-def iter_chunks(file: BinaryIO, chunk_size: int = CHUNK_SIZE):
+def iter_chunks(
+    file: BinaryIO,
+    chunk_size: int = CHUNK_SIZE,
+) -> Generator[bytes, None, None]:
     data = file.read(chunk_size)
     while data:
         yield data
@@ -57,23 +60,23 @@ def get_hash_path(base_dir: Path, hash_str: str) -> Path:
     )
 
 
-def format_datetime(dt_obj: datetime):
+def format_datetime(dt_obj: datetime) -> str:
     return dt_obj.astimezone().isoformat(" ")
 
 
-def parse_datetime(dt_str: str):
+def parse_datetime(dt_str: str) -> datetime:
     return datetime.fromisoformat(dt_str)
 
 
-def timestamp_to_datetime(timestamp: float):
+def timestamp_to_datetime(timestamp: float) -> datetime:
     return datetime.fromtimestamp(timestamp).astimezone()
 
 
-def current_time():
+def current_time() -> datetime:
     return datetime.now().astimezone()
 
 
-def load_data_file(path: Path):
+def load_data_file(path: Path) -> Any:
     with path.open() as file:
         return json.load(file)
 

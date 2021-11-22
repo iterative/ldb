@@ -1,7 +1,16 @@
 import os
 from enum import Enum, unique
 from pathlib import Path
-from typing import List, NamedTuple, Optional, Sequence
+from typing import (
+    Callable,
+    Dict,
+    Iterable,
+    List,
+    NamedTuple,
+    Optional,
+    Sequence,
+    Set,
+)
 
 from ldb import config
 from ldb.config import ConfigType
@@ -34,12 +43,12 @@ class ArgType(Enum):
 
 
 class AddInput(NamedTuple):
-    data_object_hashes: Sequence[str]
-    annotation_hashes: Optional[Sequence[str]]
+    data_object_hashes: Iterable[str]
+    annotation_hashes: Optional[Iterable[str]]
     message: str
 
 
-def get_arg_type(paths: List[str]) -> ArgType:
+def get_arg_type(paths: Sequence[str]) -> ArgType:
     if any(p == f"{DATASET_PREFIX}{ROOT}" for p in paths):
         return ArgType.ROOT_DATASET
     if any(p.startswith("ds:") for p in paths):
@@ -52,15 +61,15 @@ def get_arg_type(paths: List[str]) -> ArgType:
 def process_args_for_add(
     ldb_dir: Path,
     arg_type: ArgType,
-    paths: List[str],
+    paths: Sequence[str],
 ) -> AddInput:
     return ADD_FUNCTIONS[arg_type](ldb_dir, paths)
 
 
 def root_dataset_for_add(
     ldb_dir: Path,
-    paths: List[str],  # pylint: disable=unused-argument
-):
+    paths: Sequence[str],  # pylint: disable=unused-argument
+) -> AddInput:
     data_object_hashes = []
     annotation_hashes = []
     for data_object_hash, annotation_hash in get_collection_dir_items(
@@ -72,7 +81,7 @@ def root_dataset_for_add(
     return AddInput(data_object_hashes, annotation_hashes, "")
 
 
-def dataset_for_add(ldb_dir: Path, paths: List[str]):
+def dataset_for_add(ldb_dir: Path, paths: Sequence[str]) -> AddInput:
     try:
         dataset_identifiers = [parse_dataset_identifier(p) for p in paths]
     except LDBException as exc:
@@ -99,8 +108,8 @@ def dataset_for_add(ldb_dir: Path, paths: List[str]):
 
 def data_object_for_add(
     ldb_dir: Path,  # pylint: disable=unused-argument
-    paths: List[str],
-):
+    paths: Sequence[str],
+) -> AddInput:
     try:
         return AddInput(
             [parse_data_object_hash_identifier(p) for p in paths],
@@ -115,12 +124,15 @@ def data_object_for_add(
         ) from exc
 
 
-def path_for_add(ldb_dir: Path, paths: List[str]):
+def path_for_add(ldb_dir: Path, paths: Sequence[str]) -> AddInput:
     indexing_result = index(
         ldb_dir,
         paths,
         read_any_cloud_location=(
-            (config.load_first([ConfigType.INSTANCE]) or {})
+            (
+                config.load_first([ConfigType.INSTANCE])  # type: ignore[union-attr,call-overload] # noqa: E501
+                or {}
+            )
             .get("core", {})
             .get("read_any_cloud_location", False)
         ),
@@ -132,7 +144,7 @@ def path_for_add(ldb_dir: Path, paths: List[str]):
     )
 
 
-ADD_FUNCTIONS = {
+ADD_FUNCTIONS: Dict[ArgType, Callable[[Path, Sequence[str]], AddInput]] = {
     ArgType.ROOT_DATASET: root_dataset_for_add,
     ArgType.DATASET: dataset_for_add,
     ArgType.DATA_OBJECT: data_object_for_add,
@@ -143,10 +155,12 @@ ADD_FUNCTIONS = {
 def add(
     ldb_dir: Path,
     workspace_path: Path,
-    data_object_hashes: Sequence[str],
-    annotation_hashes: Sequence[str],
+    data_object_hashes: Iterable[str],
+    annotation_hashes: Optional[Iterable[str]],
 ) -> None:
-    if annotation_hashes:
+    data_object_hashes = list(data_object_hashes)
+    if annotation_hashes is not None:
+        annotation_hashes = list(annotation_hashes)
         if not len(data_object_hashes) == len(annotation_hashes):
             raise LDBException(
                 "Number of data object hashes and annotations must be the "
@@ -187,15 +201,15 @@ def add(
 def process_args_for_delete(
     ldb_dir: Path,
     arg_type: ArgType,
-    paths: List[str],
+    paths: Sequence[str],
 ) -> List[str]:
     return DELETE_FUNCTIONS[arg_type](ldb_dir, paths)
 
 
 def root_dataset_for_delete(
     ldb_dir: Path,
-    paths: List[str],  # pylint: disable=unused-argument
-):
+    paths: Sequence[str],  # pylint: disable=unused-argument
+) -> List[str]:
     return list(
         get_collection_dir_keys(
             ldb_dir / InstanceDir.DATA_OBJECT_INFO,
@@ -203,7 +217,7 @@ def root_dataset_for_delete(
     )
 
 
-def dataset_for_delete(ldb_dir: Path, paths: List[str]):
+def dataset_for_delete(ldb_dir: Path, paths: Sequence[str]) -> List[str]:
     try:
         dataset_identifiers = [parse_dataset_identifier(p) for p in paths]
     except LDBException as exc:
@@ -220,7 +234,7 @@ def dataset_for_delete(ldb_dir: Path, paths: List[str]):
         )
         for ds_name, ds_version in dataset_identifiers
     ]
-    data_objects = set()
+    data_objects: Set[str] = set()
     for collection in collections:
         data_objects.update(collection.keys())
     return list(data_objects)
@@ -228,8 +242,8 @@ def dataset_for_delete(ldb_dir: Path, paths: List[str]):
 
 def data_object_for_delete(
     ldb_dir: Path,  # pylint: disable=unused-argument
-    paths: List[str],
-):
+    paths: Sequence[str],
+) -> List[str]:
     try:
         return [parse_data_object_hash_identifier(p) for p in paths]
     except ValueError as exc:
@@ -240,12 +254,15 @@ def data_object_for_delete(
         ) from exc
 
 
-def path_for_delete(ldb_dir: Path, paths: List[str]):
+def path_for_delete(ldb_dir: Path, paths: Sequence[str]) -> List[str]:
     indexing_result = index(
         ldb_dir,
         paths,
         read_any_cloud_location=(
-            (config.load_first([ConfigType.INSTANCE]) or {})
+            (
+                config.load_first([ConfigType.INSTANCE])  # type: ignore[union-attr,call-overload] # noqa: E501
+                or {}
+            )
             .get("core", {})
             .get("read_any_cloud_location", False)
         ),
@@ -253,7 +270,7 @@ def path_for_delete(ldb_dir: Path, paths: List[str]):
     return indexing_result.data_object_hashes
 
 
-DELETE_FUNCTIONS = {
+DELETE_FUNCTIONS: Dict[ArgType, Callable[[Path, Sequence[str]], List[str]]] = {
     ArgType.ROOT_DATASET: root_dataset_for_delete,
     ArgType.DATASET: dataset_for_delete,
     ArgType.DATA_OBJECT: data_object_for_delete,
