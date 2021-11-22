@@ -52,10 +52,7 @@ ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 module = ['tests.*']
-
-# Untyped definitions and calls
 disallow_untyped_defs = false
-disallow_incomplete_defs = false
 
 [tool.pytest.ini_options]
 log_level = 'debug'
