@@ -131,7 +131,7 @@ def stage(
 def stage_workspace(
     workspace_path: Path,
     workspace_ds_obj: WorkspaceDataset,
-    collection_obj=None,
+    collection_obj: Optional[Dict[str, Optional[str]]] = None,
 ) -> None:
     collection_path = workspace_path / WorkspacePath.COLLECTION
     workspace_ds_bytes = json.dumps(workspace_ds_obj.format()).encode()
@@ -165,7 +165,7 @@ def get_workspace_collection_path_data(
 def write_workspace_collection(
     collection_path: Path,
     path_data: List[Tuple[Path, str]],
-):
+) -> None:
     for path, data in path_data:
         path.parent.mkdir(exist_ok=True)
         path.write_text(data)

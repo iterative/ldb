@@ -1,4 +1,5 @@
 import argparse
+from argparse import Namespace
 from pathlib import Path
 from typing import Iterable
 
@@ -6,7 +7,7 @@ from ldb.commit import commit
 from ldb.core import get_ldb_instance
 
 
-def commit_command(options):
+def commit_command(options: Namespace) -> None:
     commit(get_ldb_instance(), Path("."), options.message)
 
 

@@ -1,4 +1,5 @@
 import argparse
+from argparse import Namespace
 from typing import Iterable
 
 import shtab
@@ -9,7 +10,7 @@ from ldb.path import Filename
 from ldb.storage import add_storage, create_storage_location
 
 
-def add_storage_command(options):
+def add_storage_command(options: Namespace) -> None:
     ldb_dir = get_ldb_dir()
     if not ldb_dir.is_dir():
         ldb_dir = init(ldb_dir)

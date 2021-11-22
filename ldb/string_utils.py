@@ -1,4 +1,4 @@
-def left_truncate(item: str, max_len=36) -> str:
+def left_truncate(item: str, max_len: int = 36) -> str:
     return (
         item
         if len(item) <= max_len

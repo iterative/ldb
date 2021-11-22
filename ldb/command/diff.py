@@ -1,19 +1,20 @@
 import argparse
+from argparse import Namespace
 from pathlib import Path
 from typing import Iterable
 
 from ldb.core import get_ldb_instance
-from ldb.diff import diff, format_summary, summarize_diff
+from ldb.diff import DiffItem, diff, format_summary, summarize_diff
 from ldb.string_utils import left_truncate
 
 
-def diff_command(options):
+def diff_command(options: Namespace) -> None:
     items = list(
         diff(
             get_ldb_instance(),
             Path("."),
             options.dataset1,
-            options.dataset2 or None,
+            options.dataset2,
         ),
     )
     for diff_item in items:
@@ -26,7 +27,7 @@ def diff_command(options):
         print(format_summary(*summary_items))
 
 
-def format_diff_item(diff_item, verbose) -> str:
+def format_diff_item(diff_item: DiffItem, verbose: bool) -> str:
     if diff_item.annotation_version2 and not diff_item.annotation_version1:
         prefix = "+"
         annotation_col = annotation_version_str(diff_item.annotation_version2)

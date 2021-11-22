@@ -2,7 +2,7 @@ from collections import defaultdict
 from dataclasses import asdict, dataclass, fields
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Generator, List, Optional, Tuple
+from typing import Any, DefaultDict, Dict, Generator, List, Optional, Tuple
 
 from ldb.exceptions import DatasetNotFoundError, LDBException
 from ldb.path import InstanceDir
@@ -93,7 +93,7 @@ def get_collection(
             ),
         ),
     )
-    return load_data_file(
+    return load_data_file(  # type: ignore[no-any-return]
         get_hash_path(
             ldb_dir / InstanceDir.COLLECTIONS,
             dataset_version_obj.collection,
@@ -102,10 +102,10 @@ def get_collection(
 
 
 def get_collection_from_dataset_identifier(
-    ldb_dir,
-    dataset_name,
-    dataset_version=None,
-):
+    ldb_dir: Path,
+    dataset_name: str,
+    dataset_version: Optional[int] = None,
+) -> Dict[str, Optional[str]]:
     dataset = get_dataset(ldb_dir, dataset_name)
     dataset_version_hash = get_dataset_version_hash(dataset, dataset_version)
     return get_collection(ldb_dir, dataset_version_hash)
@@ -146,8 +146,11 @@ def get_workspace_collection_annotation_hash(
     return data_object_path.read_text() or None
 
 
-def combine_collections(ldb_dir, collections):
-    all_versions = defaultdict(list)
+def combine_collections(
+    ldb_dir: Path,
+    collections: List[Dict[str, Optional[str]]],
+) -> Dict[str, str]:
+    all_versions: DefaultDict[str, List[str]] = defaultdict(list)
     for collection in collections:
         for data_object_hash, annotation_hash in collection.items():
             lst = all_versions[data_object_hash]
@@ -175,7 +178,7 @@ def combine_collections(ldb_dir, collections):
     return combined_collection
 
 
-def get_dataset(ldb_dir, dataset_name):
+def get_dataset(ldb_dir: Path, dataset_name: str) -> Dataset:
     try:
         return Dataset.parse(
             load_data_file(ldb_dir / InstanceDir.DATASETS / dataset_name),
@@ -186,7 +189,10 @@ def get_dataset(ldb_dir, dataset_name):
         ) from exc
 
 
-def get_dataset_version_hash(dataset, dataset_version=None):
+def get_dataset_version_hash(
+    dataset: Dataset,
+    dataset_version: Optional[Any] = None,
+) -> str:
     if not dataset_version:
         dataset_version = len(dataset.versions)
     try:

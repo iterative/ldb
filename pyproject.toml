@@ -7,16 +7,52 @@ multi_line_output = 3  # VERTICAL_HANGING_INDENT
 include_trailing_comma = true
 
 [tool.mypy]
+
+# Import discovery
+namespace_packages = true
+follow_imports = 'normal'
+no_site_packages = false
+no_silence_site_packages = false
+
+# Platform configuration
 python_version = 3.7
+
+# Configuring warnings
+warn_no_return = true
+warn_unreachable = true
+
+# Miscellaneous strictness flags
+no_allow_untyped_globals = true
+no_allow_redefinition = true
+strict = true
+
+# Configuring error messages
+show_error_context = true
 show_column_numbers = true
 show_error_codes = true
-show_error_context = true
-show_traceback = true
 pretty = true
+color_output = true
+error_summary = true
+show_absolute_path = true
+
+# Advanced options
+show_traceback = true
+warn_incomplete_stub = true
+
+# Miscellaneous
+no_install_types = true
 
 [[tool.mypy.overrides]]
-module = ['fsspec.*']
+module = [
+    'fsspec.*',
+    'pyannotate_runtime.*',
+    'shtab.*',
+]
 ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ['tests.*']
+disallow_untyped_defs = false
 
 [tool.pytest.ini_options]
 log_level = 'debug'
@@ -132,6 +168,7 @@ disable = [
     'bad-inline-option',
     'deprecated-pragma',
     'file-ignored',
+    'line-too-long',  # covered by flake8
     'locally-disabled',
     'missing-class-docstring',
     'missing-function-docstring',

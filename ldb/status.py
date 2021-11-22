@@ -16,7 +16,7 @@ class WorkspaceStatus:
     num_annotations: int
 
 
-def status(ldb_dir: Path, workspace_path: Path):
+def status(ldb_dir: Path, workspace_path: Path) -> WorkspaceStatus:
     workspace_path = Path(os.path.normpath(workspace_path))
     try:
         workspace_ds = load_workspace_dataset(workspace_path)

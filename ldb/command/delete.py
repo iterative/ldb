@@ -1,4 +1,5 @@
 import argparse
+from argparse import Namespace
 from pathlib import Path
 from typing import Iterable
 
@@ -8,7 +9,7 @@ from ldb.add import delete, get_arg_type, process_args_for_delete
 from ldb.core import get_ldb_instance
 
 
-def delete_command(options):
+def delete_command(options: Namespace) -> None:
     ldb_dir = get_ldb_instance()
     data_object_hashes = process_args_for_delete(
         ldb_dir,

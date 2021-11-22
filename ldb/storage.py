@@ -26,7 +26,7 @@ class StorageConfig:
     locations: List[StorageLocation] = field(default_factory=list)
 
 
-def get_storage_locations(ldb_dir: Path):
+def get_storage_locations(ldb_dir: Path) -> List[StorageLocation]:
     storage_path = ldb_dir / Filename.STORAGE
     if storage_path.is_file():
         return load_from_path(storage_path).locations
@@ -36,10 +36,9 @@ def get_storage_locations(ldb_dir: Path):
 def load_from_path(path: Path) -> StorageConfig:
     with path.open() as file:
         config_dict = load(file)
-    config_dict["locations"] = [
-        StorageLocation(**loc) for loc in config_dict["locations"]
-    ]
-    return StorageConfig(**config_dict)
+    return StorageConfig(
+        locations=[StorageLocation(**loc) for loc in config_dict["locations"]],
+    )
 
 
 def save_to_path(storage_config: StorageConfig, path: Path) -> None:
@@ -52,7 +51,7 @@ def create_storage_location(
     path: str = "",
     protocol: str = "file",
     read_and_add: bool = False,
-):
+) -> StorageLocation:
     return StorageLocation(
         path=make_path_posix(path),
         protocol=protocol,
@@ -76,7 +75,7 @@ def add_storage(
     storage_config_filepath: Path,
     storage_location: StorageLocation,
     force: bool = False,
-):
+) -> None:
     with edit(storage_config_filepath) as storage_config:
         new_locations = []
         children = []
@@ -121,7 +120,7 @@ def add_storage(
             output = (
                 "Added storage location {repr(storage_location.path)}\n"
                 "Removed its children:\n"
-                f"{children_str}",
+                f"{children_str}"
             )
         else:
             output = f"Added storage location {repr(storage_location.path)}"
@@ -132,7 +131,7 @@ def add_storage(
     print(output)
 
 
-def get_update_output(old: StorageLocation, new: StorageLocation):
+def get_update_output(old: StorageLocation, new: StorageLocation) -> str:
     old_dict = asdict(old)
     new_dict = asdict(new)
     updates = [(k, old_dict[k], new_dict[k]) for k in new_dict]

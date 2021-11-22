@@ -11,7 +11,7 @@ from ldb.utils import current_time, load_data_file
 from ldb.workspace import WorkspaceDataset
 
 
-def is_workspace(dir_path: Path):
+def is_workspace(dir_path: Path) -> bool:
     return (
         (dir_path / WorkspacePath.BASE).is_dir()
         and (dir_path / WorkspacePath.COLLECTION).is_dir()

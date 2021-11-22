@@ -2,7 +2,8 @@ __all__ = ["main"]
 
 import logging
 from logging import Logger
-from typing import List
+from types import TracebackType
+from typing import List, Optional, Tuple, Type, Union
 
 from ldb.cli import get_main_parser
 
@@ -10,11 +11,17 @@ logger = logging.getLogger(__name__)
 
 
 class QuietFormatter(logging.Formatter):
-    def formatException(self, ei):
+    def formatException(
+        self,
+        ei: Union[
+            Tuple[Type[BaseException], BaseException, Optional[TracebackType]],
+            Tuple[None, None, None],
+        ],
+    ) -> str:
         return ""
 
 
-def configure_logger(log: Logger, verbose: bool):
+def configure_logger(log: Logger, verbose: bool) -> None:
     log = logging.getLogger("ldb")
     handler = logging.StreamHandler()
     fmt = "%(levelname)s: %(message)s"
@@ -26,7 +33,7 @@ def configure_logger(log: Logger, verbose: bool):
     log.addHandler(handler)
 
 
-def main(argv: List[str] = None):
+def main(argv: Optional[List[str]] = None) -> int:
     main_parser = get_main_parser()
     options = main_parser.parse_args(args=argv)
     configure_logger(logger, options.verbose > 0)

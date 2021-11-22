@@ -1,4 +1,5 @@
 import argparse
+from argparse import ArgumentParser
 
 from ldb import __version__
 from ldb.command import (
@@ -17,7 +18,7 @@ from ldb.command import (
 )
 
 
-def get_main_parser():
+def get_main_parser() -> ArgumentParser:
     parent_parser = argparse.ArgumentParser(add_help=False)
     verbosity_group = parent_parser.add_mutually_exclusive_group()
     verbosity_group.add_argument(

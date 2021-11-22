@@ -1,4 +1,5 @@
 import argparse
+from argparse import Namespace
 from typing import Iterable
 
 import shtab
@@ -9,14 +10,17 @@ from ldb.core import get_ldb_instance
 from ldb.index import index
 
 
-def index_command(options):
+def index_command(options: Namespace) -> None:
     ldb_dir = get_ldb_instance()
     print("Indexing paths...")
     result = index(
         ldb_dir,
         options.paths,
         read_any_cloud_location=(
-            (config.load_first([ConfigType.INSTANCE]) or {})
+            (
+                config.load_first([ConfigType.INSTANCE])  # type: ignore[union-attr,call-overload] # noqa: E501
+                or {}
+            )
             .get("core", {})
             .get("read_any_cloud_location", False)
         ),

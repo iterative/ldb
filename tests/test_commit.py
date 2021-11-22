@@ -91,7 +91,7 @@ def test_commit_multiple_versions(data_dir, ldb_instance, workspace_path):
     )
     dataset_file_paths = list((ldb_instance / InstanceDir.DATASETS).glob("*"))
     for path_list in collection_file_paths, dataset_version_file_paths:
-        path_list.sort(key=lambda p: p.stat().st_mtime)
+        path_list.sort(key=lambda p: p.stat().st_mtime or 0)
 
     dataset_obj = Dataset.parse(load_data_file(dataset_file_paths[0]))
 

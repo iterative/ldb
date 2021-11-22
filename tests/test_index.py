@@ -1,6 +1,7 @@
 import os
 import shutil
 from pathlib import Path
+from typing import List, Tuple
 
 from ldb.main import main
 from ldb.path import Filename, InstanceDir
@@ -55,7 +56,7 @@ def is_annotation_meta(file_path: Path) -> bool:
     )
 
 
-def is_annotation(dir_path: Path):
+def is_annotation(dir_path: Path) -> bool:
     return (
         tuple(
             load_data_file(dir_path / "ldb"),
@@ -65,11 +66,11 @@ def is_annotation(dir_path: Path):
     )
 
 
-def get_data_object_meta_file_paths(ldb_instance):
+def get_data_object_meta_file_paths(ldb_instance: Path) -> List[Path]:
     return list((ldb_instance / InstanceDir.DATA_OBJECT_INFO).glob("*/*/meta"))
 
 
-def get_annotation_meta_file_paths(ldb_instance):
+def get_annotation_meta_file_paths(ldb_instance: Path) -> List[Path]:
     return list(
         (ldb_instance / InstanceDir.DATA_OBJECT_INFO).glob(
             "*/*/annotations/*",
@@ -77,11 +78,13 @@ def get_annotation_meta_file_paths(ldb_instance):
     )
 
 
-def get_annotation_dir_paths(ldb_instance):
+def get_annotation_dir_paths(ldb_instance: Path) -> List[Path]:
     return list((ldb_instance / InstanceDir.ANNOTATIONS).glob("*/*"))
 
 
-def get_indexed_data_paths(ldb_dir):
+def get_indexed_data_paths(
+    ldb_dir: Path,
+) -> Tuple[List[Path], List[Path], List[Path]]:
     return (
         get_data_object_meta_file_paths(ldb_dir),
         get_annotation_meta_file_paths(ldb_dir),

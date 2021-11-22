@@ -1,4 +1,5 @@
 import argparse
+from argparse import Namespace
 from pathlib import Path
 from typing import Iterable
 
@@ -8,7 +9,7 @@ from ldb.config import set_default_instance
 from ldb.core import init
 
 
-def init_command(options):
+def init_command(options: Namespace) -> None:
     init(options.path, force=options.force, read_any_cloud_location=False)
     set_default_instance(options.path, overwrite_existing=False)
 

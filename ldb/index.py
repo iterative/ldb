@@ -5,7 +5,7 @@ import re
 from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Sequence, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple, Union
 
 import fsspec
 from fsspec.core import OpenFile
@@ -29,6 +29,8 @@ from ldb.utils import (
     write_data_file,
 )
 
+AnnotationMeta = Dict[str, Union[str, int, None]]
+
 
 @dataclass
 class IndexingResult:
@@ -50,7 +52,7 @@ class IndexingResult:
 
 def index(
     ldb_dir: Path,
-    paths: List[str],
+    paths: Sequence[str],
     read_any_cloud_location: bool = False,
 ) -> IndexingResult:
     paths = [os.path.abspath(p) for p in paths]
@@ -146,9 +148,9 @@ def copy_to_read_add_storage(
                     protocol=fs.protocol,
                 )
             file.fs.put_file(file.path, dest, protocol=fs.protocol)
-        new_files.append(fsspec.core.OpenFile(fs, dest))
+        new_files.append(OpenFile(fs, dest))
         if annotation_file is not None:
-            new_files.append(fsspec.core.OpenFile(fs, annotation_dest))
+            new_files.append(OpenFile(fs, annotation_dest))
     return new_files
 
 
@@ -360,7 +362,11 @@ def validate_locations_in_storage(
             )
 
 
-def in_storage_locations(path: str, protocol: str, storage_locations) -> bool:
+def in_storage_locations(
+    path: str,
+    protocol: str,
+    storage_locations: Sequence[StorageLocation],
+) -> bool:
     return any(
         loc.protocol == protocol and path.startswith(loc.path)
         for loc in storage_locations
@@ -371,7 +377,9 @@ def is_hidden_fsspec_path(path: str) -> bool:
     return re.search(r"^\.|/\.", path) is not None
 
 
-def group_storage_files_by_type(storage_files: Iterable[OpenFile]):
+def group_storage_files_by_type(
+    storage_files: Iterable[OpenFile],
+) -> Tuple[List[OpenFile], Dict[str, OpenFile]]:
     annotation_files_by_path = {}
     data_object_files = []
     seen = set()
@@ -390,7 +398,7 @@ def construct_data_object_meta(
     file: OpenFile,
     prev_meta: Dict[str, Any],
     current_timestamp: str,
-):
+) -> Dict[str, Union[str, Dict[str, Union[str, int]]]]:
     fs_info = os.stat(file.path)
 
     atime = timestamp_to_datetime(fs_info.st_atime)
@@ -437,10 +445,12 @@ def construct_data_object_meta(
     }
 
 
-def get_annotation_content(annotation_file):
+def get_annotation_content(
+    annotation_file: OpenFile,
+) -> Tuple[Dict[str, None], Dict[str, int]]:
     with annotation_file as open_annotation_file:
         annotation_str = open_annotation_file.read()
-    original_content = json.loads(annotation_str)
+    original_content: Dict[str, int] = json.loads(annotation_str)
     ldb_content = {
         "user_version": None,
         "schema_version": None,
@@ -449,17 +459,19 @@ def get_annotation_content(annotation_file):
 
 
 def construct_annotation_meta(
-    annotation_file,
-    prev_annotation_meta,
-    current_timestamp,
-    version,
-):
+    annotation_file: OpenFile,
+    prev_annotation_meta: AnnotationMeta,
+    current_timestamp: str,
+    version: int,
+) -> AnnotationMeta:
     mtimes = []
     if prev_annotation_meta:
-        prev_mtime = prev_annotation_meta.get("mtime")
+        prev_mtime: Optional[str] = prev_annotation_meta.get(  # type: ignore[assignment] # noqa: E501
+            "mtime",
+        )
         if prev_mtime is not None:
             mtimes.append(parse_datetime(prev_mtime))
-        version = prev_annotation_meta["version"]
+        version = prev_annotation_meta["version"]  # type: ignore[assignment]
         first_indexed_time = prev_annotation_meta["first_indexed_time"]
     else:
         first_indexed_time = current_timestamp
