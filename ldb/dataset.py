@@ -1,8 +1,18 @@
+import json
 from collections import defaultdict
 from dataclasses import asdict, dataclass, fields
 from datetime import datetime
 from pathlib import Path
-from typing import Any, DefaultDict, Dict, Generator, List, Optional, Tuple
+from typing import (
+    Any,
+    DefaultDict,
+    Dict,
+    Generator,
+    Iterable,
+    List,
+    Optional,
+    Tuple,
+)
 
 from ldb.exceptions import DatasetNotFoundError, LDBException
 from ldb.path import InstanceDir
@@ -210,3 +220,25 @@ def get_dataset_version_hash(
             f"{dataset_identifier} does not exist\n"
             f"The latest version is {latest_dataset_identifier}",
         ) from exc
+
+
+def get_annotations(
+    ldb_dir: Path,
+    annotation_hashes: Iterable[str],
+) -> List[str]:
+    annotations = []
+    for annotation_hash in annotation_hashes:
+        if annotation_hash:
+            user_annotation_file_path = (
+                get_hash_path(
+                    ldb_dir / InstanceDir.ANNOTATIONS,
+                    annotation_hash,
+                )
+                / "user"
+            )
+            annotations.append(
+                json.loads(user_annotation_file_path.read_text()),
+            )
+        else:
+            annotations.append(None)
+    return annotations
