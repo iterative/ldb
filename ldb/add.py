@@ -137,17 +137,20 @@ def data_object_for_add(
     paths: Sequence[str],
 ) -> AddInput:
     try:
-        return AddInput(
-            [parse_data_object_hash_identifier(p) for p in paths],
-            None,
-            "",
-        )
+        data_object_hashes = [
+            parse_data_object_hash_identifier(p) for p in paths
+        ]
     except ValueError as exc:
         raise LDBException(
             "All paths must be the same type. "
             "Found path starting with '0x', but unable "
             "parse all paths as a data object identifier",
         ) from exc
+    return AddInput(
+        data_object_hashes,
+        get_current_annotation_hashes(ldb_dir, data_object_hashes),
+        "",
+    )
 
 
 def path_for_add(ldb_dir: Path, paths: Sequence[str]) -> AddInput:
@@ -370,67 +373,6 @@ def process_args_for_ls(
     return LS_FUNCTIONS[arg_type](ldb_dir, paths)
 
 
-def root_dataset_for_ls(
-    ldb_dir: Path,
-    paths: Sequence[str],  # pylint: disable=unused-argument
-) -> AddInput:
-    data_object_hashes = []
-    annotation_hashes = []
-    for data_object_hash, annotation_hash in get_collection_dir_items(
-        ldb_dir / InstanceDir.DATA_OBJECT_INFO,
-        is_workspace=False,
-    ):
-        data_object_hashes.append(data_object_hash)
-        annotation_hashes.append(annotation_hash or "")
-    return AddInput(data_object_hashes, annotation_hashes, "")
-
-
-def dataset_for_ls(ldb_dir: Path, paths: Sequence[str]) -> AddInput:
-    try:
-        dataset_identifiers = [parse_dataset_identifier(p) for p in paths]
-    except LDBException as exc:
-        raise LDBException(
-            "All paths must be the same type. "
-            "Found path starting with 'ds', but unable "
-            "parse all paths as a dataset identifier",
-        ) from exc
-    collections = [
-        get_collection_from_dataset_identifier(
-            ldb_dir,
-            ds_name,
-            ds_version,
-        )
-        for ds_name, ds_version in dataset_identifiers
-    ]
-    combined_collection = combine_collections(ldb_dir, collections)
-    return AddInput(
-        combined_collection.keys(),
-        combined_collection.values(),
-        "",
-    )
-
-
-def data_object_for_ls(
-    ldb_dir: Path,  # pylint: disable=unused-argument
-    paths: Sequence[str],
-) -> AddInput:
-    try:
-        data_object_hashes = [
-            parse_data_object_hash_identifier(p) for p in paths
-        ]
-    except ValueError as exc:
-        raise LDBException(
-            "All paths must be the same type. "
-            "Found path starting with '0x', but unable "
-            "parse all paths as a data object identifier",
-        ) from exc
-    return AddInput(
-        data_object_hashes,
-        get_current_annotation_hashes(ldb_dir, data_object_hashes),
-        "",
-    )
-
-
 def path_for_ls(ldb_dir: Path, paths: Sequence[str]) -> AddInput:
     paths = [os.path.abspath(p) for p in paths]
     data_object_hashes = [
@@ -452,6 +394,6 @@ LS_FUNCTIONS: Dict[ArgType, Callable[[Path, Sequence[str]], AddInput]] = {
     ArgType.ROOT_DATASET: root_dataset_for_add,
     ArgType.DATASET: dataset_for_add,
     ArgType.WORKSPACE_DATASET: workspace_dataset_for_add,
-    ArgType.DATA_OBJECT: data_object_for_ls,
+    ArgType.DATA_OBJECT: data_object_for_add,
     ArgType.PATH: path_for_ls,
 }
