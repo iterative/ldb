@@ -1,13 +1,16 @@
-from typing import Any, Generator, Iterable
+from typing import Any, Callable, Generator, Iterable
 
 import jmespath
 
 
-def query(
+def get_search_func(
     query_str: str,
-    objects: Iterable[Any],
-) -> Generator[Any, None, None]:
-    """For each item in `objects`, apply `query_str`."""
+) -> Callable[[Iterable[Any]], Generator[Any, None, None]]:
+    """Compile `query_str` and return a search function."""
     query_obj = jmespath.compile(query_str)
-    for obj in objects:
-        yield query_obj.search(obj)
+
+    def search(objects: Iterable[Any]) -> Generator[Any, None, None]:
+        for obj in objects:
+            yield query_obj.search(obj)
+
+    return search

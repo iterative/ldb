@@ -5,7 +5,7 @@ from typing import Any, Generator, Iterable, List, Sequence, Tuple
 
 from ldb.add import ArgType, get_arg_type, process_args_for_ls
 from ldb.path import InstanceDir
-from ldb.query import query
+from ldb.query import get_search_func
 from ldb.utils import get_hash_path
 
 
@@ -14,6 +14,7 @@ def evaluate(
     query_str: str,
     paths: Sequence[str],
 ) -> Generator[Tuple[str, Any], None, None]:
+    search = get_search_func(query_str)
     if not paths:
         paths = ["."]
         arg_type = ArgType.WORKSPACE_DATASET
@@ -29,10 +30,7 @@ def evaluate(
     if annotation_hashes is None:
         query_results: Iterable[Any] = repeat(None)
     else:
-        query_results = query(
-            query_str,
-            get_annotations(ldb_dir, annotation_hashes),
-        )
+        query_results = search(get_annotations(ldb_dir, annotation_hashes))
     yield from zip(data_object_hashes, query_results)
 
 
