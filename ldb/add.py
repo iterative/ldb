@@ -267,6 +267,13 @@ def dataset_for_delete(ldb_dir: Path, paths: Sequence[str]) -> List[str]:
     return list(data_objects)
 
 
+def workspace_dataset_for_delete(
+    ldb_dir: Path,
+    paths: Sequence[str],
+) -> List[str]:
+    return list(workspace_dataset_for_add(ldb_dir, paths)[0])
+
+
 def data_object_for_delete(
     ldb_dir: Path,  # pylint: disable=unused-argument
     paths: Sequence[str],
@@ -300,6 +307,7 @@ def path_for_delete(ldb_dir: Path, paths: Sequence[str]) -> List[str]:
 DELETE_FUNCTIONS: Dict[ArgType, Callable[[Path, Sequence[str]], List[str]]] = {
     ArgType.ROOT_DATASET: root_dataset_for_delete,
     ArgType.DATASET: dataset_for_delete,
+    ArgType.WORKSPACE_DATASET: workspace_dataset_for_delete,
     ArgType.DATA_OBJECT: data_object_for_delete,
     ArgType.PATH: path_for_delete,
 }
