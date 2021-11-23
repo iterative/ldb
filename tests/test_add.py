@@ -1,10 +1,14 @@
 import os
+import shutil
 from pathlib import Path
 from typing import Iterable, List
 
+from ldb.core import add_default_read_add_storage
 from ldb.main import main
 from ldb.path import WorkspacePath
-from ldb.utils import DATASET_PREFIX, ROOT
+from ldb.stage import stage_workspace
+from ldb.utils import DATASET_PREFIX, ROOT, current_time
+from ldb.workspace import WorkspaceDataset
 
 
 def get_staged_object_file_paths(workspace_path: Path) -> List[Path]:
@@ -87,3 +91,45 @@ def test_add_root_dataset(workspace_path, data_dir):
     assert ret == 0
     assert len(object_file_paths) == 32
     assert num_empty_files(object_file_paths) == 23
+
+
+def test_add_current_workspace(workspace_path, data_dir, ldb_instance):
+    add_default_read_add_storage(ldb_instance)
+    shutil.copytree(
+        data_dir / "fashion-mnist/original/has_both/train",
+        "./train",
+    )
+    ret = main(["add", "."])
+    object_file_paths = get_staged_object_file_paths(workspace_path)
+    assert ret == 0
+    assert len(object_file_paths) == 13
+    assert num_empty_files(object_file_paths) == 13
+
+
+def test_add_another_workspace(
+    workspace_path,
+    data_dir,
+    ldb_instance,
+    tmp_path,
+):
+    other_workspace_path = tmp_path / "other-workspace"
+    stage_workspace(
+        other_workspace_path,
+        WorkspaceDataset(
+            dataset_name="my-other-dataset",
+            staged_time=current_time(),
+            parent="",
+            tags=[],
+        ),
+    )
+    os.chdir(other_workspace_path)
+    main(
+        ["add", os.fspath(data_dir / "fashion-mnist/original/has_both/train")],
+    )
+    os.chdir(workspace_path)
+    ret = main(["add", os.fspath(other_workspace_path)])
+
+    object_file_paths = get_staged_object_file_paths(workspace_path)
+    assert ret == 0
+    assert len(object_file_paths) == 13
+    assert num_empty_files(object_file_paths) == 13

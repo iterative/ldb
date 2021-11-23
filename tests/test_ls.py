@@ -4,9 +4,10 @@ from pathlib import Path
 
 from ldb.ls import ls
 from ldb.main import main
+from ldb.path import WorkspacePath
 from ldb.stage import stage_workspace
 from ldb.utils import current_time
-from ldb.workspace import WorkspaceDataset
+from ldb.workspace import WorkspaceDataset, collection_dir_to_object
 
 
 def is_hash(s: str) -> bool:
@@ -33,7 +34,10 @@ def test_ls_workspace_dataset(tmp_path, data_dir, ldb_instance):
     for dir_path in dirs_to_add:
         main(["add", f"{os.fspath(dir_path)}"])
 
-    ds_listings = ls(ldb_instance, workspace_path)
+    ws_collection = collection_dir_to_object(
+        workspace_path / WorkspacePath.COLLECTION,
+    )
+    ds_listings = ls(ldb_instance, ws_collection)
     annot_versions = [d.annotation_version for d in ds_listings]
     # fsspec's LocalFileSystem._strip_protocol does some normalization during
     # indexing, so we cast everything to Path objects for comparison

@@ -12,6 +12,8 @@ from typing import (
     Set,
 )
 
+import fsspec
+
 from ldb import config
 from ldb.config import ConfigType
 from ldb.dataset import (
@@ -21,23 +23,25 @@ from ldb.dataset import (
     get_collection_from_dataset_identifier,
 )
 from ldb.exceptions import LDBException
-from ldb.index import index
+from ldb.index import get_storage_files_for_paths, index
 from ldb.path import InstanceDir, WorkspacePath
 from ldb.utils import (
     DATASET_PREFIX,
     ROOT,
     format_dataset_identifier,
     get_hash_path,
+    hash_file,
     parse_data_object_hash_identifier,
     parse_dataset_identifier,
 )
-from ldb.workspace import load_workspace_dataset
+from ldb.workspace import collection_dir_to_object, load_workspace_dataset
 
 
 @unique
 class ArgType(Enum):
     ROOT_DATASET = "root dataset"
     DATASET = "dataset"
+    WORKSPACE_DATASET = "workspace_dataset"
     DATA_OBJECT = "data object"
     PATH = "path"
 
@@ -51,10 +55,17 @@ class AddInput(NamedTuple):
 def get_arg_type(paths: Sequence[str]) -> ArgType:
     if any(p == f"{DATASET_PREFIX}{ROOT}" for p in paths):
         return ArgType.ROOT_DATASET
-    if any(p.startswith("ds:") for p in paths):
+    if any(p.startswith(DATASET_PREFIX) for p in paths):
         return ArgType.DATASET
     if any(p.startswith("0x") for p in paths):
         return ArgType.DATA_OBJECT
+    if any(
+        f.fs.protocol == "file"
+        and f.fs.isdir(f.path + "/.ldb_workspace")
+        and os.path.abspath(f.path) != os.getcwd()
+        for f in fsspec.open_files(paths)
+    ):
+        return ArgType.WORKSPACE_DATASET
     return ArgType.PATH
 
 
@@ -106,22 +117,40 @@ def dataset_for_add(ldb_dir: Path, paths: Sequence[str]) -> AddInput:
     )
 
 
+def workspace_dataset_for_add(ldb_dir: Path, paths: Sequence[str]) -> AddInput:
+    collections = [
+        collection_dir_to_object(
+            Path(path) / WorkspacePath.COLLECTION,
+        )
+        for path in paths
+    ]
+    combined_collection = combine_collections(ldb_dir, collections)
+    return AddInput(
+        combined_collection.keys(),
+        combined_collection.values(),
+        "",
+    )
+
+
 def data_object_for_add(
     ldb_dir: Path,  # pylint: disable=unused-argument
     paths: Sequence[str],
 ) -> AddInput:
     try:
-        return AddInput(
-            [parse_data_object_hash_identifier(p) for p in paths],
-            None,
-            "",
-        )
+        data_object_hashes = [
+            parse_data_object_hash_identifier(p) for p in paths
+        ]
     except ValueError as exc:
         raise LDBException(
             "All paths must be the same type. "
             "Found path starting with '0x', but unable "
             "parse all paths as a data object identifier",
         ) from exc
+    return AddInput(
+        data_object_hashes,
+        get_current_annotation_hashes(ldb_dir, data_object_hashes),
+        "",
+    )
 
 
 def path_for_add(ldb_dir: Path, paths: Sequence[str]) -> AddInput:
@@ -147,6 +176,7 @@ def path_for_add(ldb_dir: Path, paths: Sequence[str]) -> AddInput:
 ADD_FUNCTIONS: Dict[ArgType, Callable[[Path, Sequence[str]], AddInput]] = {
     ArgType.ROOT_DATASET: root_dataset_for_add,
     ArgType.DATASET: dataset_for_add,
+    ArgType.WORKSPACE_DATASET: workspace_dataset_for_add,
     ArgType.DATA_OBJECT: data_object_for_add,
     ArgType.PATH: path_for_add,
 }
@@ -168,10 +198,10 @@ def add(
                 f"{len(data_object_hashes)} != {len(annotation_hashes)}",
             )
     else:
-        annotation_hashes = [
-            get_current_annotation_hash(ldb_dir, data_object_hash)
-            for data_object_hash in data_object_hashes
-        ]
+        annotation_hashes = get_current_annotation_hashes(
+            ldb_dir,
+            data_object_hashes,
+        )
 
     workspace_path = Path(os.path.normpath(workspace_path))
     ds_name = load_workspace_dataset(workspace_path).dataset_name
@@ -240,6 +270,13 @@ def dataset_for_delete(ldb_dir: Path, paths: Sequence[str]) -> List[str]:
     return list(data_objects)
 
 
+def workspace_dataset_for_delete(
+    ldb_dir: Path,
+    paths: Sequence[str],
+) -> List[str]:
+    return list(workspace_dataset_for_add(ldb_dir, paths)[0])
+
+
 def data_object_for_delete(
     ldb_dir: Path,  # pylint: disable=unused-argument
     paths: Sequence[str],
@@ -273,6 +310,7 @@ def path_for_delete(ldb_dir: Path, paths: Sequence[str]) -> List[str]:
 DELETE_FUNCTIONS: Dict[ArgType, Callable[[Path, Sequence[str]], List[str]]] = {
     ArgType.ROOT_DATASET: root_dataset_for_delete,
     ArgType.DATASET: dataset_for_delete,
+    ArgType.WORKSPACE_DATASET: workspace_dataset_for_delete,
     ArgType.DATA_OBJECT: data_object_for_delete,
     ArgType.PATH: path_for_delete,
 }
@@ -316,3 +354,46 @@ def get_current_annotation_hash(ldb_dir: Path, data_object_hash: str) -> str:
         return (data_object_dir / "current").read_text()
     except FileNotFoundError:
         return ""
+
+
+def get_current_annotation_hashes(
+    ldb_dir: Path,
+    data_object_hashes: Iterable[str],
+) -> List[str]:
+    return [
+        get_current_annotation_hash(ldb_dir, d) for d in data_object_hashes
+    ]
+
+
+def process_args_for_ls(
+    ldb_dir: Path,
+    arg_type: ArgType,
+    paths: Sequence[str],
+) -> AddInput:
+    return LS_FUNCTIONS[arg_type](ldb_dir, paths)
+
+
+def path_for_ls(ldb_dir: Path, paths: Sequence[str]) -> AddInput:
+    paths = [os.path.abspath(p) for p in paths]
+    data_object_hashes = [
+        hash_file(f)
+        for f in get_storage_files_for_paths(
+            paths,
+            default_format=False,
+        )
+        if not f.path.endswith(".json")
+    ]
+    return AddInput(
+        data_object_hashes,
+        get_current_annotation_hashes(ldb_dir, data_object_hashes),
+        "",
+    )
+
+
+LS_FUNCTIONS: Dict[ArgType, Callable[[Path, Sequence[str]], AddInput]] = {
+    ArgType.ROOT_DATASET: root_dataset_for_add,
+    ArgType.DATASET: dataset_for_add,
+    ArgType.WORKSPACE_DATASET: workspace_dataset_for_add,
+    ArgType.DATA_OBJECT: data_object_for_add,
+    ArgType.PATH: path_for_ls,
+}
