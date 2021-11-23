@@ -9,10 +9,9 @@ from ldb.config import get_global_base, set_default_instance
 from ldb.core import init
 from ldb.env import Env
 from ldb.path import Filename
-from ldb.stage import stage_workspace
 from ldb.storage import add_storage, create_storage_location
-from ldb.utils import current_time
-from ldb.workspace import WorkspaceDataset
+
+from .utils import stage_new_workspace
 
 
 def pytest_addoption(parser):
@@ -93,14 +92,6 @@ def data_dir() -> Path:
 @pytest.fixture
 def workspace_path(tmp_path: Path, ldb_instance: Path) -> Path:
     path = tmp_path / "workspace"
-    stage_workspace(
-        path,
-        WorkspaceDataset(
-            dataset_name="my-dataset",
-            staged_time=current_time(),
-            parent="",
-            tags=[],
-        ),
-    )
+    stage_new_workspace(path)
     os.chdir(path)
     return path

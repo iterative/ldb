@@ -4,9 +4,9 @@ import shutil
 from ldb.core import add_default_read_add_storage
 from ldb.evaluate import evaluate
 from ldb.main import main
-from ldb.stage import stage_workspace
-from ldb.utils import DATASET_PREFIX, ROOT, current_time
-from ldb.workspace import WorkspaceDataset
+from ldb.utils import DATASET_PREFIX, ROOT
+
+from .utils import stage_new_workspace
 
 
 def test_evaluate_storage_location(ldb_instance, data_dir):
@@ -170,15 +170,7 @@ def test_evaluate_another_workspace(
     tmp_path,
 ):
     other_workspace_path = tmp_path / "other-workspace"
-    stage_workspace(
-        other_workspace_path,
-        WorkspaceDataset(
-            dataset_name="my-other-dataset",
-            staged_time=current_time(),
-            parent="",
-            tags=[],
-        ),
-    )
+    stage_new_workspace(other_workspace_path)
     os.chdir(other_workspace_path)
     main(
         ["add", os.fspath(data_dir / "fashion-mnist/updates")],
