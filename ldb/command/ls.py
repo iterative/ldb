@@ -1,23 +1,38 @@
 import argparse
 from argparse import Namespace
-from pathlib import Path
+from itertools import repeat
 from typing import Iterable
 
 import shtab
 
+from ldb.add import ArgType, get_arg_type, process_args_for_ls
 from ldb.core import get_ldb_instance
 from ldb.ls import ls
 from ldb.string_utils import left_truncate
-from ldb.utils import format_dataset_identifier
-from ldb.workspace import load_workspace_dataset
 
 
 def ls_command(options: Namespace) -> None:
     ldb_dir = get_ldb_instance()
-    workspace_ds = load_workspace_dataset(options.path)
-    ds_ident = format_dataset_identifier(workspace_ds.dataset_name)
-    print(f"Listing {ds_ident} members:\n")
-    ds_listings = ls(ldb_dir, options.path)
+    if not options.paths:
+        paths = ["."]
+        arg_type = ArgType.WORKSPACE_DATASET
+    else:
+        paths = options.paths
+        arg_type = get_arg_type(options.paths)
+
+    data_object_hashes, annotation_hashes, _ = process_args_for_ls(
+        ldb_dir,
+        arg_type,
+        paths,
+    )
+    collection = dict(
+        zip(
+            data_object_hashes,
+            annotation_hashes if annotation_hashes is not None else repeat(""),
+        ),
+    )
+
+    ds_listings = ls(ldb_dir, collection)
     print(f"{'Data Object Hash':37} {'Annot.':8} Data Object Path")
     for item in ds_listings:
         annotation_version = str(item.annotation_version or "-")
@@ -39,10 +54,9 @@ def add_parser(
         help="List objects and annotations",
     )
     parser.add_argument(  # type: ignore[attr-defined]
-        "path",
-        nargs="?",
-        type=Path,
-        default=".",
-        help="Path or dataset to list",
-    ).complete = shtab.DIRECTORY
+        "paths",
+        metavar="path",
+        nargs="*",
+        help="Storage location, data object identifier, or dataset",
+    ).complete = shtab.FILE
     parser.set_defaults(func=ls_command)

@@ -56,7 +56,7 @@ def index(
     read_any_cloud_location: bool = False,
 ) -> IndexingResult:
     paths = [os.path.abspath(p) for p in paths]
-    files = get_storage_files_for_paths(paths)
+    files = get_storage_files_for_paths(paths, default_format=True)
     if not files:
         raise LDBException(
             "No files or directories found matching the given paths.",
@@ -262,18 +262,24 @@ def data_object_path_to_annotation_path(path: str) -> str:
     return os.path.splitext(path)[0] + ".json"
 
 
-def get_storage_files_for_paths(paths: List[str]) -> List[OpenFile]:
+def get_storage_files_for_paths(
+    paths: List[str],
+    default_format: bool = False,
+) -> List[OpenFile]:
     seen = set()
     storage_files = []
     for path in paths:
-        for file in get_storage_files(path):
+        for file in get_storage_files(path, default_format=default_format):
             if file.path not in seen:
                 storage_files.append(file)
                 seen.add(file.path)
     return storage_files
 
 
-def get_storage_files(path: str) -> List[OpenFile]:
+def get_storage_files(
+    path: str,
+    default_format: bool = False,
+) -> List[OpenFile]:
     """
     Get storage files for indexing that match the glob, `path`.
 
@@ -296,15 +302,16 @@ def get_storage_files(path: str) -> List[OpenFile]:
     # find corresponding data object for annotation match and vice versa
     # for any files the expanded `path` glob matches
     file_match_globs = []
-    for mpath in fs.expand_path(path):
-        if not is_hidden_fsspec_path(mpath) and fs.isfile(mpath):
-            file_match_globs.append(mpath)
-            p_without_ext, ext = os.path.splitext(path)
-            if ext == ".json":
-                file_match_globs.append(p_without_ext)
-                file_match_globs.append(p_without_ext + ".*")
-            else:
-                file_match_globs.append(p_without_ext + ".json")
+    if default_format:
+        for mpath in fs.expand_path(path):
+            if not is_hidden_fsspec_path(mpath) and fs.isfile(mpath):
+                file_match_globs.append(mpath)
+                p_without_ext, ext = os.path.splitext(path)
+                if ext == ".json":
+                    file_match_globs.append(p_without_ext)
+                    file_match_globs.append(p_without_ext + ".*")
+                else:
+                    file_match_globs.append(p_without_ext + ".json")
     files = (
         list(fsspec.open_files(file_match_globs)) if file_match_globs else []
     )

@@ -4,9 +4,10 @@ from pathlib import Path
 from typing import Optional
 
 from ldb import config
-from ldb.config import get_default_instance_dir, get_ldb_dir
+from ldb.config import get_default_instance_dir, get_global_base, get_ldb_dir
 from ldb.exceptions import LDBException, LDBInstanceNotFoundError
-from ldb.path import INSTANCE_DIRS, Filename
+from ldb.path import INSTANCE_DIRS, Filename, GlobalDir
+from ldb.storage import StorageLocation, add_storage
 
 
 def init(
@@ -42,6 +43,28 @@ def init(
         cfg["core"] = {"read_any_cloud_location": read_any_cloud_location}
     print(f"Initialized LDB instance at {repr(os.fspath(path))}")
     return path
+
+
+def init_quickstart(force: bool = False) -> Path:
+    ldb_dir = init(
+        get_default_instance_dir(),
+        force=force,
+        read_any_cloud_location=True,
+    )
+    add_default_read_add_storage(ldb_dir)
+    return ldb_dir
+
+
+def add_default_read_add_storage(ldb_dir: Path) -> None:
+    add_storage(
+        ldb_dir / Filename.STORAGE,
+        StorageLocation(
+            path=os.fspath(
+                get_global_base() / GlobalDir.DEFAULT_READ_ADD_STORAGE,
+            ),
+            read_and_add=True,
+        ),
+    )
 
 
 def is_ldb_instance(path: Path) -> bool:
