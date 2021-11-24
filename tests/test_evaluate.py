@@ -4,7 +4,7 @@ import shutil
 from ldb.core import add_default_read_add_storage
 from ldb.evaluate import evaluate
 from ldb.main import main
-from ldb.utils import DATASET_PREFIX, ROOT
+from ldb.utils import DATASET_PREFIX, ROOT, chdir
 
 from .utils import stage_new_workspace
 
@@ -171,18 +171,18 @@ def test_evaluate_another_workspace(
 ):
     other_workspace_path = tmp_path / "other-workspace"
     stage_new_workspace(other_workspace_path)
-    os.chdir(other_workspace_path)
-    main(
-        ["add", os.fspath(data_dir / "fashion-mnist/updates")],
-    )
-    os.chdir(workspace_path)
-    result = dict(
-        evaluate(
-            ldb_instance,
-            "[label, inference.label]",
-            [os.fspath(other_workspace_path)],
-        ),
-    )
+    with chdir(other_workspace_path):
+        main(
+            ["add", os.fspath(data_dir / "fashion-mnist/updates")],
+        )
+    with chdir(workspace_path):
+        result = dict(
+            evaluate(
+                ldb_instance,
+                "[label, inference.label]",
+                [os.fspath(other_workspace_path)],
+            ),
+        )
     expected = {
         "31ed21a2633c6802e756dd06220b0b82": None,
         "399146164375493f916025b04d00709c": [4, None],
