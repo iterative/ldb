@@ -7,11 +7,18 @@ import shtab
 
 from ldb.add import ArgType, get_arg_type, process_args_for_ls
 from ldb.core import get_ldb_instance
+from ldb.dataset import get_annotations
 from ldb.ls import ls
+from ldb.query import get_bool_search_func
 from ldb.string_utils import left_truncate
 
 
 def ls_command(options: Namespace) -> None:
+    search = (
+        get_bool_search_func(options.query)
+        if options.query is not None
+        else None
+    )
     ldb_dir = get_ldb_instance()
     if not options.paths:
         paths = ["."]
@@ -25,12 +32,20 @@ def ls_command(options: Namespace) -> None:
         arg_type,
         paths,
     )
-    collection = dict(
-        zip(
-            data_object_hashes,
-            annotation_hashes if annotation_hashes is not None else repeat(""),
-        ),
-    )
+    if annotation_hashes is None:
+        annotation_hashes = repeat("")
+    if search is None:
+        collection = dict(zip(data_object_hashes, annotation_hashes))
+    else:
+        collection = {
+            data_object_hash: annotation_hash
+            for data_object_hash, annotation_hash, keep in zip(
+                data_object_hashes,
+                annotation_hashes,
+                search(get_annotations(ldb_dir, annotation_hashes)),
+            )
+            if keep
+        }
 
     ds_listings = ls(ldb_dir, collection)
     print(f"{'Data Object Hash':37} {'Annot.':8} Data Object Path")
@@ -52,6 +67,11 @@ def add_parser(
         "list",
         parents=parents,
         help="List objects and annotations",
+    )
+    parser.add_argument(
+        "--query",
+        action="store",
+        help="Overwrite an unsaved dataset",
     )
     parser.add_argument(  # type: ignore[attr-defined]
         "paths",
