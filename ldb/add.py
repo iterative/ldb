@@ -1,7 +1,16 @@
 import os
 from enum import Enum, unique
 from pathlib import Path
-from typing import Callable, Dict, Iterable, List, NamedTuple, Sequence, Set
+from typing import (
+    Callable,
+    Dict,
+    Iterable,
+    List,
+    Mapping,
+    NamedTuple,
+    Sequence,
+    Set,
+)
 
 import fsspec
 
@@ -178,28 +187,15 @@ ADD_FUNCTIONS: Dict[ArgType, Callable[[Path, Sequence[str]], AddInput]] = {
 
 def add(
     workspace_path: Path,
-    data_object_hashes: Iterable[str],
-    annotation_hashes: Iterable[str],
+    collection: Mapping[str, str],
 ) -> None:
-    data_object_hashes = list(data_object_hashes)
-    annotation_hashes = list(annotation_hashes)
-    if not len(data_object_hashes) == len(annotation_hashes):
-        raise LDBException(
-            "Number of data object hashes and annotations must be the "
-            "same. "
-            f"{len(data_object_hashes)} != {len(annotation_hashes)}",
-        )
-
     workspace_path = Path(os.path.normpath(workspace_path))
     ds_name = load_workspace_dataset(workspace_path).dataset_name
     collection_dir_path = workspace_path / WorkspacePath.COLLECTION
     collection_dir_path.mkdir(exist_ok=True)
 
     to_write = []
-    for data_object_hash, annotation_hash in zip(
-        data_object_hashes,
-        annotation_hashes,
-    ):
+    for data_object_hash, annotation_hash in collection.items():
         to_write.append(
             (
                 get_hash_path(collection_dir_path, data_object_hash),
@@ -212,7 +208,7 @@ def add(
         with collection_member_path.open("w") as file:
             file.write(annotation_hash)
     ds_ident = format_dataset_identifier(ds_name)
-    print(f"Added {len(data_object_hashes)} data objects to {ds_ident}")
+    print(f"Added {len(collection)} data objects to {ds_ident}")
 
 
 def process_args_for_delete(
