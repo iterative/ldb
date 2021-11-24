@@ -1,6 +1,5 @@
 import argparse
 from argparse import Namespace
-from itertools import repeat
 from typing import Iterable
 
 import shtab
@@ -32,8 +31,6 @@ def ls_command(options: Namespace) -> None:
         arg_type,
         paths,
     )
-    if annotation_hashes is None:
-        annotation_hashes = repeat("")
     if search is None:
         collection = dict(zip(data_object_hashes, annotation_hashes))
     else:
