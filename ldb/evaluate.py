@@ -1,6 +1,5 @@
-from itertools import repeat
 from pathlib import Path
-from typing import Any, Generator, Iterable, Sequence, Tuple
+from typing import Any, Generator, Sequence, Tuple
 
 from ldb.add import ArgType, get_arg_type, process_args_for_ls
 from ldb.dataset import get_annotations
@@ -25,8 +24,5 @@ def evaluate(
         paths,
     )
 
-    if annotation_hashes is None:
-        query_results: Iterable[Any] = repeat(None)
-    else:
-        query_results = search(get_annotations(ldb_dir, annotation_hashes))
+    query_results = search(get_annotations(ldb_dir, annotation_hashes))
     yield from zip(data_object_hashes, query_results)

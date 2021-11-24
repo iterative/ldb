@@ -1,16 +1,7 @@
 import os
 from enum import Enum, unique
 from pathlib import Path
-from typing import (
-    Callable,
-    Dict,
-    Iterable,
-    List,
-    NamedTuple,
-    Optional,
-    Sequence,
-    Set,
-)
+from typing import Callable, Dict, Iterable, List, NamedTuple, Sequence, Set
 
 import fsspec
 
@@ -48,7 +39,7 @@ class ArgType(Enum):
 
 class AddInput(NamedTuple):
     data_object_hashes: Iterable[str]
-    annotation_hashes: Optional[Iterable[str]]
+    annotation_hashes: Iterable[str]
     message: str
 
 
@@ -168,7 +159,10 @@ def path_for_add(ldb_dir: Path, paths: Sequence[str]) -> AddInput:
     )
     return AddInput(
         indexing_result.data_object_hashes,
-        None,
+        get_current_annotation_hashes(
+            ldb_dir,
+            indexing_result.data_object_hashes,
+        ),
         indexing_result.summary(),
     )
 
@@ -183,24 +177,17 @@ ADD_FUNCTIONS: Dict[ArgType, Callable[[Path, Sequence[str]], AddInput]] = {
 
 
 def add(
-    ldb_dir: Path,
     workspace_path: Path,
     data_object_hashes: Iterable[str],
-    annotation_hashes: Optional[Iterable[str]],
+    annotation_hashes: Iterable[str],
 ) -> None:
     data_object_hashes = list(data_object_hashes)
-    if annotation_hashes is not None:
-        annotation_hashes = list(annotation_hashes)
-        if not len(data_object_hashes) == len(annotation_hashes):
-            raise LDBException(
-                "Number of data object hashes and annotations must be the "
-                "same. "
-                f"{len(data_object_hashes)} != {len(annotation_hashes)}",
-            )
-    else:
-        annotation_hashes = get_current_annotation_hashes(
-            ldb_dir,
-            data_object_hashes,
+    annotation_hashes = list(annotation_hashes)
+    if not len(data_object_hashes) == len(annotation_hashes):
+        raise LDBException(
+            "Number of data object hashes and annotations must be the "
+            "same. "
+            f"{len(data_object_hashes)} != {len(annotation_hashes)}",
         )
 
     workspace_path = Path(os.path.normpath(workspace_path))
