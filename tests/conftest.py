@@ -8,10 +8,12 @@ from pytest import MonkeyPatch, TempPathFactory
 from ldb.config import get_global_base, set_default_instance
 from ldb.core import init
 from ldb.env import Env
+from ldb.main import main
 from ldb.path import Filename
 from ldb.storage import add_storage, create_storage_location
+from ldb.utils import DATASET_PREFIX
 
-from .utils import stage_new_workspace
+from .utils import DATA_DIR, stage_new_workspace
 
 
 def pytest_addoption(parser):
@@ -86,7 +88,7 @@ def ldb_instance(tmp_path: Path, global_base: Path, data_dir: Path) -> Path:
 
 @pytest.fixture
 def data_dir() -> Path:
-    return Path(__file__).parent.parent / "data"
+    return DATA_DIR
 
 
 @pytest.fixture
@@ -95,3 +97,45 @@ def workspace_path(tmp_path: Path, ldb_instance: Path) -> Path:
     stage_new_workspace(path)
     os.chdir(path)
     return path
+
+
+@pytest.fixture
+def index_original(ldb_instance: Path, data_dir: Path) -> Path:
+    dir_to_index = data_dir / "fashion-mnist/original"
+    main(["index", os.fspath(dir_to_index)])
+    return dir_to_index
+
+
+@pytest.fixture
+def ds_a(workspace_path: Path, index_original: Path) -> str:
+    ds_identifier = f"{DATASET_PREFIX}a"
+    main(["stage", ds_identifier])
+    main(
+        [
+            "add",
+            "0x3c679fd1b8537dc7da1272a085e388e6",
+            "0x982814b9116dce7882dfc31636c3ff7a",
+            "0xebbc6c0cebb66738942ee56513f9ee2f",
+            "0x1e0759182b328fd22fcdb5e6beb54adf",
+        ],
+    )
+    main(["commit"])
+    return ds_identifier
+
+
+@pytest.fixture
+def ds_b(workspace_path: Path, index_original: Path) -> str:
+    ds_identifier = f"{DATASET_PREFIX}b"
+    main(["stage", ds_identifier])
+    main(
+        [
+            "add",
+            "0x982814b9116dce7882dfc31636c3ff7a",
+            "0x1e0759182b328fd22fcdb5e6beb54adf",
+            "0x2f3533f1e35349602fbfaf0ec9b3ef3f",
+            "0x95789bb1ac140460cefc97a6e66a9ee8",
+            "0xe1c3ef93e4e1cf108fa2a4c9d6e03af2",
+        ],
+    )
+    main(["commit"])
+    return ds_identifier

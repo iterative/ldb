@@ -6,6 +6,8 @@ from ldb.stage import stage_workspace
 from ldb.utils import current_time
 from ldb.workspace import WorkspaceDataset
 
+DATA_DIR = Path(__file__).parent.parent / "data"
+
 
 def stage_new_workspace(
     path: Path,
