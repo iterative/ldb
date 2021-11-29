@@ -6,9 +6,9 @@ from typing import Iterable, List
 from ldb.core import add_default_read_add_storage
 from ldb.main import main
 from ldb.path import WorkspacePath
-from ldb.stage import stage_workspace
-from ldb.utils import DATASET_PREFIX, ROOT, current_time
-from ldb.workspace import WorkspaceDataset
+from ldb.utils import DATASET_PREFIX, ROOT
+
+from .utils import stage_new_workspace
 
 
 def get_staged_object_file_paths(workspace_path: Path) -> List[Path]:
@@ -113,15 +113,7 @@ def test_add_another_workspace(
     tmp_path,
 ):
     other_workspace_path = tmp_path / "other-workspace"
-    stage_workspace(
-        other_workspace_path,
-        WorkspaceDataset(
-            dataset_name="my-other-dataset",
-            staged_time=current_time(),
-            parent="",
-            tags=[],
-        ),
-    )
+    stage_new_workspace(other_workspace_path)
     os.chdir(other_workspace_path)
     main(
         ["add", os.fspath(data_dir / "fashion-mnist/original/has_both/train")],

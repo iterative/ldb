@@ -5,9 +5,9 @@ from pathlib import Path
 from ldb.ls import ls
 from ldb.main import main
 from ldb.path import WorkspacePath
-from ldb.stage import stage_workspace
-from ldb.utils import current_time
-from ldb.workspace import WorkspaceDataset, collection_dir_to_object
+from ldb.workspace import collection_dir_to_object
+
+from .utils import stage_new_workspace
 
 
 def is_hash(s: str) -> bool:
@@ -21,15 +21,7 @@ def test_ls_workspace_dataset(tmp_path, data_dir, ldb_instance):
         data_dir / "fashion-mnist/original/data_objects_only/00011.png",
         data_dir / "fashion-mnist/updates",
     ]
-    stage_workspace(
-        workspace_path,
-        WorkspaceDataset(
-            dataset_name="my-dataset",
-            staged_time=current_time(),
-            parent="",
-            tags=[],
-        ),
-    )
+    stage_new_workspace(workspace_path)
     os.chdir(workspace_path)
     for dir_path in dirs_to_add:
         main(["add", f"{os.fspath(dir_path)}"])

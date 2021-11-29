@@ -21,7 +21,6 @@ def add_command(options: Namespace) -> None:
         print()
     print("Adding to working dataset...")
     add(
-        ldb_dir,
         Path("."),
         data_object_hashes,
         annotation_hashes,

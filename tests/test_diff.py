@@ -4,9 +4,8 @@ import pytest
 
 from ldb.diff import DiffItem, diff
 from ldb.main import main
-from ldb.stage import stage_workspace
-from ldb.utils import current_time
-from ldb.workspace import WorkspaceDataset
+
+from .utils import stage_new_workspace
 
 
 @pytest.fixture
@@ -36,27 +35,11 @@ def workspace_diff_setup(tmp_path, ldb_instance, workspace_path, data_dir):
     ]
 
     path = tmp_path / "workspace"
-    stage_workspace(
-        path,
-        WorkspaceDataset(
-            dataset_name="a",
-            staged_time=current_time(),
-            parent="",
-            tags=[],
-        ),
-    )
+    stage_new_workspace(path, "a")
     os.chdir(path)
     main(["add"] + [os.fspath(f) for f in file_paths1])
     main(["commit"])
-    stage_workspace(
-        path,
-        WorkspaceDataset(
-            dataset_name="b",
-            staged_time=current_time(),
-            parent="",
-            tags=[],
-        ),
-    )
+    stage_new_workspace(path, "b")
     main(["add"] + [os.fspath(f) for f in file_paths2])
     return [
         DiffItem(

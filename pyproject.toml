@@ -8,6 +8,8 @@ include_trailing_comma = true
 
 [tool.mypy]
 
+mypy_path = 'stubs'
+
 # Import discovery
 namespace_packages = true
 follow_imports = 'normal'
