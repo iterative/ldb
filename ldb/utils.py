@@ -7,7 +7,7 @@ import string
 from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
-from typing import Any, BinaryIO, Generator, Optional, Tuple, Union
+from typing import Any, BinaryIO, Iterator, Optional, Tuple, Union
 
 from fsspec.core import OpenFile
 
@@ -46,7 +46,7 @@ def hash_data(data: bytes) -> str:
 def iter_chunks(
     file: BinaryIO,
     chunk_size: int = CHUNK_SIZE,
-) -> Generator[bytes, None, None]:
+) -> Iterator[bytes]:
     data = file.read(chunk_size)
     while data:
         yield data
@@ -135,7 +135,7 @@ def unique_id(n: int = 8) -> str:
 
 
 @contextmanager
-def chdir(path: Union[str, bytes, Path]) -> Generator[None, None, None]:
+def chdir(path: Union[str, bytes, Path]) -> Iterator[None]:
     old = os.getcwd()
     try:
         os.chdir(path)
