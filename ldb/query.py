@@ -1,4 +1,4 @@
-from typing import Any, Callable, Generator, Iterable
+from typing import Any, Callable, Iterable, Iterator
 
 import jmespath
 from jmespath.exceptions import ParseError
@@ -6,11 +6,11 @@ from jmespath.exceptions import ParseError
 
 def get_search_func(
     query_str: str,
-) -> Callable[[Iterable[Any]], Generator[Any, None, None]]:
+) -> Callable[[Iterable[Any]], Iterator[Any]]:
     """Compile `query_str` and return a search function."""
     query_obj = jmespath.compile(query_str)
 
-    def search(objects: Iterable[Any]) -> Generator[Any, None, None]:
+    def search(objects: Iterable[Any]) -> Iterator[Any]:
         for obj in objects:
             yield query_obj.search(obj)
 
@@ -19,7 +19,7 @@ def get_search_func(
 
 def get_bool_search_func(
     query_str: str,
-) -> Callable[[Iterable[Any]], Generator[bool, None, None]]:
+) -> Callable[[Iterable[Any]], Iterator[bool]]:
     """
     Adapt `query_str` to cast result to a bool and return a search function.
 
@@ -42,7 +42,7 @@ def get_bool_search_func(
         query_obj = jmespath.compile(query_str)
         raise
 
-    def search(objects: Iterable[Any]) -> Generator[bool, None, None]:
+    def search(objects: Iterable[Any]) -> Iterator[bool]:
         for obj in objects:
             yield query_obj.search(obj)
 

@@ -483,7 +483,7 @@ def construct_annotation_meta(
     else:
         first_indexed_time = current_timestamp
 
-    fs_info = annotation_file.fs.info(annotation_file)
+    fs_info = annotation_file.fs.info(annotation_file.path)
     curr_mtime = fs_info.get("created")
     if curr_mtime is not None:
         mtimes.append(timestamp_to_datetime(curr_mtime))

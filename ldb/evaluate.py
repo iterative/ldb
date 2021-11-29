@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Any, Generator, Sequence, Tuple
+from typing import Any, Iterator, Sequence, Tuple
 
 from ldb.add import ArgType, get_arg_type, process_args_for_ls
 from ldb.dataset import get_annotations
@@ -10,7 +10,7 @@ def evaluate(
     ldb_dir: Path,
     query_str: str,
     paths: Sequence[str],
-) -> Generator[Tuple[str, Any], None, None]:
+) -> Iterator[Tuple[str, Any]]:
     search = get_search_func(query_str)
     if not paths:
         paths = ["."]

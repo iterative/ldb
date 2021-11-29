@@ -4,9 +4,10 @@ import os
 import random
 import re
 import string
+from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
-from typing import Any, BinaryIO, Generator, Optional, Tuple
+from typing import Any, BinaryIO, Iterator, Optional, Tuple, Union
 
 from fsspec.core import OpenFile
 
@@ -45,7 +46,7 @@ def hash_data(data: bytes) -> str:
 def iter_chunks(
     file: BinaryIO,
     chunk_size: int = CHUNK_SIZE,
-) -> Generator[bytes, None, None]:
+) -> Iterator[bytes]:
     data = file.read(chunk_size)
     while data:
         yield data
@@ -131,3 +132,13 @@ def parse_data_object_hash_identifier(hash_identifier: str) -> str:
 
 def unique_id(n: int = 8) -> str:
     return "".join(random.choices(UNIQUE_ID_ALPHABET, k=n))
+
+
+@contextmanager
+def chdir(path: Union[str, bytes, Path]) -> Iterator[None]:
+    old = os.getcwd()
+    try:
+        os.chdir(path)
+        yield
+    finally:
+        os.chdir(old)
