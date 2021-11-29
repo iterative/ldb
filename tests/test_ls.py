@@ -2,7 +2,7 @@ import os
 import re
 from pathlib import Path
 
-from ldb.ls import ls
+from ldb.ls import ls_collection
 from ldb.main import main
 from ldb.path import WorkspacePath
 from ldb.workspace import collection_dir_to_object
@@ -14,7 +14,11 @@ def is_hash(s: str) -> bool:
     return re.fullmatch("[a-f0-9]{32}", s) is not None
 
 
-def test_ls_workspace_dataset(tmp_path, data_dir, ldb_instance):
+def test_ls_collection_with_workspace_dataset(
+    tmp_path,
+    data_dir,
+    ldb_instance,
+):
     workspace_path = tmp_path / "workspace"
     dirs_to_add = [
         data_dir / "fashion-mnist/original/has_both/train",
@@ -29,7 +33,7 @@ def test_ls_workspace_dataset(tmp_path, data_dir, ldb_instance):
     ws_collection = collection_dir_to_object(
         workspace_path / WorkspacePath.COLLECTION,
     )
-    ds_listings = ls(ldb_instance, ws_collection)
+    ds_listings = ls_collection(ldb_instance, ws_collection)
     annot_versions = [d.annotation_version for d in ds_listings]
     # fsspec's LocalFileSystem._strip_protocol does some normalization during
     # indexing, so we cast everything to Path objects for comparison
