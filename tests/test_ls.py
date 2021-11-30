@@ -100,7 +100,6 @@ def test_ls_storage_locations(ldb_instance, workspace_path, data_dir):
     loc_strings = [os.fspath(loc1), os.fspath(loc2)]
     main(["add", *loc_strings])
     listings = sorted_ls(ldb_instance, loc_strings)
-    print(listings)
     expected = [
         DatasetListing(
             data_object_hash="31ed21a2633c6802e756dd06220b0b82",
@@ -317,8 +316,79 @@ def test_ls_datasets(ldb_instance, ds_a, ds_b):
 def test_ls_root_dataset(ldb_instance, data_dir):
     main(["index", os.fspath(data_dir / "fashion-mnist/updates")])
     listings = sorted_ls(ldb_instance, [f"{DATASET_PREFIX}{ROOT}"])
-    print(listings)
     assert listings == UPDATES_DIR_LISTINGS
+
+
+def test_ls_root_dataset_query(ldb_instance, data_dir):
+    main(["index", os.fspath(data_dir / "fashion-mnist/updates")])
+    listings = sorted_ls(
+        ldb_instance,
+        [f"{DATASET_PREFIX}{ROOT}"],
+        "@ == `null` || label == inference.label || label == `3`",
+    )
+    expected = [
+        DatasetListing(
+            data_object_hash="31ed21a2633c6802e756dd06220b0b82",
+            data_object_path=path.join(
+                UPDATES_DIR,
+                "no_inference",
+                "00028.png",
+            ),
+            annotation_hash="",
+            annotation_version=0,
+        ),
+        DatasetListing(
+            data_object_hash="47149106168f7d88fcea9e168608f129",
+            data_object_path=path.join(
+                UPDATES_DIR,
+                "same_inference",
+                "00029.png",
+            ),
+            annotation_hash="83c839bd3ca50c68cd17af5395d879d6",
+            annotation_version=1,
+        ),
+        DatasetListing(
+            data_object_hash="65383bee429980b89febc3f9b3349379",
+            data_object_path=path.join(
+                UPDATES_DIR,
+                "no_inference",
+                "00010.png",
+            ),
+            annotation_hash="",
+            annotation_version=0,
+        ),
+        DatasetListing(
+            data_object_hash="66e0373a2a989870fbc2c7791d8e6490",
+            data_object_path=path.join(
+                UPDATES_DIR,
+                "no_inference",
+                "00021.png",
+            ),
+            annotation_hash="ea37760e357f44bf15d525022a5a87db",
+            annotation_version=1,
+        ),
+        DatasetListing(
+            data_object_hash="b5fba326c8247d9e62aa17a109146c02",
+            data_object_path=path.join(
+                UPDATES_DIR,
+                "same_inference",
+                "00040.png",
+            ),
+            annotation_hash="131ce3a7527d7d2cbc843092bd7f1bd0",
+            annotation_version=1,
+        ),
+        DatasetListing(
+            data_object_hash="def3cbcb30f3254a2a220e51ddf45375",
+            data_object_path=path.join(
+                UPDATES_DIR,
+                "no_inference",
+                "00026.png",
+            ),
+            annotation_hash="",
+            annotation_version=0,
+        ),
+    ]
+    assert listings == expected
 
 
 def test_ls_current_workspace(workspace_path, data_dir, ldb_instance):
