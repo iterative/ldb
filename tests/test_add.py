@@ -64,6 +64,21 @@ def test_add_root_dataset(workspace_path, index_original):
     assert num_empty_files(object_file_paths) == 23
 
 
+def test_add_root_dataset_query(workspace_path, index_original):
+    ret = main(
+        [
+            "add",
+            f"{DATASET_PREFIX}{ROOT}",
+            "--query",
+            "label != `null` && label > `2` && label < `8`",
+        ],
+    )
+    object_file_paths = get_staged_object_file_paths(workspace_path)
+    assert ret == 0
+    assert len(object_file_paths) == 14
+    assert num_empty_files(object_file_paths) == 14
+
+
 def test_add_current_workspace(workspace_path, data_dir, ldb_instance):
     add_default_read_add_storage(ldb_instance)
     shutil.copytree(
