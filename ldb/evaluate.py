@@ -1,9 +1,10 @@
 from pathlib import Path
-from typing import Any, Iterator, List, Optional, Sequence, Tuple, Union
+from typing import Iterator, List, Optional, Sequence, Tuple, Union
 
 from ldb.add import process_args_for_ls
 from ldb.dataset import get_annotations, get_data_object_meta
 from ldb.query import get_search_func
+from ldb.typing import JSONDecoded
 
 QuerySubject = Union[List[str], List[Optional[str]]]
 
@@ -13,7 +14,7 @@ def evaluate(
     query_str: str,
     paths: Sequence[str],
     use_file_attributes: bool = False,
-) -> Iterator[Tuple[str, Any]]:
+) -> Iterator[Tuple[str, JSONDecoded]]:
     search = get_search_func(query_str)
     data_object_hashes, annotation_hashes, _ = process_args_for_ls(
         ldb_dir,
