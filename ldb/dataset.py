@@ -225,7 +225,7 @@ def get_dataset_version_hash(
 def get_annotations(
     ldb_dir: Path,
     annotation_hashes: Iterable[str],
-) -> List[str]:
+) -> List[Optional[str]]:
     annotations = []
     for annotation_hash in annotation_hashes:
         if annotation_hash:
@@ -242,3 +242,20 @@ def get_annotations(
         else:
             annotations.append(None)
     return annotations
+
+
+def get_data_object_meta(
+    ldb_dir: Path,
+    data_object_hashes: Iterable[str],
+) -> List[str]:
+    meta_objects = []
+    for data_object_hash in data_object_hashes:
+        meta_file_path = (
+            get_hash_path(
+                ldb_dir / InstanceDir.DATA_OBJECT_INFO,
+                data_object_hash,
+            )
+            / "meta"
+        )
+        meta_objects.append(json.loads(meta_file_path.read_text()))
+    return meta_objects

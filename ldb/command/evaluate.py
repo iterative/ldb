@@ -14,6 +14,7 @@ def evaluate_command(options: Namespace) -> None:
         get_ldb_instance(),
         options.query,
         options.paths,
+        use_file_attributes=options.file,
     ):
         print(f"0x{data_object_hash}")
         print(json.dumps(result, indent=2))
@@ -29,8 +30,16 @@ def add_parser(
         help="Evaluate a query on the specified annotations",
     )
     parser.add_argument(
+        "--file",
+        action="store_true",
+        default=False,
+        help=(
+            "Applies JMESPath query to file attributes instead of annotations"
+        ),
+    )
+    parser.add_argument(
         "query",
-        help="Query to evaluate on annotations",
+        help="JMESPath query to apply",
     )
     parser.add_argument(  # type: ignore[attr-defined]
         "paths",

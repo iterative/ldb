@@ -8,8 +8,10 @@ from typing import (
     List,
     Mapping,
     NamedTuple,
+    Optional,
     Sequence,
     Set,
+    Tuple,
 )
 
 import fsspec
@@ -22,11 +24,12 @@ from ldb.dataset import (
     get_collection_dir_items,
     get_collection_dir_keys,
     get_collection_from_dataset_identifier,
+    get_data_object_meta,
 )
 from ldb.exceptions import LDBException
 from ldb.index import get_storage_files_for_paths, index
 from ldb.path import InstanceDir, WorkspacePath
-from ldb.query import BoolSearchFunc
+from ldb.query import BoolSearchFunc, get_bool_search_func
 from ldb.utils import (
     DATASET_PREFIX,
     ROOT,
@@ -71,12 +74,17 @@ def get_arg_type(paths: Sequence[str]) -> ArgType:
     return ArgType.PATH
 
 
+def process_bool_query_args(
+    *args: Optional[str],
+) -> Tuple[Optional[BoolSearchFunc], ...]:
+    return tuple(None if a is None else get_bool_search_func(a) for a in args)
+
+
 def process_args_for_add(
     ldb_dir: Path,
-    arg_type: ArgType,
     paths: Sequence[str],
 ) -> AddInput:
-    return ADD_FUNCTIONS[arg_type](ldb_dir, paths)
+    return ADD_FUNCTIONS[get_arg_type(paths)](ldb_dir, paths)
 
 
 def root_dataset_for_add(
@@ -215,10 +223,9 @@ def add(
 
 def process_args_for_delete(
     ldb_dir: Path,
-    arg_type: ArgType,
     paths: Sequence[str],
 ) -> List[str]:
-    return DELETE_FUNCTIONS[arg_type](ldb_dir, paths)
+    return DELETE_FUNCTIONS[get_arg_type(paths)](ldb_dir, paths)
 
 
 def root_dataset_for_delete(
@@ -419,3 +426,58 @@ def apply_query_to_data_objects(
         )
         if keep
     ]
+
+
+def apply_file_query_to_data_objects(
+    ldb_dir: Path,
+    search: BoolSearchFunc,
+    data_object_hashes: Iterable[str],
+) -> List[str]:
+    return [
+        data_object_hash
+        for data_object_hash, keep in zip(
+            data_object_hashes,
+            search(get_data_object_meta(ldb_dir, data_object_hashes)),
+        )
+        if keep
+    ]
+
+
+def apply_file_query(
+    ldb_dir: Path,
+    search: BoolSearchFunc,
+    collection: Dict[str, str],
+) -> Dict[str, str]:
+    return {
+        data_object_hash: annotation_hash
+        for (data_object_hash, annotation_hash), keep in zip(
+            collection.items(),
+            search(get_data_object_meta(ldb_dir, collection.keys())),
+        )
+        if keep
+    }
+
+
+def apply_queries(
+    ldb_dir: Path,
+    search: Optional[BoolSearchFunc],
+    file_search: Optional[BoolSearchFunc],
+    data_object_hashes: Iterable[str],
+    annotation_hashes: Iterable[str],
+) -> Dict[str, str]:
+    if search is None:
+        collection = dict(zip(data_object_hashes, annotation_hashes))
+    else:
+        collection = apply_query(
+            ldb_dir,
+            search,
+            data_object_hashes,
+            annotation_hashes,
+        )
+    if file_search is not None:
+        collection = apply_file_query(
+            ldb_dir,
+            file_search,
+            collection,
+        )
+    return collection
