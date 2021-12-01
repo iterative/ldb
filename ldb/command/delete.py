@@ -6,7 +6,6 @@ from typing import Iterable
 import shtab
 
 from ldb.add import (
-    ArgType,
     apply_query_to_data_objects,
     delete,
     get_arg_type,
@@ -36,14 +35,8 @@ def delete_command(options: Namespace) -> None:
             paths,
         )
     else:
-        if not paths:
-            paths = ["."]
-            arg_type = ArgType.WORKSPACE_DATASET
-        else:
-            arg_type = get_arg_type(paths)
         data_object_hashes, annotation_hashes, _ = process_args_for_ls(
             ldb_dir,
-            arg_type,
             paths,
         )
         data_object_hashes = apply_query_to_data_objects(

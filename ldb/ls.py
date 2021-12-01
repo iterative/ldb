@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Mapping, Optional, Sequence
 
-from ldb.add import ArgType, apply_query, get_arg_type, process_args_for_ls
+from ldb.add import apply_query, process_args_for_ls
 from ldb.path import InstanceDir
 from ldb.query import get_bool_search_func
 from ldb.string_utils import left_truncate
@@ -23,14 +23,8 @@ def ls(
     query: Optional[str] = None,
 ) -> List[DatasetListing]:
     search = get_bool_search_func(query) if query is not None else None
-    if not paths:
-        paths = ["."]
-        arg_type = ArgType.WORKSPACE_DATASET
-    else:
-        arg_type = get_arg_type(paths)
     data_object_hashes, annotation_hashes, _ = process_args_for_ls(
         ldb_dir,
-        arg_type,
         paths,
     )
     if search is None:

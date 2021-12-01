@@ -352,9 +352,13 @@ def get_current_annotation_hashes(
 
 def process_args_for_ls(
     ldb_dir: Path,
-    arg_type: ArgType,
     paths: Sequence[str],
 ) -> AddInput:
+    if not paths:
+        paths = ["."]
+        arg_type = ArgType.WORKSPACE_DATASET
+    else:
+        arg_type = get_arg_type(paths)
     return LS_FUNCTIONS[arg_type](ldb_dir, paths)
 
 
