@@ -201,7 +201,7 @@ def get_dataset(ldb_dir: Path, dataset_name: str) -> Dataset:
 
 def get_dataset_version_hash(
     dataset: Dataset,
-    dataset_version: Optional[Any] = None,
+    dataset_version: Optional[int] = None,
 ) -> str:
     if not dataset_version:
         dataset_version = len(dataset.versions)
