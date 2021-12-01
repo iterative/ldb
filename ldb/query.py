@@ -42,7 +42,7 @@ def get_bool_search_func(
     except ParseError:
         # If the expression above raises a ParseError, this should too
         # This way we show the original query string in the error message
-        query_obj = jmespath.compile(query_str)
+        jmespath.compile(query_str)
         raise
 
     def search(objects: Iterable[Any]) -> Iterator[bool]:
