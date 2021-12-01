@@ -124,7 +124,7 @@ def get_collection_from_dataset_identifier(
 def get_collection_dir_keys(
     collection_dir: Path,
 ) -> Generator[str, None, None]:
-    for path in collection_dir.glob("*/*"):
+    for path in sorted(collection_dir.glob("*/*")):
         yield path.parent.name + path.name
 
 
@@ -137,7 +137,7 @@ def get_collection_dir_items(
         if is_workspace
         else get_root_collection_annotation_hash
     )
-    for path in collection_dir.glob("*/*"):
+    for path in sorted(collection_dir.glob("*/*")):
         yield path.parent.name + path.name, annotation_hash_func(path)
 
 
@@ -167,7 +167,7 @@ def combine_collections(
             if annotation_hash:
                 lst.append(annotation_hash)
     combined_collection = {}
-    for data_object_hash, annotation_hashes in all_versions.items():
+    for data_object_hash, annotation_hashes in sorted(all_versions.items()):
         if len(annotation_hashes) > 1:
             annotation_dir = (
                 get_hash_path(

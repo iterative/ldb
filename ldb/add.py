@@ -29,7 +29,12 @@ from ldb.dataset import (
 from ldb.exceptions import LDBException
 from ldb.index import get_storage_files_for_paths, index
 from ldb.path import InstanceDir, WorkspacePath
-from ldb.query import BoolSearchFunc, get_bool_search_func
+from ldb.query import (
+    BoolSearchFunc,
+    SearchFunc,
+    get_bool_search_func,
+    get_search_func,
+)
 from ldb.utils import (
     DATASET_PREFIX,
     ROOT,
@@ -72,6 +77,12 @@ def get_arg_type(paths: Sequence[str]) -> ArgType:
     ):
         return ArgType.WORKSPACE_DATASET
     return ArgType.PATH
+
+
+def process_query_args(
+    *args: Optional[str],
+) -> Tuple[Optional[SearchFunc], ...]:
+    return tuple(None if a is None else get_search_func(a) for a in args)
 
 
 def process_bool_query_args(
@@ -147,9 +158,9 @@ def data_object_for_add(
     paths: Sequence[str],
 ) -> AddInput:
     try:
-        data_object_hashes = [
+        data_object_hashes = sorted(
             parse_data_object_hash_identifier(p) for p in paths
-        ]
+        )
     except ValueError as exc:
         raise LDBException(
             "All paths must be the same type. "
@@ -225,7 +236,12 @@ def process_args_for_delete(
     ldb_dir: Path,
     paths: Sequence[str],
 ) -> List[str]:
-    return DELETE_FUNCTIONS[get_arg_type(paths)](ldb_dir, paths)
+    if not paths:
+        paths = ["."]
+        arg_type = ArgType.WORKSPACE_DATASET
+    else:
+        arg_type = get_arg_type(paths)
+    return DELETE_FUNCTIONS[arg_type](ldb_dir, paths)
 
 
 def root_dataset_for_delete(
@@ -371,14 +387,14 @@ def process_args_for_ls(
 
 def path_for_ls(ldb_dir: Path, paths: Sequence[str]) -> AddInput:
     paths = [os.path.abspath(p) for p in paths]
-    data_object_hashes = [
+    data_object_hashes = sorted(
         hash_file(f)
         for f in get_storage_files_for_paths(
             paths,
             default_format=False,
         )
         if not f.path.endswith(".json")
-    ]
+    )
     return AddInput(
         data_object_hashes,
         get_current_annotation_hashes(ldb_dir, data_object_hashes),
