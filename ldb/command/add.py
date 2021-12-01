@@ -54,7 +54,7 @@ def add_parser(
     parser.add_argument(
         "--query",
         action="store",
-        help="Overwrite an unsaved dataset",
+        help="JMESPath query that filters annotations",
     )
     parser.add_argument(  # type: ignore[attr-defined]
         "paths",

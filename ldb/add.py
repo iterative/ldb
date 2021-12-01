@@ -303,7 +303,7 @@ DELETE_FUNCTIONS: Dict[ArgType, Callable[[Path, Sequence[str]], List[str]]] = {
 
 def delete(
     workspace_path: Path,
-    data_object_hashes: Sequence[str],
+    data_object_hashes: Iterable[str],
 ) -> None:
     workspace_path = Path(os.path.normpath(workspace_path))
     ds_name = load_workspace_dataset(workspace_path).dataset_name
@@ -399,3 +399,19 @@ def apply_query(
         )
         if keep
     }
+
+
+def apply_query_to_data_objects(
+    ldb_dir: Path,
+    search: BoolSearchFunc,
+    data_object_hashes: Iterable[str],
+    annotation_hashes: Iterable[str],
+) -> List[str]:
+    return [
+        data_object_hash
+        for data_object_hash, keep in zip(
+            data_object_hashes,
+            search(get_annotations(ldb_dir, annotation_hashes)),
+        )
+        if keep
+    ]
