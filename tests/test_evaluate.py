@@ -171,6 +171,7 @@ def test_evaluate_another_workspace(
 ):
     other_workspace_path = tmp_path / "other-workspace"
     stage_new_workspace(other_workspace_path)
+
     with chdir(other_workspace_path):
         main(
             ["add", os.fspath(data_dir / "fashion-mnist/updates")],

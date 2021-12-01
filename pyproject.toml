@@ -16,9 +16,6 @@ follow_imports = 'normal'
 no_site_packages = false
 no_silence_site_packages = false
 
-# Platform configuration
-python_version = 3.7
-
 # Configuring warnings
 warn_no_return = true
 warn_unreachable = true

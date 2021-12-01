@@ -9,6 +9,7 @@ from ldb import config
 from ldb.config import ConfigType
 from ldb.dataset import (
     combine_collections,
+    get_annotations,
     get_collection_dir_items,
     get_collection_dir_keys,
     get_collection_from_dataset_identifier,
@@ -16,6 +17,7 @@ from ldb.dataset import (
 from ldb.exceptions import LDBException
 from ldb.index import get_storage_files_for_paths, index
 from ldb.path import InstanceDir, WorkspacePath
+from ldb.query import BoolSearchFunc
 from ldb.utils import (
     DATASET_PREFIX,
     ROOT,
@@ -384,3 +386,20 @@ LS_FUNCTIONS: Dict[ArgType, Callable[[Path, Sequence[str]], AddInput]] = {
     ArgType.DATA_OBJECT: data_object_for_add,
     ArgType.PATH: path_for_ls,
 }
+
+
+def apply_query(
+    ldb_dir: Path,
+    search: BoolSearchFunc,
+    data_object_hashes: Iterable[str],
+    annotation_hashes: Iterable[str],
+) -> Dict[str, str]:
+    return {
+        data_object_hash: annotation_hash
+        for data_object_hash, annotation_hash, keep in zip(
+            data_object_hashes,
+            annotation_hashes,
+            search(get_annotations(ldb_dir, annotation_hashes)),
+        )
+        if keep
+    }

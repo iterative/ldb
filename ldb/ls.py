@@ -1,8 +1,11 @@
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List, Mapping, Optional
+from typing import List, Mapping, Optional, Sequence
 
+from ldb.add import ArgType, apply_query, get_arg_type, process_args_for_ls
 from ldb.path import InstanceDir
+from ldb.query import get_bool_search_func
+from ldb.string_utils import left_truncate
 from ldb.utils import get_hash_path, load_data_file
 
 
@@ -15,6 +18,49 @@ class DatasetListing:
 
 
 def ls(
+    ldb_dir: Path,
+    paths: Sequence[str],
+    query: Optional[str] = None,
+) -> List[DatasetListing]:
+    search = get_bool_search_func(query) if query is not None else None
+    if not paths:
+        paths = ["."]
+        arg_type = ArgType.WORKSPACE_DATASET
+    else:
+        arg_type = get_arg_type(paths)
+    data_object_hashes, annotation_hashes, _ = process_args_for_ls(
+        ldb_dir,
+        arg_type,
+        paths,
+    )
+    if search is None:
+        collection = dict(zip(data_object_hashes, annotation_hashes))
+    else:
+        collection = apply_query(
+            ldb_dir,
+            search,
+            data_object_hashes,
+            annotation_hashes,
+        )
+    return ls_collection(ldb_dir, collection)
+
+
+def print_dataset_listings(
+    dataset_listings: List[DatasetListing],
+    verbose: bool = False,
+) -> None:
+    print(f"{'Data Object Hash':37} {'Annot.':8} Data Object Path")
+    for item in dataset_listings:
+        annotation_version = str(item.annotation_version or "-")
+        path = (
+            item.data_object_path
+            if verbose
+            else left_truncate(item.data_object_path)
+        )
+        print(f"  0x{item.data_object_hash:35} {annotation_version:8} {path}")
+
+
+def ls_collection(
     ldb_dir: Path,
     collection: Mapping[str, Optional[str]],
 ) -> List[DatasetListing]:
