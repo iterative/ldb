@@ -1,11 +1,14 @@
 import os
 import shutil
 
+import pytest
+
 from ldb.core import add_default_read_add_storage
 from ldb.main import main
 from ldb.utils import DATASET_PREFIX, ROOT
 
 from .utils import (
+    DATA_DIR,
     get_staged_object_file_paths,
     num_empty_files,
     stage_new_workspace,
@@ -46,12 +49,41 @@ def test_add_datasets(workspace_path, ds_a, ds_b):
     assert num_empty_files(object_file_paths) == 3
 
 
-def test_add_root_dataset(workspace_path, index_original):
-    ret = main(["add", f"{DATASET_PREFIX}{ROOT}"])
+@pytest.mark.parametrize(
+    "add_args,expected",
+    [
+        ([], (32, 23)),
+        (["--file", "@"], (32, 23)),
+        (["--query", "@"], (23, 23)),
+        (["--file", "fs.size > `400`"], (26, 20)),
+        (
+            [
+                "--query",
+                "inference.label != `null` || inference.label == label",
+            ],
+            (13, 4),
+        ),
+        (
+            [
+                "--file",
+                "fs.size > `400`",
+                "--query",
+                "inference.label != `null` || inference.label == label",
+            ],
+            (9, 3),
+        ),
+    ],
+)
+def test_add_root_dataset(workspace_path, add_args, expected):
+    main(["index", os.fspath(DATA_DIR / "fashion-mnist/original")])
+    main(["index", os.fspath(DATA_DIR / "fashion-mnist/updates")])
+    ret = main(["add", f"{DATASET_PREFIX}{ROOT}", *add_args])
     object_file_paths = get_staged_object_file_paths(workspace_path)
     assert ret == 0
-    assert len(object_file_paths) == 32
-    assert num_empty_files(object_file_paths) == 23
+    assert (
+        len(object_file_paths),
+        num_empty_files(object_file_paths),
+    ) == expected
 
 
 def test_add_root_dataset_query(workspace_path, index_original):
