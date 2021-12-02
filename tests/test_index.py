@@ -1,95 +1,17 @@
 import os
 import shutil
-from pathlib import Path
-from typing import List, Tuple
 
 from ldb.main import main
-from ldb.path import Filename, InstanceDir
+from ldb.path import Filename
 from ldb.storage import add_storage, create_storage_location
 from ldb.utils import load_data_file
 
-DATA_OBJECT_KEYS = (
-    "type",
-    "first_indexed",
-    "last_indexed",
-    "last_indexed_by",
-    "tags",
-    "alternate_paths",
-    "fs",
+from .utils import (
+    get_indexed_data_paths,
+    is_annotation,
+    is_annotation_meta,
+    is_data_object_meta,
 )
-DATA_OBJECT_FS_KEYS = (
-    "fs_id",
-    "protocol",
-    "path",
-    "size",
-    "mode",
-    "uid",
-    "gid",
-    "atime",
-    "mtime",
-    "ctime",
-)
-ANNOTATION_META_KEYS = (
-    "version",
-    "mtime",
-    "first_indexed_time",
-    "last_indexed_time",
-)
-ANNOTATION_LDB_KEYS = (
-    "user_version",
-    "schema_version",
-)
-
-
-def is_data_object_meta(file_path: Path) -> bool:
-    data = load_data_file(file_path)
-    return (
-        tuple(data.keys()) == DATA_OBJECT_KEYS
-        and tuple(data["fs"].keys()) == DATA_OBJECT_FS_KEYS
-    )
-
-
-def is_annotation_meta(file_path: Path) -> bool:
-    return (
-        tuple(load_data_file(file_path).keys()) == ANNOTATION_META_KEYS
-        and (file_path.parent.parent / "current").is_file()
-    )
-
-
-def is_annotation(dir_path: Path) -> bool:
-    return (
-        tuple(
-            load_data_file(dir_path / "ldb"),
-        )
-        == ANNOTATION_LDB_KEYS
-        and bool(load_data_file(dir_path / "user"))
-    )
-
-
-def get_data_object_meta_file_paths(ldb_instance: Path) -> List[Path]:
-    return list((ldb_instance / InstanceDir.DATA_OBJECT_INFO).glob("*/*/meta"))
-
-
-def get_annotation_meta_file_paths(ldb_instance: Path) -> List[Path]:
-    return list(
-        (ldb_instance / InstanceDir.DATA_OBJECT_INFO).glob(
-            "*/*/annotations/*",
-        ),
-    )
-
-
-def get_annotation_dir_paths(ldb_instance: Path) -> List[Path]:
-    return list((ldb_instance / InstanceDir.ANNOTATIONS).glob("*/*"))
-
-
-def get_indexed_data_paths(
-    ldb_dir: Path,
-) -> Tuple[List[Path], List[Path], List[Path]]:
-    return (
-        get_data_object_meta_file_paths(ldb_dir),
-        get_annotation_meta_file_paths(ldb_dir),
-        get_annotation_dir_paths(ldb_dir),
-    )
 
 
 def test_index_first_time(ldb_instance, data_dir):

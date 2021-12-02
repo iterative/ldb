@@ -1,13 +1,98 @@
 from datetime import datetime
 from pathlib import Path
-from typing import Iterable, List, Optional
+from typing import Any, Dict, Iterable, List, Optional, Tuple
 
-from ldb.path import WorkspacePath
+from ldb.path import InstanceDir, WorkspacePath
 from ldb.stage import stage_workspace
-from ldb.utils import current_time
+from ldb.utils import current_time, load_data_file
 from ldb.workspace import WorkspaceDataset
 
 DATA_DIR = Path(__file__).parent.parent / "data"
+DATA_OBJECT_KEYS = (
+    "type",
+    "first_indexed",
+    "last_indexed",
+    "last_indexed_by",
+    "tags",
+    "alternate_paths",
+    "fs",
+)
+DATA_OBJECT_FS_KEYS = (
+    "fs_id",
+    "protocol",
+    "path",
+    "size",
+    "mode",
+    "uid",
+    "gid",
+    "atime",
+    "mtime",
+    "ctime",
+)
+ANNOTATION_META_KEYS = (
+    "version",
+    "mtime",
+    "first_indexed_time",
+    "last_indexed_time",
+)
+ANNOTATION_LDB_KEYS = (
+    "user_version",
+    "schema_version",
+)
+
+
+def is_data_object_meta_obj(data: Dict[str, Any]) -> bool:
+    return (
+        tuple(data.keys()) == DATA_OBJECT_KEYS
+        and tuple(data["fs"].keys()) == DATA_OBJECT_FS_KEYS
+    )
+
+
+def is_data_object_meta(file_path: Path) -> bool:
+    return is_data_object_meta_obj(load_data_file(file_path))
+
+
+def is_annotation_meta(file_path: Path) -> bool:
+    return (
+        tuple(load_data_file(file_path).keys()) == ANNOTATION_META_KEYS
+        and (file_path.parent.parent / "current").is_file()
+    )
+
+
+def is_annotation(dir_path: Path) -> bool:
+    return (
+        tuple(
+            load_data_file(dir_path / "ldb"),
+        )
+        == ANNOTATION_LDB_KEYS
+        and bool(load_data_file(dir_path / "user"))
+    )
+
+
+def get_data_object_meta_file_paths(ldb_instance: Path) -> List[Path]:
+    return list((ldb_instance / InstanceDir.DATA_OBJECT_INFO).glob("*/*/meta"))
+
+
+def get_annotation_meta_file_paths(ldb_instance: Path) -> List[Path]:
+    return list(
+        (ldb_instance / InstanceDir.DATA_OBJECT_INFO).glob(
+            "*/*/annotations/*",
+        ),
+    )
+
+
+def get_annotation_dir_paths(ldb_instance: Path) -> List[Path]:
+    return list((ldb_instance / InstanceDir.ANNOTATIONS).glob("*/*"))
+
+
+def get_indexed_data_paths(
+    ldb_dir: Path,
+) -> Tuple[List[Path], List[Path], List[Path]]:
+    return (
+        get_data_object_meta_file_paths(ldb_dir),
+        get_annotation_meta_file_paths(ldb_dir),
+        get_annotation_dir_paths(ldb_dir),
+    )
 
 
 def stage_new_workspace(

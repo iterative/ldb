@@ -27,9 +27,11 @@ def evaluate(
         file_query,
     )
     if search is None and file_search is not None:
-        data_object_hashes: Iterable[str] = process_args_for_delete(
-            ldb_dir,
-            paths,
+        data_object_hashes: Iterable[str] = sorted(
+            process_args_for_delete(
+                ldb_dir,
+                paths,
+            ),
         )
         search_results: List[Iterable[JSONDecoded]] = [
             file_search(get_data_object_meta(ldb_dir, data_object_hashes)),

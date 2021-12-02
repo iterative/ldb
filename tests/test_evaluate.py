@@ -1,12 +1,16 @@
 import os
 import shutil
+from typing import Any, Dict, Sequence
+
+import pytest
 
 from ldb.core import add_default_read_add_storage
 from ldb.evaluate import evaluate
 from ldb.main import main
+from ldb.typing import JSONDecoded
 from ldb.utils import DATASET_PREFIX, ROOT, chdir
 
-from .utils import stage_new_workspace
+from .utils import is_data_object_meta_obj, stage_new_workspace
 
 
 def test_evaluate_storage_location(ldb_instance, data_dir):
@@ -33,27 +37,79 @@ def test_evaluate_storage_location(ldb_instance, data_dir):
     assert result == expected
 
 
-def test_evaluate_data_objects(ldb_instance, data_dir):
+@pytest.mark.parametrize(
+    "do_annotation_query,do_file_query",
+    [
+        (False, False),
+        (False, True),
+        (True, False),
+        (True, True),
+    ],
+)
+def test_evaluate_data_objects(
+    ldb_instance,
+    data_dir,
+    do_annotation_query,
+    do_file_query,
+):
+    annotation_query = None
+    file_query = None
+    if do_annotation_query:
+        annotation_query = "[label, inference.label]"
+    if do_file_query:
+        file_query = "@"
+
     main(["index", os.fspath(data_dir / "fashion-mnist/updates")])
-    result = list(
-        evaluate(
-            ldb_instance,
-            [
-                "0xa2430513e897d5abcf62a55b8df81355",
-                "0x66e0373a2a989870fbc2c7791d8e6490",
-                "0xdef3cbcb30f3254a2a220e51ddf45375",
-                "0x47149106168f7d88fcea9e168608f129",
-            ],
-            "[label, inference.label]",
-        ),
+    result = evaluate(
+        ldb_instance,
+        [
+            "0xa2430513e897d5abcf62a55b8df81355",
+            "0x66e0373a2a989870fbc2c7791d8e6490",
+            "0xdef3cbcb30f3254a2a220e51ddf45375",
+            "0x47149106168f7d88fcea9e168608f129",
+        ],
+        annotation_query,
+        file_query,
     )
-    expected = [
-        ("47149106168f7d88fcea9e168608f129", [4, 4]),
-        ("66e0373a2a989870fbc2c7791d8e6490", [3, None]),
-        ("a2430513e897d5abcf62a55b8df81355", [7, 1]),
-        ("def3cbcb30f3254a2a220e51ddf45375", None),
-    ]
-    assert result == expected
+    result_columns = list(zip(*result))
+    file_meta_result: Sequence[Dict[str, Any]] = ()
+    annotation_result: Sequence[JSONDecoded] = ()
+
+    expected_data_object_hashes = (
+        "47149106168f7d88fcea9e168608f129",
+        "66e0373a2a989870fbc2c7791d8e6490",
+        "a2430513e897d5abcf62a55b8df81355",
+        "def3cbcb30f3254a2a220e51ddf45375",
+    )
+    expected_annotation_result: Sequence[JSONDecoded] = ()
+    expected_num_columns = 1
+
+    no_query_args = not do_annotation_query and not do_file_query
+    if do_annotation_query or no_query_args:
+        annotation_result = result_columns[-1]
+        expected_num_columns += 1
+    if do_annotation_query:
+        expected_annotation_result = (
+            [4, 4],
+            [3, None],
+            [7, 1],
+            None,
+        )
+    elif no_query_args:
+        expected_annotation_result = (
+            {"label": 4, "inference": {"label": 4}},  # type: ignore[assignment] # noqa: E501
+            {"label": 3},
+            {"label": 7, "inference": {"label": 1}},
+            None,
+        )
+    if do_file_query or no_query_args:
+        file_meta_result = result_columns[1]
+        expected_num_columns += 1
+
+    assert len(result_columns) == expected_num_columns
+    assert result_columns[0] == expected_data_object_hashes
+    assert expected_annotation_result == annotation_result
+    assert all(is_data_object_meta_obj(m) for m in file_meta_result)
 
 
 def test_evaluate_datasets(ldb_instance, workspace_path, data_dir):
