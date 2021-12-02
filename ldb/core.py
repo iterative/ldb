@@ -56,12 +56,12 @@ def init_quickstart(force: bool = False) -> Path:
 
 
 def add_default_read_add_storage(ldb_dir: Path) -> None:
+    path = get_global_base() / GlobalDir.DEFAULT_READ_ADD_STORAGE
+    path.mkdir(parents=True, exist_ok=True)
     add_storage(
         ldb_dir / Filename.STORAGE,
         StorageLocation(
-            path=os.fspath(
-                get_global_base() / GlobalDir.DEFAULT_READ_ADD_STORAGE,
-            ),
+            path=os.fspath(path),
             read_and_add=True,
         ),
     )
