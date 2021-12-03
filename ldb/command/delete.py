@@ -9,11 +9,12 @@ from ldb.add import (
     delete,
     process_args_for_delete,
     process_args_for_ls,
-    process_bool_query_args,
 )
 from ldb.cli_utils import add_data_object_arguments
 from ldb.core import get_ldb_instance
 from ldb.exceptions import LDBException
+from ldb.func_utils import apply_optional
+from ldb.query import get_bool_search_func
 
 
 def delete_command(options: Namespace) -> None:
@@ -24,10 +25,8 @@ def delete_command(options: Namespace) -> None:
     ):
         raise LDBException("Must provide either a query or at least one path")
     ldb_dir = get_ldb_instance()
-    search, file_search = process_bool_query_args(
-        options.annotation_query,
-        options.file_query,
-    )
+    search = apply_optional(get_bool_search_func, options.annotation_query)
+    file_search = apply_optional(get_bool_search_func, options.file_query)
     paths = options.paths
     if search is None:
         data_object_hashes: Iterable[str] = process_args_for_delete(

@@ -11,7 +11,6 @@ from typing import (
     Optional,
     Sequence,
     Set,
-    Tuple,
 )
 
 import fsspec
@@ -29,12 +28,7 @@ from ldb.dataset import (
 from ldb.exceptions import LDBException
 from ldb.index import get_storage_files_for_paths, index
 from ldb.path import InstanceDir, WorkspacePath
-from ldb.query import (
-    BoolSearchFunc,
-    SearchFunc,
-    get_bool_search_func,
-    get_search_func,
-)
+from ldb.query import BoolSearchFunc
 from ldb.utils import (
     DATASET_PREFIX,
     ROOT,
@@ -77,18 +71,6 @@ def get_arg_type(paths: Sequence[str]) -> ArgType:
     ):
         return ArgType.WORKSPACE_DATASET
     return ArgType.PATH
-
-
-def process_query_args(
-    *args: Optional[str],
-) -> Tuple[Optional[SearchFunc], ...]:
-    return tuple(None if a is None else get_search_func(a) for a in args)
-
-
-def process_bool_query_args(
-    *args: Optional[str],
-) -> Tuple[Optional[BoolSearchFunc], ...]:
-    return tuple(None if a is None else get_bool_search_func(a) for a in args)
 
 
 def process_args_for_add(
