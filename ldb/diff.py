@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from enum import IntEnum
 from pathlib import Path
-from typing import Dict, Iterable, Iterator, NamedTuple, Optional, Tuple
+from typing import Dict, Iterable, Iterator, Optional, Tuple
 
 from ldb.dataset import Dataset, get_collection
 from ldb.exceptions import LDBException
@@ -23,20 +23,18 @@ class DiffType(IntEnum):
 
 
 @dataclass
-class DiffItem:
-    data_object_hash: str
-    annotation_hash1: str
-    annotation_hash2: str
-    data_object_path: str = ""
-    annotation_version1: int = 0
-    annotation_version2: int = 0
-
-
-class SimpleDiffItem(NamedTuple):
+class SimpleDiffItem:
     data_object_hash: str
     annotation_hash1: str
     annotation_hash2: str
     diff_type: DiffType
+
+
+@dataclass
+class DiffItem(SimpleDiffItem):
+    data_object_path: str
+    annotation_version1: int
+    annotation_version2: int
 
 
 def get_diff_collections(
@@ -96,15 +94,12 @@ def summarize_diff(
     additions = 0
     deletions = 0
     modifications = 0
-    for (
-        *_,
-        diff_type,
-    ) in diff_items:
-        if diff_type == DiffType.ADDITION:
+    for item in diff_items:
+        if item.diff_type == DiffType.ADDITION:
             additions += 1
-        elif diff_type == DiffType.DELETION:
+        elif item.diff_type == DiffType.DELETION:
             deletions += 1
-        elif diff_type == DiffType.MODIFICATION:
+        elif item.diff_type == DiffType.MODIFICATION:
             modifications += 1
     return additions, deletions, modifications
 
@@ -131,38 +126,34 @@ def get_dataset_version_hash(ldb_dir: Path, dataset_identifier: str) -> str:
 
 def full_diff(
     ldb_dir: Path,
-    simple_diff_iter: Iterable[SimpleDiffItem],
+    simple_diff_items: Iterable[SimpleDiffItem],
 ) -> Iterator[DiffItem]:
-    for (
-        data_object_hash,
-        annotation_hash1,
-        annotation_hash2,
-        diff_type,
-    ) in simple_diff_iter:
+    for item in simple_diff_items:
         annotation_version1 = get_annotation_version(
             ldb_dir,
-            data_object_hash,
-            annotation_hash1,
+            item.data_object_hash,
+            item.annotation_hash1,
         )
-        if diff_type == DiffType.SAME:
+        if item.diff_type == DiffType.SAME:
             annotation_version2 = annotation_version1
         else:
             annotation_version2 = get_annotation_version(
                 ldb_dir,
-                data_object_hash,
-                annotation_hash2,
+                item.data_object_hash,
+                item.annotation_hash2,
             )
         data_object_meta = load_data_file(
             get_hash_path(
                 ldb_dir / InstanceDir.DATA_OBJECT_INFO,
-                data_object_hash,
+                item.data_object_hash,
             )
             / "meta",
         )
         yield DiffItem(
-            data_object_hash=data_object_hash,
-            annotation_hash1=annotation_hash1,
-            annotation_hash2=annotation_hash2,
+            data_object_hash=item.data_object_hash,
+            annotation_hash1=item.annotation_hash1,
+            annotation_hash2=item.annotation_hash2,
+            diff_type=item.diff_type,
             data_object_path=data_object_meta["fs"]["path"],
             annotation_version1=annotation_version1,
             annotation_version2=annotation_version2,
@@ -209,64 +200,32 @@ def simple_diff_on_collections(
     # pylint: disable=invalid-name
     iter1 = iter(sorted(collection1.items()))
     iter2 = iter(sorted(collection2.items()))
-    cont = True
-    try:
-        d1, a1 = next(iter1)
-    except StopIteration:
-        cont = False
-    try:
-        d2, a2 = next(iter2)
-    except StopIteration:
-        yield SimpleDiffItem(d1, a1 or "", "", DiffType.DELETION)
-        cont = False
-    while cont:
+
+    d1, a1 = next(iter1, (None, None))
+    d2, a2 = next(iter2, (None, None))
+    while d1 is not None and d2 is not None:
         if d1 < d2:
             yield SimpleDiffItem(d1, a1 or "", "", DiffType.DELETION)
-            try:
-                d1, a1 = next(iter1)
-            except StopIteration:
-                cont = False
+            d1, a1 = next(iter1, (None, None))
         elif d1 > d2:
             yield SimpleDiffItem(d2, "", a2 or "", DiffType.ADDITION)
-            try:
-                d2, a2 = next(iter2)
-            except StopIteration:
-                cont = False
+            d2, a2 = next(iter2, (None, None))
         else:
-            yield SimpleDiffItem(
-                d1,
-                a1 or "",
-                a2 or "",
-                DiffType.SAME if a1 == a2 else DiffType.MODIFICATION,
-            )
-            try:
-                d1, a1 = next(iter1)
-            except StopIteration:
-                cont = False
-            try:
-                d2, a2 = next(iter2)
-            except StopIteration:
-                yield SimpleDiffItem(
-                    d1,
-                    a1 or "",
-                    "",
-                    DiffType.DELETION,
-                )
-                cont = False
+            diff_type = DiffType.SAME if a1 == a2 else DiffType.MODIFICATION
+            yield SimpleDiffItem(d1, a1 or "", a2 or "", diff_type)
+            d1, a1 = next(iter1, (None, None))
+            d2, a2 = next(iter2, (None, None))
+
+    if d1 is None:
+        if d2 is not None:
+            yield SimpleDiffItem(d2, "", a2 or "", DiffType.ADDITION)
+    elif d2 is None:
+        yield SimpleDiffItem(d1, a1 or "", "", DiffType.DELETION)
+
     for d1, a1 in iter1:
-        yield SimpleDiffItem(
-            d1,
-            a1 or "",
-            "",
-            DiffType.DELETION,
-        )
+        yield SimpleDiffItem(d1, a1 or "", "", DiffType.DELETION)
     for d2, a2 in iter2:
-        yield SimpleDiffItem(
-            d2,
-            "",
-            a2 or "",
-            DiffType.ADDITION,
-        )
+        yield SimpleDiffItem(d2, "", a2 or "", DiffType.ADDITION)
 
 
 def format_summary(additions: int, deletions: int, modifications: int) -> str:

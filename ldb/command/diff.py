@@ -6,6 +6,7 @@ from typing import Iterable
 from ldb.core import get_ldb_instance
 from ldb.diff import (
     DiffItem,
+    DiffType,
     format_summary,
     full_diff,
     simple_diff,
@@ -35,13 +36,13 @@ def diff_command(options: Namespace) -> None:
 
 
 def format_diff_item(diff_item: DiffItem, verbose: bool) -> str:
-    if diff_item.annotation_version2 and not diff_item.annotation_version1:
+    if diff_item.diff_type == DiffType.ADDITION:
         prefix = "+"
         annotation_col = annotation_version_str(diff_item.annotation_version2)
-    elif not diff_item.annotation_version2 and diff_item.annotation_version1:
+    elif diff_item.diff_type == DiffType.DELETION:
         prefix = "-"
         annotation_col = annotation_version_str(diff_item.annotation_version1)
-    elif diff_item.annotation_version1 != diff_item.annotation_version2:
+    elif diff_item.diff_type == DiffType.MODIFICATION:
         prefix = "m"
         annotation_col = (
             f"{annotation_version_str(diff_item.annotation_version1)} "
