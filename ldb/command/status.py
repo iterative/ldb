@@ -7,7 +7,9 @@ from typing import Iterable
 import shtab
 
 from ldb.core import get_ldb_instance
+from ldb.dataset import get_collection_size
 from ldb.diff import diff, format_summary, summarize_diff
+from ldb.path import WorkspacePath
 from ldb.status import status
 from ldb.workspace import load_workspace_dataset
 
@@ -26,9 +28,15 @@ def status_command(options: Namespace) -> None:
     )
     if ws_status.dataset_name != "root":
         workspace_ds = load_workspace_dataset(options.path)
-        summary_items = summarize_diff(
-            diff(ldb_dir, options.path, workspace_ds.parent),
-        )
+        if workspace_ds.parent:
+            summary_items = summarize_diff(
+                diff(ldb_dir, options.path, workspace_ds.parent),
+            )
+        else:
+            collection_size = get_collection_size(
+                options.path / WorkspacePath.COLLECTION,
+            )
+            summary_items = collection_size, 0, 0
         print()
         if any(summary_items):
             print("Unsaved changes:")

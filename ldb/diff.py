@@ -11,7 +11,7 @@ from ldb.utils import (
     load_data_file,
     parse_dataset_identifier,
 )
-from ldb.workspace import collection_dir_to_object
+from ldb.workspace import collection_dir_to_object, load_workspace_dataset
 
 
 @dataclass
@@ -33,7 +33,7 @@ class SimpleDiffItem(NamedTuple):
 def diff(
     ldb_dir: Path,
     workspace_path: Path,
-    dataset1: str,
+    dataset1: str = "",
     dataset2: str = "",
 ) -> Generator[DiffItem, None, None]:
     if dataset1.startswith("ds:"):
@@ -47,8 +47,11 @@ def diff(
             dataset1,
         )
     else:
-        collection1 = {}
-
+        workspace_dataset = load_workspace_dataset(workspace_path)
+        if workspace_dataset.parent:
+            collection1 = get_collection(ldb_dir, workspace_dataset.parent)
+        else:
+            collection1 = {}
     if dataset2:
         collection2 = get_collection(
             ldb_dir,

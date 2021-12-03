@@ -68,10 +68,14 @@ def add_parser(
     )
     parser.add_argument(
         "dataset1",
+        metavar="<dataset>",
+        nargs="?",
+        default="",
         help="Dataset to start with",
     )
     parser.add_argument(
         "dataset2",
+        metavar="<dataset>",
         nargs="?",
         default="",
         help="Dataset to show changes for",

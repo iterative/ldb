@@ -1,7 +1,9 @@
 import json
+import os
 from collections import defaultdict
 from dataclasses import asdict, dataclass, fields
 from datetime import datetime
+from glob import iglob
 from pathlib import Path
 from typing import (
     Any,
@@ -9,9 +11,11 @@ from typing import (
     Dict,
     Generator,
     Iterable,
+    Iterator,
     List,
     Optional,
     Tuple,
+    Union,
 )
 
 from ldb.exceptions import DatasetNotFoundError, LDBException
@@ -91,6 +95,10 @@ class Dataset:
         return dict(created=created, **attr_dict)
 
 
+def iter_collection_dir(collection_dir: Union[str, Path]) -> Iterator[str]:
+    return iglob(os.path.join(collection_dir, "*", "*"))
+
+
 def get_collection(
     ldb_dir: Path,
     dataset_version_hash: str,
@@ -139,6 +147,12 @@ def get_collection_dir_items(
     )
     for path in collection_dir.glob("*/*"):
         yield path.parent.name + path.name, annotation_hash_func(path)
+
+
+def get_collection_size(
+    collection_dir: Union[str, Path],
+) -> int:
+    return sum(1 for _ in iter_collection_dir(collection_dir))
 
 
 def get_root_collection_annotation_hash(
