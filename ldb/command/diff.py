@@ -4,20 +4,27 @@ from pathlib import Path
 from typing import Iterable
 
 from ldb.core import get_ldb_instance
-from ldb.diff import DiffItem, diff, format_summary, summarize_diff
+from ldb.diff import (
+    DiffItem,
+    format_summary,
+    full_diff,
+    simple_diff,
+    summarize_diff,
+)
 from ldb.string_utils import left_truncate
 
 
 def diff_command(options: Namespace) -> None:
+    ldb_dir = get_ldb_instance()
     items = list(
-        diff(
-            get_ldb_instance(),
+        simple_diff(
+            ldb_dir,
             Path("."),
             options.dataset1,
             options.dataset2,
         ),
     )
-    for diff_item in items:
+    for diff_item in full_diff(ldb_dir, items):
         row = format_diff_item(diff_item, options.verbose)
         if row:
             print(row)

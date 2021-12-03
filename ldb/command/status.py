@@ -8,7 +8,7 @@ import shtab
 
 from ldb.core import get_ldb_instance
 from ldb.dataset import get_collection_size
-from ldb.diff import diff, format_summary, summarize_diff
+from ldb.diff import format_summary, simple_diff, summarize_diff
 from ldb.path import WorkspacePath
 from ldb.status import status
 from ldb.workspace import load_workspace_dataset
@@ -30,7 +30,7 @@ def status_command(options: Namespace) -> None:
         workspace_ds = load_workspace_dataset(options.path)
         if workspace_ds.parent:
             summary_items = summarize_diff(
-                diff(ldb_dir, options.path, workspace_ds.parent),
+                simple_diff(ldb_dir, options.path, workspace_ds.parent),
             )
         else:
             collection_size = get_collection_size(

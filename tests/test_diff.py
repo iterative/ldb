@@ -122,6 +122,16 @@ def workspace_diff_setup(tmp_path, ldb_instance, workspace_path, data_dir):
             annotation_version1=1,
             annotation_version2=2,
         ),
+        DiffItem(
+            data_object_hash="e299594dc1f79f8e69c6d79a42699822",
+            annotation_hash1="5c2be1dfbf9bc784a3e1bb42e1f2ccaf",
+            annotation_hash2="",
+            data_object_path=os.fspath(
+                data_dir / "fashion-mnist/updates/diff_inference/00002.png",
+            ).replace(os.path.sep, "/"),
+            annotation_version1=1,
+            annotation_version2=0,
+        ),
     ]
 
 

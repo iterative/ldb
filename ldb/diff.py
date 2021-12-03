@@ -1,6 +1,7 @@
 from dataclasses import dataclass
+from enum import IntEnum
 from pathlib import Path
-from typing import Dict, Generator, Iterable, NamedTuple, Optional, Tuple
+from typing import Dict, Iterable, Iterator, NamedTuple, Optional, Tuple
 
 from ldb.dataset import Dataset, get_collection
 from ldb.exceptions import LDBException
@@ -12,6 +13,13 @@ from ldb.utils import (
     parse_dataset_identifier,
 )
 from ldb.workspace import collection_dir_to_object, load_workspace_dataset
+
+
+class DiffType(IntEnum):
+    SAME = 1
+    ADDITION = 2
+    DELETION = 3
+    MODIFICATION = 4
 
 
 @dataclass
@@ -28,14 +36,15 @@ class SimpleDiffItem(NamedTuple):
     data_object_hash: str
     annotation_hash1: str
     annotation_hash2: str
+    diff_type: DiffType
 
 
-def diff(
+def get_diff_collections(
     ldb_dir: Path,
     workspace_path: Path,
     dataset1: str = "",
     dataset2: str = "",
-) -> Generator[DiffItem, None, None]:
+) -> Tuple[Dict[str, Optional[str]], Dict[str, Optional[str]]]:
     if dataset1.startswith("ds:"):
         collection1 = get_collection(
             ldb_dir,
@@ -61,24 +70,41 @@ def diff(
         collection2 = collection_dir_to_object(
             workspace_path / WorkspacePath.COLLECTION,
         )
-    return add_meta_to_simple_diff(
+    return collection1, collection2
+
+
+def diff(
+    ldb_dir: Path,
+    workspace_path: Path,
+    dataset1: str = "",
+    dataset2: str = "",
+) -> Iterator[DiffItem]:
+    return full_diff(
         ldb_dir,
-        simple_diff(collection1, collection2),
+        simple_diff(
+            ldb_dir,
+            workspace_path,
+            dataset1,
+            dataset2,
+        ),
     )
 
 
-def summarize_diff(diff_items: Iterable[DiffItem]) -> Tuple[int, int, int]:
+def summarize_diff(
+    diff_items: Iterable[SimpleDiffItem],
+) -> Tuple[int, int, int]:
     additions = 0
     deletions = 0
     modifications = 0
-    for diff_item in diff_items:
-        if diff_item.annotation_version2 and not diff_item.annotation_version1:
+    for (
+        *_,
+        diff_type,
+    ) in diff_items:
+        if diff_type == DiffType.ADDITION:
             additions += 1
-        elif (
-            not diff_item.annotation_version2 and diff_item.annotation_version1
-        ):
+        elif diff_type == DiffType.DELETION:
             deletions += 1
-        elif diff_item.annotation_version1 != diff_item.annotation_version2:
+        elif diff_type == DiffType.MODIFICATION:
             modifications += 1
     return additions, deletions, modifications
 
@@ -103,25 +129,29 @@ def get_dataset_version_hash(ldb_dir: Path, dataset_identifier: str) -> str:
         ) from exc
 
 
-def add_meta_to_simple_diff(
+def full_diff(
     ldb_dir: Path,
-    simple_diff_gen: Generator[Tuple[str, str, str], None, None],
-) -> Generator[DiffItem, None, None]:
+    simple_diff_iter: Iterable[SimpleDiffItem],
+) -> Iterator[DiffItem]:
     for (
         data_object_hash,
         annotation_hash1,
         annotation_hash2,
-    ) in simple_diff_gen:
+        diff_type,
+    ) in simple_diff_iter:
         annotation_version1 = get_annotation_version(
             ldb_dir,
             data_object_hash,
             annotation_hash1,
         )
-        annotation_version2 = get_annotation_version(
-            ldb_dir,
-            data_object_hash,
-            annotation_hash2,
-        )
+        if diff_type == DiffType.SAME:
+            annotation_version2 = annotation_version1
+        else:
+            annotation_version2 = get_annotation_version(
+                ldb_dir,
+                data_object_hash,
+                annotation_hash2,
+            )
         data_object_meta = load_data_file(
             get_hash_path(
                 ldb_dir / InstanceDir.DATA_OBJECT_INFO,
@@ -158,47 +188,85 @@ def get_annotation_version(
 
 
 def simple_diff(
+    ldb_dir: Path,
+    workspace_path: Path,
+    dataset1: str = "",
+    dataset2: str = "",
+) -> Iterator[SimpleDiffItem]:
+    collection1, collection2 = get_diff_collections(
+        ldb_dir,
+        workspace_path,
+        dataset1,
+        dataset2,
+    )
+    return simple_diff_on_collections(collection1, collection2)
+
+
+def simple_diff_on_collections(
     collection1: Dict[str, Optional[str]],
     collection2: Dict[str, Optional[str]],
-) -> Generator[SimpleDiffItem, None, None]:
-    iter1 = iter(collection1.items())
-    iter2 = iter(collection2.items())
+) -> Iterator[SimpleDiffItem]:
+    # pylint: disable=invalid-name
+    iter1 = iter(sorted(collection1.items()))
+    iter2 = iter(sorted(collection2.items()))
     cont = True
     try:
-        data_object_hash1, annotation_hash1 = next(iter1)
-        data_object_hash2, annotation_hash2 = next(iter2)
+        d1, a1 = next(iter1)
     except StopIteration:
         cont = False
+    try:
+        d2, a2 = next(iter2)
+    except StopIteration:
+        yield SimpleDiffItem(d1, a1 or "", "", DiffType.DELETION)
+        cont = False
     while cont:
-        try:
-            if data_object_hash1 < data_object_hash2:
+        if d1 < d2:
+            yield SimpleDiffItem(d1, a1 or "", "", DiffType.DELETION)
+            try:
+                d1, a1 = next(iter1)
+            except StopIteration:
+                cont = False
+        elif d1 > d2:
+            yield SimpleDiffItem(d2, "", a2 or "", DiffType.ADDITION)
+            try:
+                d2, a2 = next(iter2)
+            except StopIteration:
+                cont = False
+        else:
+            yield SimpleDiffItem(
+                d1,
+                a1 or "",
+                a2 or "",
+                DiffType.SAME if a1 == a2 else DiffType.MODIFICATION,
+            )
+            try:
+                d1, a1 = next(iter1)
+            except StopIteration:
+                cont = False
+            try:
+                d2, a2 = next(iter2)
+            except StopIteration:
                 yield SimpleDiffItem(
-                    data_object_hash1,
-                    annotation_hash1 or "",
+                    d1,
+                    a1 or "",
                     "",
+                    DiffType.DELETION,
                 )
-                data_object_hash1, annotation_hash1 = next(iter1)
-            elif data_object_hash1 > data_object_hash2:
-                yield SimpleDiffItem(
-                    data_object_hash2,
-                    "",
-                    annotation_hash2 or "",
-                )
-                data_object_hash2, annotation_hash2 = next(iter2)
-            else:
-                yield SimpleDiffItem(
-                    data_object_hash1,
-                    annotation_hash1 or "",
-                    annotation_hash2 or "",
-                )
-                data_object_hash1, annotation_hash1 = next(iter1)
-                data_object_hash2, annotation_hash2 = next(iter2)
-        except StopIteration:
-            cont = False
-    for data_object_hash1, annotation_hash1 in iter1:
-        yield SimpleDiffItem(data_object_hash1, annotation_hash1 or "", "")
-    for data_object_hash2, annotation_hash2 in iter2:
-        yield SimpleDiffItem(data_object_hash2, "", annotation_hash2 or "")
+                cont = False
+    for d1, a1 in iter1:
+        yield SimpleDiffItem(
+            d1,
+            a1 or "",
+            "",
+            DiffType.DELETION,
+        )
+    for d2, a2 in iter2:
+        yield SimpleDiffItem(
+            d2,
+            "",
+            a2 or "",
+            DiffType.ADDITION,
+        )
 
 
 def format_summary(additions: int, deletions: int, modifications: int) -> str:
