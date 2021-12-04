@@ -268,6 +268,13 @@ def apply_query(
     data_object_hashes: Iterable[str],
     annotation_hashes: Iterable[str],
 ) -> Dict[str, str]:
+    """
+    Return a collection where the annotations pass the given search function.
+
+    `data_object_hashes` and `annotation_hashes` should contain
+    corresponding items of a collection. Only items where the given
+    search function returns `True` are kept in the resulting collection.
+    """
     return {
         data_object_hash: annotation_hash
         for data_object_hash, annotation_hash, keep in zip(
@@ -285,6 +292,12 @@ def apply_query_to_data_objects(
     data_object_hashes: Iterable[str],
     annotation_hashes: Iterable[str],
 ) -> List[str]:
+    """
+    Return data objects whose annotations pass the given search function.
+
+    This is similar to calling `list(result.keys())` on the result of
+    `apply_query`.
+    """
     return [
         data_object_hash
         for data_object_hash, keep in zip(
@@ -300,6 +313,9 @@ def apply_file_query_to_data_objects(
     search: BoolSearchFunc,
     data_object_hashes: Iterable[str],
 ) -> List[str]:
+    """
+    Return data objects that pass the given search function.
+    """
     return [
         data_object_hash
         for data_object_hash, keep in zip(
@@ -315,6 +331,9 @@ def apply_file_query(
     search: BoolSearchFunc,
     collection: Dict[str, str],
 ) -> Dict[str, str]:
+    """
+    Filter `collection` by data objects that pass the given search function.
+    """
     return {
         data_object_hash: annotation_hash
         for (data_object_hash, annotation_hash), keep in zip(
@@ -332,6 +351,12 @@ def apply_queries(
     data_object_hashes: Iterable[str],
     annotation_hashes: Iterable[str],
 ) -> Dict[str, str]:
+    """
+    Filter the given collection by the search functions.
+
+    If not `None`, `search` is applied to annotations and `file_search`
+    to file attributes.
+    """
     if search is None:
         collection = dict(zip(data_object_hashes, annotation_hashes))
     else:
