@@ -3,9 +3,10 @@ from argparse import Namespace
 from pathlib import Path
 from typing import Iterable
 
-from ldb.add import add, apply_queries, process_args_for_add
+from ldb.add import add, process_args_for_add
 from ldb.cli_utils import add_data_object_arguments
 from ldb.core import get_ldb_instance
+from ldb.dataset import apply_queries
 from ldb.func_utils import apply_optional
 from ldb.query import get_bool_search_func
 

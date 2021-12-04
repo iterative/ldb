@@ -2,7 +2,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Mapping, Optional, Sequence
 
-from ldb.add import apply_queries, process_args_for_ls
+from ldb.add import process_args_for_ls
+from ldb.dataset import apply_queries
 from ldb.func_utils import apply_optional
 from ldb.path import InstanceDir
 from ldb.query import get_bool_search_func

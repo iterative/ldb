@@ -16,6 +16,7 @@ from typing import (
 
 from ldb.exceptions import DatasetNotFoundError, LDBException
 from ldb.path import InstanceDir
+from ldb.query import BoolSearchFunc
 from ldb.utils import (
     format_dataset_identifier,
     format_datetime,
@@ -259,3 +260,91 @@ def get_data_object_meta(
         )
         meta_objects.append(json.loads(meta_file_path.read_text()))
     return meta_objects
+
+
+def apply_query(
+    ldb_dir: Path,
+    search: BoolSearchFunc,
+    data_object_hashes: Iterable[str],
+    annotation_hashes: Iterable[str],
+) -> Dict[str, str]:
+    return {
+        data_object_hash: annotation_hash
+        for data_object_hash, annotation_hash, keep in zip(
+            data_object_hashes,
+            annotation_hashes,
+            search(get_annotations(ldb_dir, annotation_hashes)),
+        )
+        if keep
+    }
+
+
+def apply_query_to_data_objects(
+    ldb_dir: Path,
+    search: BoolSearchFunc,
+    data_object_hashes: Iterable[str],
+    annotation_hashes: Iterable[str],
+) -> List[str]:
+    return [
+        data_object_hash
+        for data_object_hash, keep in zip(
+            data_object_hashes,
+            search(get_annotations(ldb_dir, annotation_hashes)),
+        )
+        if keep
+    ]
+
+
+def apply_file_query_to_data_objects(
+    ldb_dir: Path,
+    search: BoolSearchFunc,
+    data_object_hashes: Iterable[str],
+) -> List[str]:
+    return [
+        data_object_hash
+        for data_object_hash, keep in zip(
+            data_object_hashes,
+            search(get_data_object_meta(ldb_dir, data_object_hashes)),
+        )
+        if keep
+    ]
+
+
+def apply_file_query(
+    ldb_dir: Path,
+    search: BoolSearchFunc,
+    collection: Dict[str, str],
+) -> Dict[str, str]:
+    return {
+        data_object_hash: annotation_hash
+        for (data_object_hash, annotation_hash), keep in zip(
+            collection.items(),
+            search(get_data_object_meta(ldb_dir, collection.keys())),
+        )
+        if keep
+    }
+
+
+def apply_queries(
+    ldb_dir: Path,
+    search: Optional[BoolSearchFunc],
+    file_search: Optional[BoolSearchFunc],
+    data_object_hashes: Iterable[str],
+    annotation_hashes: Iterable[str],
+) -> Dict[str, str]:
+    if search is None:
+        collection = dict(zip(data_object_hashes, annotation_hashes))
+    else:
+        collection = apply_query(
+            ldb_dir,
+            search,
+            data_object_hashes,
+            annotation_hashes,
+        )
+    if file_search is not None:
+        collection = apply_file_query(
+            ldb_dir,
+            file_search,
+            collection,
+        )
+    return collection

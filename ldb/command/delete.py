@@ -3,15 +3,13 @@ from argparse import Namespace
 from pathlib import Path
 from typing import Iterable
 
-from ldb.add import (
-    apply_file_query_to_data_objects,
-    apply_query_to_data_objects,
-    delete,
-    process_args_for_delete,
-    process_args_for_ls,
-)
+from ldb.add import delete, process_args_for_delete, process_args_for_ls
 from ldb.cli_utils import add_data_object_arguments
 from ldb.core import get_ldb_instance
+from ldb.dataset import (
+    apply_file_query_to_data_objects,
+    apply_query_to_data_objects,
+)
 from ldb.exceptions import LDBException
 from ldb.func_utils import apply_optional
 from ldb.query import get_bool_search_func
