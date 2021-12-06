@@ -1,10 +1,12 @@
-from typing import Any, Callable, Iterable, Iterator
+from typing import Callable, Iterable, Iterator
 
 import jmespath
 from jmespath.exceptions import ParseError
 
-SearchFunc = Callable[[Iterable[Any]], Iterator[Any]]
-BoolSearchFunc = Callable[[Iterable[Any]], Iterator[bool]]
+from ldb.typing import JSONDecoded
+
+SearchFunc = Callable[[Iterable[JSONDecoded]], Iterator[JSONDecoded]]
+BoolSearchFunc = Callable[[Iterable[JSONDecoded]], Iterator[bool]]
 
 
 def get_search_func(
@@ -13,7 +15,7 @@ def get_search_func(
     """Compile `query_str` and return a search function."""
     query_obj = jmespath.compile(query_str)
 
-    def search(objects: Iterable[Any]) -> Iterator[Any]:
+    def search(objects: Iterable[JSONDecoded]) -> Iterator[JSONDecoded]:
         for obj in objects:
             yield query_obj.search(obj)
 
@@ -45,8 +47,8 @@ def get_bool_search_func(
         jmespath.compile(query_str)
         raise
 
-    def search(objects: Iterable[Any]) -> Iterator[bool]:
+    def search(objects: Iterable[JSONDecoded]) -> Iterator[bool]:
         for obj in objects:
-            yield query_obj.search(obj)
+            yield query_obj.search(obj)  # type: ignore[misc]
 
     return search

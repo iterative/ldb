@@ -1,25 +1,15 @@
 import os
 import shutil
-from pathlib import Path
-from typing import Iterable, List
 
 from ldb.core import add_default_read_add_storage
 from ldb.main import main
-from ldb.path import WorkspacePath
 from ldb.utils import DATASET_PREFIX, ROOT
 
-from .utils import stage_new_workspace
-
-
-def get_staged_object_file_paths(workspace_path: Path) -> List[Path]:
-    return list((workspace_path / WorkspacePath.COLLECTION).glob("*/*"))
-
-
-def num_empty_files(paths: Iterable[Path]) -> int:
-    num = 0
-    for path in paths:
-        num += bool(path.read_text())
-    return num
+from .utils import (
+    get_staged_object_file_paths,
+    num_empty_files,
+    stage_new_workspace,
+)
 
 
 def test_add_storage_location(workspace_path, data_dir):
@@ -62,6 +52,21 @@ def test_add_root_dataset(workspace_path, index_original):
     assert ret == 0
     assert len(object_file_paths) == 32
     assert num_empty_files(object_file_paths) == 23
+
+
+def test_add_root_dataset_query(workspace_path, index_original):
+    ret = main(
+        [
+            "add",
+            f"{DATASET_PREFIX}{ROOT}",
+            "--query",
+            "label != `null` && label > `2` && label < `8`",
+        ],
+    )
+    object_file_paths = get_staged_object_file_paths(workspace_path)
+    assert ret == 0
+    assert len(object_file_paths) == 14
+    assert num_empty_files(object_file_paths) == 14
 
 
 def test_add_current_workspace(workspace_path, data_dir, ldb_instance):

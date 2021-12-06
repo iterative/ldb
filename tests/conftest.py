@@ -139,3 +139,11 @@ def ds_b(workspace_path: Path, index_original: Path) -> str:
     )
     main(["commit"])
     return ds_identifier
+
+
+@pytest.fixture
+def staged_ds_fashion(workspace_path: Path) -> str:
+    ds_identifier = f"{DATASET_PREFIX}fashion"
+    main(["stage", ds_identifier])
+    main(["add", os.fspath(DATA_DIR / "fashion-mnist")])
+    return ds_identifier

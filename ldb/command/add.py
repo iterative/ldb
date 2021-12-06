@@ -5,11 +5,17 @@ from typing import Iterable
 
 import shtab
 
-from ldb.add import add, get_arg_type, process_args_for_add
+from ldb.add import add, apply_query, get_arg_type, process_args_for_add
 from ldb.core import get_ldb_instance
+from ldb.query import get_bool_search_func
 
 
 def add_command(options: Namespace) -> None:
+    search = (
+        get_bool_search_func(options.query)
+        if options.query is not None
+        else None
+    )
     ldb_dir = get_ldb_instance()
     data_object_hashes, annotation_hashes, message = process_args_for_add(
         ldb_dir,
@@ -19,11 +25,20 @@ def add_command(options: Namespace) -> None:
     if message:
         print(message)
         print()
+
+    if search is None:
+        collection = dict(zip(data_object_hashes, annotation_hashes))
+    else:
+        collection = apply_query(
+            ldb_dir,
+            search,
+            data_object_hashes,
+            annotation_hashes,
+        )
     print("Adding to working dataset...")
     add(
         Path("."),
-        data_object_hashes,
-        annotation_hashes,
+        collection,
     )
 
 
@@ -35,6 +50,11 @@ def add_parser(
         "add",
         parents=parents,
         help="Add a data objects under a certain path",
+    )
+    parser.add_argument(
+        "--query",
+        action="store",
+        help="JMESPath query that filters annotations",
     )
     parser.add_argument(  # type: ignore[attr-defined]
         "paths",
