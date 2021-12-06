@@ -26,9 +26,9 @@ LDB indexes immutable storage locations and notes all unique data objects along 
 
 ![ldb-intro](images/ldb-struct.png)
 
-The main use case for LDB arises when a data scientist wishes to create and maintain a persistent collection of cloud-based objects that are grouped into datasets by some logical criteria (e.g. annotated with a certain class, created at given time, satisfy a particular name pattern, etc). 
+The main use case for LDB is to create and maintain persistent collections of cloud-based objects. These collections (datasets) are defined by some logical criteria (e.g. annotated with a certain class, created at given time, contains a given number of event instances, etc). 
 
-These datasets can then be shared and versioned within LDB, which makes collaboration on dataset membership state (cloning, merging, splitting, adding, and removing objects) easily manageable and reproducible.
+These datasets can then be shared and versioned within LDB, which makes collaboration on dataset membership state (cloning, merging, splitting, adding, and removing objects) manageable and reproducible.
 
 Whenever a dataset needs to be instantiated (for instance, to run a model experiment), LDB copies all relevant objects from storage into the model workspace and compiles linked annotations. Since storage is immutable and all dataset membership state is kept within LDB, the workspace can be safely erased after the experiment is complete.
 
@@ -54,15 +54,15 @@ Logical modifications to dataset staged in the workspace are usually made with A
 
 | Step | Command |
 | --- | --- |
-| Add objects by annotation | `$  ldb add s3://iterative/ImageNet-1K —-query '*class == "cat"'` |
+| Add objects by annotation | `$  ldb add s3://iterative/ImageNet-1K —-query class == "cat"` |
 | Sample objects from a location | `$  ldb add azure://iterative/OpenImage-1K --sample-rate 10` |
 | Check the status of a staged dataset | `$  ldb list`|
 
-LDB is not limited to querying existing annotations. Custom ML models can be employed for queries beyond JSON fields:
+LDB is not limited to querying the existing annotations. Custom ML models can be employed for queries beyond JSON fields:
 
 | Step | Command |
 | --- | --- |
-| Add objects by ML query: | `$  ldb add gs://iterative/COCO-3K —-ml 'clip ~= "dog dance"' --num 100` |
+| Add objects by ML query: | `$  ldb add gs://iterative/COCO-3K —-sort 'CLIP "dog dance"' --limit 100` |
 | Check the status of a staged dataset | `$  ldb list`|
 
 At this point, our workspace holds membership info for all cat images from ImageNet, randomly sampled images from COCO, and ten images that mostly resemble dancing dogs from OpenImage. Once this dataset is ready, it can be instantiated (materialized) in the desired output format to train the model.
@@ -104,7 +104,7 @@ If newer annotations will become available for the data object, they can be read
 
 | Step | Command |
 | --- | --- |
-| Add an object with particular label version | `$  ldb add aws://my-awesome-bucket/1.jpg —label-version 2` |
+| Add an object with particular label version | `$  ldb add —-label-version 2 aws://my-awesome-bucket/1.jpg ` |
 | Bump label version for an object to latest | `$   ldb add aws://my-awesome-bucket/1.jpg` |
 | Bump all labels in a dataset to latest | `$ ldb pull`|
  
