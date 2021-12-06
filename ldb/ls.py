@@ -2,7 +2,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Mapping, Optional, Sequence
 
-from ldb.add import apply_query, process_args_for_ls
+from ldb.add import process_args_for_ls
+from ldb.dataset import apply_queries
+from ldb.func_utils import apply_optional
 from ldb.path import InstanceDir
 from ldb.query import get_bool_search_func
 from ldb.string_utils import left_truncate
@@ -20,22 +22,22 @@ class DatasetListing:
 def ls(
     ldb_dir: Path,
     paths: Sequence[str],
-    query: Optional[str] = None,
+    annotation_query: Optional[str] = None,
+    file_query: Optional[str] = None,
 ) -> List[DatasetListing]:
-    search = get_bool_search_func(query) if query is not None else None
+    search = apply_optional(get_bool_search_func, annotation_query)
+    file_search = apply_optional(get_bool_search_func, file_query)
     data_object_hashes, annotation_hashes, _ = process_args_for_ls(
         ldb_dir,
         paths,
     )
-    if search is None:
-        collection = dict(zip(data_object_hashes, annotation_hashes))
-    else:
-        collection = apply_query(
-            ldb_dir,
-            search,
-            data_object_hashes,
-            annotation_hashes,
-        )
+    collection = apply_queries(
+        ldb_dir,
+        search,
+        file_search,
+        data_object_hashes,
+        annotation_hashes,
+    )
     return ls_collection(ldb_dir, collection)
 
 

@@ -16,6 +16,7 @@ from typing import (
 
 from ldb.exceptions import DatasetNotFoundError, LDBException
 from ldb.path import InstanceDir
+from ldb.query import BoolSearchFunc
 from ldb.utils import (
     format_dataset_identifier,
     format_datetime,
@@ -124,7 +125,7 @@ def get_collection_from_dataset_identifier(
 def get_collection_dir_keys(
     collection_dir: Path,
 ) -> Generator[str, None, None]:
-    for path in collection_dir.glob("*/*"):
+    for path in sorted(collection_dir.glob("*/*")):
         yield path.parent.name + path.name
 
 
@@ -137,7 +138,7 @@ def get_collection_dir_items(
         if is_workspace
         else get_root_collection_annotation_hash
     )
-    for path in collection_dir.glob("*/*"):
+    for path in sorted(collection_dir.glob("*/*")):
         yield path.parent.name + path.name, annotation_hash_func(path)
 
 
@@ -167,7 +168,7 @@ def combine_collections(
             if annotation_hash:
                 lst.append(annotation_hash)
     combined_collection = {}
-    for data_object_hash, annotation_hashes in all_versions.items():
+    for data_object_hash, annotation_hashes in sorted(all_versions.items()):
         if len(annotation_hashes) > 1:
             annotation_dir = (
                 get_hash_path(
@@ -225,7 +226,7 @@ def get_dataset_version_hash(
 def get_annotations(
     ldb_dir: Path,
     annotation_hashes: Iterable[str],
-) -> List[str]:
+) -> List[Optional[str]]:
     annotations = []
     for annotation_hash in annotation_hashes:
         if annotation_hash:
@@ -242,3 +243,133 @@ def get_annotations(
         else:
             annotations.append(None)
     return annotations
+
+
+def get_data_object_meta(
+    ldb_dir: Path,
+    data_object_hashes: Iterable[str],
+) -> List[str]:
+    meta_objects = []
+    for data_object_hash in data_object_hashes:
+        meta_file_path = (
+            get_hash_path(
+                ldb_dir / InstanceDir.DATA_OBJECT_INFO,
+                data_object_hash,
+            )
+            / "meta"
+        )
+        meta_objects.append(json.loads(meta_file_path.read_text()))
+    return meta_objects
+
+
+def apply_query(
+    ldb_dir: Path,
+    search: BoolSearchFunc,
+    data_object_hashes: Iterable[str],
+    annotation_hashes: Iterable[str],
+) -> Dict[str, str]:
+    """
+    Return a collection where the annotations pass the given search function.
+
+    `data_object_hashes` and `annotation_hashes` should contain
+    corresponding items of a collection. Only items where the given
+    search function returns `True` are kept in the resulting collection.
+    """
+    return {
+        data_object_hash: annotation_hash
+        for data_object_hash, annotation_hash, keep in zip(
+            data_object_hashes,
+            annotation_hashes,
+            search(get_annotations(ldb_dir, annotation_hashes)),
+        )
+        if keep
+    }
+
+
+def apply_query_to_data_objects(
+    ldb_dir: Path,
+    search: BoolSearchFunc,
+    data_object_hashes: Iterable[str],
+    annotation_hashes: Iterable[str],
+) -> List[str]:
+    """
+    Return data objects whose annotations pass the given search function.
+
+    This is similar to calling `list(result.keys())` on the result of
+    `apply_query`.
+    """
+    return [
+        data_object_hash
+        for data_object_hash, keep in zip(
+            data_object_hashes,
+            search(get_annotations(ldb_dir, annotation_hashes)),
+        )
+        if keep
+    ]
+
+
+def apply_file_query_to_data_objects(
+    ldb_dir: Path,
+    search: BoolSearchFunc,
+    data_object_hashes: Iterable[str],
+) -> List[str]:
+    """
+    Return data objects that pass the given search function.
+    """
+    return [
+        data_object_hash
+        for data_object_hash, keep in zip(
+            data_object_hashes,
+            search(get_data_object_meta(ldb_dir, data_object_hashes)),
+        )
+        if keep
+    ]
+
+
+def apply_file_query(
+    ldb_dir: Path,
+    search: BoolSearchFunc,
+    collection: Dict[str, str],
+) -> Dict[str, str]:
+    """
+    Filter `collection` by data objects that pass the given search function.
+    """
+    return {
+        data_object_hash: annotation_hash
+        for (data_object_hash, annotation_hash), keep in zip(
+            collection.items(),
+            search(get_data_object_meta(ldb_dir, collection.keys())),
+        )
+        if keep
+    }
+
+
+def apply_queries(
+    ldb_dir: Path,
+    search: Optional[BoolSearchFunc],
+    file_search: Optional[BoolSearchFunc],
+    data_object_hashes: Iterable[str],
+    annotation_hashes: Iterable[str],
+) -> Dict[str, str]:
+    """
+    Filter the given collection by the search functions.
+
+    If not `None`, `search` is applied to annotations and `file_search`
+    to file attributes.
+    """
+    if search is None:
+        collection = dict(zip(data_object_hashes, annotation_hashes))
+    else:
+        collection = apply_query(
+            ldb_dir,
+            search,
+            data_object_hashes,
+            annotation_hashes,
+        )
+    if file_search is not None:
+        collection = apply_file_query(
+            ldb_dir,
+            file_search,
+            collection,
+        )
+    return collection

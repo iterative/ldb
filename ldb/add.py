@@ -18,7 +18,6 @@ from ldb import config
 from ldb.config import ConfigType
 from ldb.dataset import (
     combine_collections,
-    get_annotations,
     get_collection_dir_items,
     get_collection_dir_keys,
     get_collection_from_dataset_identifier,
@@ -26,7 +25,6 @@ from ldb.dataset import (
 from ldb.exceptions import LDBException
 from ldb.index import get_storage_files_for_paths, index
 from ldb.path import InstanceDir, WorkspacePath
-from ldb.query import BoolSearchFunc
 from ldb.utils import (
     DATASET_PREFIX,
     ROOT,
@@ -73,10 +71,9 @@ def get_arg_type(paths: Sequence[str]) -> ArgType:
 
 def process_args_for_add(
     ldb_dir: Path,
-    arg_type: ArgType,
     paths: Sequence[str],
 ) -> AddInput:
-    return ADD_FUNCTIONS[arg_type](ldb_dir, paths)
+    return ADD_FUNCTIONS[get_arg_type(paths)](ldb_dir, paths)
 
 
 def root_dataset_for_add(
@@ -139,9 +136,9 @@ def data_object_for_add(
     paths: Sequence[str],
 ) -> AddInput:
     try:
-        data_object_hashes = [
+        data_object_hashes = sorted(
             parse_data_object_hash_identifier(p) for p in paths
-        ]
+        )
     except ValueError as exc:
         raise LDBException(
             "All paths must be the same type. "
@@ -215,9 +212,13 @@ def add(
 
 def process_args_for_delete(
     ldb_dir: Path,
-    arg_type: ArgType,
     paths: Sequence[str],
 ) -> List[str]:
+    if not paths:
+        paths = ["."]
+        arg_type = ArgType.WORKSPACE_DATASET
+    else:
+        arg_type = get_arg_type(paths)
     return DELETE_FUNCTIONS[arg_type](ldb_dir, paths)
 
 
@@ -364,14 +365,14 @@ def process_args_for_ls(
 
 def path_for_ls(ldb_dir: Path, paths: Sequence[str]) -> AddInput:
     paths = [os.path.abspath(p) for p in paths]
-    data_object_hashes = [
+    data_object_hashes = sorted(
         hash_file(f)
         for f in get_storage_files_for_paths(
             paths,
             default_format=False,
         )
         if not f.path.endswith(".json")
-    ]
+    )
     return AddInput(
         data_object_hashes,
         get_current_annotation_hashes(ldb_dir, data_object_hashes),
@@ -386,36 +387,3 @@ LS_FUNCTIONS: Dict[ArgType, Callable[[Path, Sequence[str]], AddInput]] = {
     ArgType.DATA_OBJECT: data_object_for_add,
     ArgType.PATH: path_for_ls,
 }
-
-
-def apply_query(
-    ldb_dir: Path,
-    search: BoolSearchFunc,
-    data_object_hashes: Iterable[str],
-    annotation_hashes: Iterable[str],
-) -> Dict[str, str]:
-    return {
-        data_object_hash: annotation_hash
-        for data_object_hash, annotation_hash, keep in zip(
-            data_object_hashes,
-            annotation_hashes,
-            search(get_annotations(ldb_dir, annotation_hashes)),
-        )
-        if keep
-    }
-
-
-def apply_query_to_data_objects(
-    ldb_dir: Path,
-    search: BoolSearchFunc,
-    data_object_hashes: Iterable[str],
-    annotation_hashes: Iterable[str],
-) -> List[str]:
-    return [
-        data_object_hash
-        for data_object_hash, keep in zip(
-            data_object_hashes,
-            search(get_annotations(ldb_dir, annotation_hashes)),
-        )
-        if keep
-    ]

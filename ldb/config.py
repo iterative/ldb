@@ -81,7 +81,9 @@ def get_default_instance_dir() -> Path:
 
 
 def get_ldb_dir() -> Path:
-    """Get the directory we should use as the ldb instance."""
+    """
+    Get the directory we should use as the ldb instance.
+    """
     if Env.LDB_DIR in os.environ:
         return Path(os.environ[Env.LDB_DIR])
     config = load_first(GLOBAL_CONFIG_TYPES)

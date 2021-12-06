@@ -3,38 +3,33 @@ from argparse import Namespace
 from pathlib import Path
 from typing import Iterable
 
-import shtab
-
-from ldb.add import add, apply_query, get_arg_type, process_args_for_add
+from ldb.add import add, process_args_for_add
+from ldb.cli_utils import add_data_object_arguments
 from ldb.core import get_ldb_instance
+from ldb.dataset import apply_queries
+from ldb.func_utils import apply_optional
 from ldb.query import get_bool_search_func
 
 
 def add_command(options: Namespace) -> None:
-    search = (
-        get_bool_search_func(options.query)
-        if options.query is not None
-        else None
-    )
     ldb_dir = get_ldb_instance()
+    search = apply_optional(get_bool_search_func, options.annotation_query)
+    file_search = apply_optional(get_bool_search_func, options.file_query)
     data_object_hashes, annotation_hashes, message = process_args_for_add(
         ldb_dir,
-        get_arg_type(options.paths),
         options.paths,
     )
     if message:
         print(message)
         print()
 
-    if search is None:
-        collection = dict(zip(data_object_hashes, annotation_hashes))
-    else:
-        collection = apply_query(
-            ldb_dir,
-            search,
-            data_object_hashes,
-            annotation_hashes,
-        )
+    collection = apply_queries(
+        ldb_dir,
+        search,
+        file_search,
+        data_object_hashes,
+        annotation_hashes,
+    )
     print("Adding to working dataset...")
     add(
         Path("."),
@@ -51,15 +46,5 @@ def add_parser(
         parents=parents,
         help="Add a data objects under a certain path",
     )
-    parser.add_argument(
-        "--query",
-        action="store",
-        help="JMESPath query that filters annotations",
-    )
-    parser.add_argument(  # type: ignore[attr-defined]
-        "paths",
-        metavar="path",
-        nargs="+",
-        help="Storage location, data object identifier, or dataset",
-    ).complete = shtab.FILE
+    add_data_object_arguments(parser)
     parser.set_defaults(func=add_command)

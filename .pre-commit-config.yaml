@@ -74,7 +74,7 @@ repos:
     rev: v1.3.1
     hooks:
       - id: docformatter
-        args: [--in-place, --pre-summary-newline]
+        args: [--in-place, --pre-summary-newline, --make-summary-multi-line]
   - repo: meta
     hooks:
       - id: check-hooks-apply
