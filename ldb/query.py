@@ -12,7 +12,9 @@ BoolSearchFunc = Callable[[Iterable[JSONDecoded]], Iterator[bool]]
 def get_search_func(
     query_str: str,
 ) -> SearchFunc:
-    """Compile `query_str` and return a search function."""
+    """
+    Compile `query_str` and return a search function.
+    """
     query_obj = jmespath.compile(query_str)
 
     def search(objects: Iterable[JSONDecoded]) -> Iterator[JSONDecoded]:

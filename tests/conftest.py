@@ -36,7 +36,9 @@ def pytest_configure(config):
 
 @pytest.fixture(scope="session")
 def monkeypatch_session() -> Generator[MonkeyPatch, None, None]:
-    """Like monkeypatch, but for session scope."""
+    """
+    Like monkeypatch, but for session scope.
+    """
     mpatch = pytest.MonkeyPatch()
     yield mpatch
     mpatch.undo()
@@ -47,7 +49,9 @@ def clean_environment(
     monkeypatch_session: MonkeyPatch,
     tmp_path_factory: TempPathFactory,
 ) -> None:
-    """Make sure we have a clean environment and won't write to userspace."""
+    """
+    Make sure we have a clean environment and won't write to userspace.
+    """
     working_dir = tmp_path_factory.mktemp("default_working_dir")
     os.chdir(working_dir)
     monkeypatch_session.delenv(Env.LDB_DIR, raising=False)
