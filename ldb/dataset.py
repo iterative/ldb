@@ -16,7 +16,7 @@ from typing import (
 
 from ldb.exceptions import DatasetNotFoundError, LDBException
 from ldb.path import InstanceDir
-from ldb.query import BoolSearchFunc
+from ldb.query.search import BoolSearchFunc
 from ldb.utils import (
     format_dataset_identifier,
     format_datetime,

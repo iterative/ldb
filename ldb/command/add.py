@@ -8,7 +8,7 @@ from ldb.cli_utils import add_data_object_arguments
 from ldb.core import get_ldb_instance
 from ldb.dataset import apply_queries
 from ldb.func_utils import apply_optional
-from ldb.query import get_bool_search_func
+from ldb.query.search import get_bool_search_func
 
 
 def add_command(options: Namespace) -> None:

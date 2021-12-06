@@ -12,7 +12,7 @@ from ldb.dataset import (
 )
 from ldb.exceptions import LDBException
 from ldb.func_utils import apply_optional
-from ldb.query import get_bool_search_func
+from ldb.query.search import get_bool_search_func
 
 
 def delete_command(options: Namespace) -> None:
