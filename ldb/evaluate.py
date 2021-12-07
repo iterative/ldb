@@ -4,7 +4,7 @@ from typing import Iterable, Iterator, List, Optional, Sequence, Tuple, Union
 from ldb.add import process_args_for_delete, process_args_for_ls
 from ldb.dataset import get_annotations, get_data_object_meta
 from ldb.func_utils import apply_optional
-from ldb.query import get_search_func
+from ldb.query.search import get_search_func
 from ldb.typing import JSONDecoded
 
 EvaluateResult = Union[
