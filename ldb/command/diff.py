@@ -4,20 +4,28 @@ from pathlib import Path
 from typing import Iterable
 
 from ldb.core import get_ldb_instance
-from ldb.diff import DiffItem, diff, format_summary, summarize_diff
+from ldb.diff import (
+    DiffItem,
+    DiffType,
+    format_summary,
+    full_diff,
+    simple_diff,
+    summarize_diff,
+)
 from ldb.string_utils import left_truncate
 
 
 def diff_command(options: Namespace) -> None:
+    ldb_dir = get_ldb_instance()
     items = list(
-        diff(
-            get_ldb_instance(),
+        simple_diff(
+            ldb_dir,
             Path("."),
             options.dataset1,
             options.dataset2,
         ),
     )
-    for diff_item in items:
+    for diff_item in full_diff(ldb_dir, items):
         row = format_diff_item(diff_item, options.verbose)
         if row:
             print(row)
@@ -28,13 +36,13 @@ def diff_command(options: Namespace) -> None:
 
 
 def format_diff_item(diff_item: DiffItem, verbose: bool) -> str:
-    if diff_item.annotation_version2 and not diff_item.annotation_version1:
+    if diff_item.diff_type == DiffType.ADDITION:
         prefix = "+"
         annotation_col = annotation_version_str(diff_item.annotation_version2)
-    elif not diff_item.annotation_version2 and diff_item.annotation_version1:
+    elif diff_item.diff_type == DiffType.DELETION:
         prefix = "-"
         annotation_col = annotation_version_str(diff_item.annotation_version1)
-    elif diff_item.annotation_version1 != diff_item.annotation_version2:
+    elif diff_item.diff_type == DiffType.MODIFICATION:
         prefix = "m"
         annotation_col = (
             f"{annotation_version_str(diff_item.annotation_version1)} "
@@ -68,10 +76,14 @@ def add_parser(
     )
     parser.add_argument(
         "dataset1",
+        metavar="<dataset>",
+        nargs="?",
+        default="",
         help="Dataset to start with",
     )
     parser.add_argument(
         "dataset2",
+        metavar="<dataset>",
         nargs="?",
         default="",
         help="Dataset to show changes for",
