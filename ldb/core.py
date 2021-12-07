@@ -1,4 +1,5 @@
 import os
+import shlex
 import shutil
 from pathlib import Path
 from typing import Optional
@@ -57,7 +58,15 @@ def init_quickstart(force: bool = False) -> Path:
 
 def add_default_read_add_storage(ldb_dir: Path) -> None:
     path = get_global_base() / GlobalDir.DEFAULT_READ_ADD_STORAGE
-    path.mkdir(parents=True, exist_ok=True)
+    try:
+        path.mkdir(parents=True, exist_ok=True)
+    except OSError as exc:
+        path_arg = shlex.quote(os.fspath(path))
+        raise LDBException(
+            f"Unable to create read-add storage location: {path_arg}\n"
+            "Ensure it is a writable directory and add it with:\n\n"
+            f"  ldb add-storage -a {path_arg}\n",
+        ) from exc
     add_storage(
         ldb_dir / Filename.STORAGE,
         StorageLocation(
