@@ -1,11 +1,12 @@
 import os
+import shutil
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Generator, List, Optional
+from typing import Any, Dict, Iterator, List, Optional, Union
 
 from ldb.dataset import get_collection, get_collection_dir_items
-from ldb.exceptions import WorkspaceDatasetNotFoundError
+from ldb.exceptions import WorkspaceDatasetNotFoundError, WorkspaceError
 from ldb.path import WorkspacePath
 from ldb.utils import format_datetime, load_data_file, parse_datetime
 
@@ -67,7 +68,29 @@ def collection_dir_to_object(collection_dir: Path) -> Dict[str, Optional[str]]:
     )
 
 
-def iter_workspace_dir(workspace_path: Path) -> Generator[Path, None, None]:
-    for path in workspace_path.iterdir():
-        if path.name != WorkspacePath.BASE.name or not path.is_dir():
-            yield path
+def iter_workspace_dir(
+    workspace_path: Union[str, Path],
+) -> Iterator[os.DirEntry]:  # type: ignore[type-arg]
+    ldb_workspace_name = WorkspacePath.BASE.name
+    for entry in os.scandir(workspace_path):
+        if entry.name != ldb_workspace_name or not entry.is_dir():
+            yield entry
+
+
+def ensure_empty_workspace(
+    workspace_path: Union[str, Path],
+    force: bool = False,
+) -> None:
+    if any(iter_workspace_dir(workspace_path)):
+        if force:
+            for entry in iter_workspace_dir(workspace_path):
+                if entry.is_dir():
+                    shutil.rmtree(entry)
+                else:
+                    os.remove(entry)
+        else:
+            raise WorkspaceError(
+                "Workspace is not empty: "
+                f"{os.fspath(workspace_path)!r}\n"
+                "Use the --force option to delete workspace contents",
+            )
