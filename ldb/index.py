@@ -88,7 +88,7 @@ def index(
     ) = separate_storage_and_non_storage_files(local_files, storage_locations)
     ephemeral_hashes = {f.path: hash_file(f) for f in ephemeral_files}
     existing_hashes = set(
-        get_collection_dir_keys(ldb_dir / InstanceDir.COLLECTIONS),
+        get_collection_dir_keys(ldb_dir / InstanceDir.DATA_OBJECT_INFO),
     )
     indexed_ephemeral_files, ephemeral_files = separate_indexed_files(
         existing_hashes,
