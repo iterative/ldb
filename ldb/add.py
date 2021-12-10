@@ -226,7 +226,7 @@ def root_dataset_for_delete(
     ldb_dir: Path,
     paths: Sequence[str],  # pylint: disable=unused-argument
 ) -> List[str]:
-    return list(
+    return sorted(
         get_collection_dir_keys(
             ldb_dir / InstanceDir.DATA_OBJECT_INFO,
         ),
