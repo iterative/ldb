@@ -10,8 +10,8 @@ from ldb.core import is_ldb_instance
 from ldb.query.functions import CUSTOM_FUNCTIONS
 from ldb.query.user_functions import load_user_functions
 from ldb.typing import (
+    JMESPathValue,
     JSONArgTypes,
-    JSONDecoded,
     JSONFunc,
     JSONFuncMapping,
     JSONFuncMutableMapping,
@@ -42,7 +42,7 @@ def create_func(
 
     @wraps(func)
     @functions.signature(*signature)
-    def new_func(_self: Any, *args: JSONDecoded) -> JSONDecoded:
+    def new_func(_self: Any, *args: JMESPathValue) -> JMESPathValue:
         return func(*args)
 
     return new_func
