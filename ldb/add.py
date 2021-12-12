@@ -15,6 +15,7 @@ from typing import (
 )
 
 import fsspec
+from fsspec.core import OpenFile
 
 from ldb import config
 from ldb.config import ConfigType
@@ -302,16 +303,16 @@ def path_for_delete(
     return list(data_object_hashes_from_path(paths))
 
 
-def data_object_hashes_from_path(paths: Sequence[str]) -> Iterator[str]:
+def get_data_object_storage_files(paths: Sequence[str]) -> Iterator[OpenFile]:
     paths = [os.path.abspath(p) for p in paths]
-    return (
-        hash_file(f)
-        for f in get_storage_files_for_paths(
-            paths,
-            default_format=False,
-        )
-        if not f.path.endswith(".json")
-    )
+    for file in get_storage_files_for_paths(paths, default_format=False):
+        if not file.path.endswith(".json"):
+            yield file
+
+
+def data_object_hashes_from_path(paths: Sequence[str]) -> Iterator[str]:
+    for file in get_data_object_storage_files(paths):
+        yield hash_file(file)
 
 
 DELETE_FUNCTIONS: Dict[ArgType, Callable[[Path, Sequence[str]], List[str]]] = {
@@ -387,10 +388,29 @@ def process_args_for_ls(
 
 
 def path_for_ls(ldb_dir: Path, paths: Sequence[str]) -> AddInput:
-    data_object_hashes = sorted(data_object_hashes_from_path(paths))
+    hashes = []
+    for file in get_data_object_storage_files(paths):
+        data_object_hash = hash_file(file)
+        try:
+            annotation_hash = get_current_annotation_hash(
+                ldb_dir,
+                data_object_hash,
+            )
+        except DataObjectNotFoundError as exc:
+            raise DataObjectNotFoundError(
+                f"Data object not found: 0x{data_object_hash} "
+                f"(path={file.path!r})",
+            ) from exc
+        hashes.append((data_object_hash, annotation_hash))
+    if hashes:
+        data_object_hashes, annotation_hashes = (
+            list(x) for x in zip(*sorted(hashes))
+        )
+    else:
+        data_object_hashes, annotation_hashes = [], []
     return AddInput(
         data_object_hashes,
-        get_current_annotation_hashes(ldb_dir, data_object_hashes),
+        annotation_hashes,
         "",
     )
 
