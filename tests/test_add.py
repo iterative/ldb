@@ -15,13 +15,22 @@ from .utils import (
 )
 
 
-def test_add_storage_location(workspace_path, data_dir):
-    dir_to_add = data_dir / "fashion-mnist/original"
-    ret = main(["add", f"{os.fspath(dir_to_add)}"])
+@pytest.mark.parametrize(
+    "index_first,objects,annots",
+    [
+        (True, 32, 23),
+        (False, 23, 23),
+    ],
+)
+def test_add_storage_location(index_first, objects, annots, workspace_path):
+    dir_to_add = os.fspath(DATA_DIR / "fashion-mnist/original")
+    if index_first:
+        ret = main(["index", "-f", "bare", dir_to_add])
+    ret = main(["add", dir_to_add])
     object_file_paths = get_staged_object_file_paths(workspace_path)
     assert ret == 0
-    assert len(object_file_paths) == 32
-    assert num_empty_files(object_file_paths) == 23
+    assert len(object_file_paths) == objects
+    assert num_empty_files(object_file_paths) == annots
 
 
 def test_add_data_objects(workspace_path, index_original):
@@ -75,8 +84,11 @@ def test_add_datasets(workspace_path, ds_a, ds_b):
     ],
 )
 def test_add_root_dataset(workspace_path, add_args, expected):
-    main(["index", os.fspath(DATA_DIR / "fashion-mnist/original")])
-    main(["index", os.fspath(DATA_DIR / "fashion-mnist/updates")])
+    for path_obj in (
+        DATA_DIR / "fashion-mnist/original",
+        DATA_DIR / "fashion-mnist/updates",
+    ):
+        main(["index", "-f", "bare", os.fspath(path_obj)])
     ret = main(["add", f"{DATASET_PREFIX}{ROOT}", *add_args])
     object_file_paths = get_staged_object_file_paths(workspace_path)
     assert ret == 0
@@ -101,35 +113,61 @@ def test_add_root_dataset_query(workspace_path, index_original):
     assert num_empty_files(object_file_paths) == 14
 
 
-def test_add_current_workspace(workspace_path, data_dir, ldb_instance):
+@pytest.mark.parametrize(
+    "index_first,objects,annots",
+    [
+        (True, 32, 23),
+        (False, 23, 23),
+    ],
+)
+def test_add_current_workspace(
+    index_first,
+    objects,
+    annots,
+    workspace_path,
+    ldb_instance,
+):
     add_default_read_add_storage(ldb_instance)
     shutil.copytree(
-        data_dir / "fashion-mnist/original/has_both/train",
+        DATA_DIR / "fashion-mnist/original",
         "./train",
     )
+    if index_first:
+        main(["index", "-f", "bare", "."])
     ret = main(["add", "."])
     object_file_paths = get_staged_object_file_paths(workspace_path)
     assert ret == 0
-    assert len(object_file_paths) == 13
-    assert num_empty_files(object_file_paths) == 13
+    assert len(object_file_paths) == objects
+    assert num_empty_files(object_file_paths) == annots
 
 
+@pytest.mark.parametrize(
+    "index_first,objects,annots",
+    [
+        (True, 32, 23),
+        (False, 23, 23),
+    ],
+)
 def test_add_another_workspace(
+    index_first,
+    objects,
+    annots,
     workspace_path,
     data_dir,
     ldb_instance,
     tmp_path,
 ):
+    dir_to_add = os.fspath(data_dir / "fashion-mnist/original")
     other_workspace_path = tmp_path / "other-workspace"
     stage_new_workspace(other_workspace_path)
     os.chdir(other_workspace_path)
-    main(
-        ["add", os.fspath(data_dir / "fashion-mnist/original/has_both/train")],
-    )
+    if index_first:
+        main(["index", "-f", "bare", dir_to_add])
+    main(["add", dir_to_add])
     os.chdir(workspace_path)
     ret = main(["add", os.fspath(other_workspace_path)])
 
     object_file_paths = get_staged_object_file_paths(workspace_path)
     assert ret == 0
-    assert len(object_file_paths) == 13
-    assert num_empty_files(object_file_paths) == 13
+    assert len(object_file_paths) == objects
+    assert num_empty_files(object_file_paths) == annots

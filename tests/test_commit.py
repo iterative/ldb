@@ -9,8 +9,9 @@ from ldb.utils import current_time, load_data_file
 
 
 def test_commit_new_dataset(data_dir, ldb_instance, workspace_path):
-    dir_to_add = data_dir / "fashion-mnist/original"
-    main(["add", f"{os.fspath(dir_to_add)}"])
+    dir_to_add = os.fspath(data_dir / "fashion-mnist/original")
+    main(["index", "-f", "bare", dir_to_add])
+    main(["add", dir_to_add])
     ret = main(["commit", "create a new dataset"])
 
     collection_file_paths = list(
@@ -74,12 +75,14 @@ def test_commit_multiple_versions(data_dir, ldb_instance, workspace_path):
         data_dir / "fashion-mnist/original/has_both/train/000[01]*",
         data_dir / "fashion-mnist/updates",
     ]
-    for path in paths:
-        main(["add", f"{os.fspath(path)}"])
+    for path_obj in paths:
+        path = os.fspath(path_obj)
+        main(["index", "-f", "bare", path])
+        main(["add", path])
         main(
             [
                 "commit",
-                f"add {os.fspath(path.relative_to(data_dir))}",
+                f"add {os.fspath(path_obj.relative_to(data_dir))}",
             ],
         )
 
@@ -139,8 +142,9 @@ def test_commit_empty_workspace_dataset(
 
 
 def test_commit_no_changes(data_dir, ldb_instance, workspace_path):
-    dir_to_add = data_dir / "fashion-mnist/original"
-    main(["add", f"{os.fspath(dir_to_add)}"])
+    dir_to_add = os.fspath(data_dir / "fashion-mnist/original")
+    main(["index", "-f", "bare", dir_to_add])
+    main(["add", dir_to_add])
     main(["commit", "create a new dataset"])
     ret = main(["commit", "create another version"])
     assert ret == 0

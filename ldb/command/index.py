@@ -24,6 +24,7 @@ def index_command(options: Namespace) -> None:
             .get("core", {})
             .get("read_any_cloud_location", False)
         ),
+        strict_format=options.format == "strict",
     )
     print(result.summary())
 
@@ -36,6 +37,13 @@ def add_parser(
         "index",
         parents=parents,
         help="Index a storage location",
+    )
+    parser.add_argument(
+        "-f",
+        "--format",
+        default="strict",
+        choices=["strict", "bare"],
+        help="Format of the given storage location",
     )
     parser.add_argument(  # type: ignore[attr-defined]
         "paths",
