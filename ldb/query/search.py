@@ -1,12 +1,16 @@
 from typing import Callable, Iterable, Iterator
 
 import jmespath
-from jmespath.exceptions import ParseError
+from jmespath.exceptions import JMESPathTypeError, ParseError
 
+from ldb.query.functions import CUSTOM_FUNCTIONS
+from ldb.query.utils import create_custom_options
 from ldb.typing import JSONDecoded
 
 SearchFunc = Callable[[Iterable[JSONDecoded]], Iterator[JSONDecoded]]
 BoolSearchFunc = Callable[[Iterable[JSONDecoded]], Iterator[bool]]
+
+OPTIONS = create_custom_options(CUSTOM_FUNCTIONS)  # type: ignore[arg-type]
 
 
 def get_search_func(
@@ -19,7 +23,7 @@ def get_search_func(
 
     def search(objects: Iterable[JSONDecoded]) -> Iterator[JSONDecoded]:
         for obj in objects:
-            yield query_obj.search(obj)
+            yield query_obj.search(obj, options=OPTIONS)
 
     return search
 
@@ -51,6 +55,10 @@ def get_bool_search_func(
 
     def search(objects: Iterable[JSONDecoded]) -> Iterator[bool]:
         for obj in objects:
-            yield query_obj.search(obj)  # type: ignore[misc]
+            try:
+                result = query_obj.search(obj, options=OPTIONS)
+            except JMESPathTypeError:
+                result = False
+            yield result  # type: ignore[misc]
 
     return search
