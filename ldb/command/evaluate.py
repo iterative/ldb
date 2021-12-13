@@ -15,10 +15,12 @@ def evaluate_command(options: Namespace) -> None:
         options.annotation_query,
         options.file_query,
     ):
-        print(f"0x{data_object_hash}")
+        if not options.json_only:
+            print(f"0x{data_object_hash}")
         for item in results:
             print(json.dumps(item, indent=2))
-        print()
+        if not options.json_only:
+            print()
 
 
 def add_parser(
@@ -29,6 +31,13 @@ def add_parser(
         "eval",
         parents=parents,
         help="Evaluate a query on the specified annotations",
+    )
+    parser.add_argument(
+        "-j",
+        "--json-only",
+        action="store_true",
+        default=False,
+        help="Show JSON output only instead of showing object hashes",
     )
     add_data_object_arguments(parser)
     parser.set_defaults(func=evaluate_command)

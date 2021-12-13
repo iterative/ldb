@@ -102,7 +102,7 @@ def test_evaluate_data_objects(
             {"label": 7, "inference": {"label": 1}},
             None,
         )
-    if do_file_query or no_query_args:
+    if do_file_query:
         file_meta_result = result_columns[1]
         expected_num_columns += 1
 

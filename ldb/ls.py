@@ -45,6 +45,8 @@ def print_dataset_listings(
     dataset_listings: List[DatasetListing],
     verbose: bool = False,
 ) -> None:
+    if not dataset_listings:
+        return
     print(f"{'Data Object Hash':37} {'Annot.':8} Data Object Path")
     for item in dataset_listings:
         annotation_version = str(item.annotation_version or "-")
