@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 from ldb.dataset import Dataset, DatasetVersion
-from ldb.exceptions import LDBException, WorkspaceError
+from ldb.exceptions import LDBException
 from ldb.path import InstanceDir, WorkspacePath
 from ldb.utils import (
     current_time,
@@ -17,7 +17,7 @@ from ldb.utils import (
 )
 from ldb.workspace import (
     WorkspaceDataset,
-    iter_workspace_dir,
+    ensure_empty_workspace,
     workspace_dataset_is_clean,
 )
 
@@ -50,18 +50,7 @@ def stage(
                         "Commit changes or use the --force option to "
                         "overwrite them.",
                     )
-        for path in iter_workspace_dir(workspace_path):
-            if force:
-                if path.is_dir():
-                    shutil.rmtree(path)
-                else:
-                    path.unlink()
-            else:
-                raise WorkspaceError(
-                    "Workspace is not empty: "
-                    f"{os.fspath(workspace_path)!r}\n"
-                    "Use the --force option to delete workspace contents",
-                )
+        ensure_empty_workspace(workspace_path, force)
     ds_name, ds_version_num = parse_dataset_identifier(dataset_identifier)
     workspace_ds_obj = WorkspaceDataset(
         dataset_name=ds_name,

@@ -6,10 +6,9 @@ from typing import Tuple
 
 import fsspec
 
-from ldb.exceptions import LDBException
 from ldb.path import InstanceDir, WorkspacePath
 from ldb.utils import get_hash_path, load_data_file
-from ldb.workspace import collection_dir_to_object, iter_workspace_dir
+from ldb.workspace import collection_dir_to_object, ensure_empty_workspace
 
 
 def instantiate(
@@ -22,8 +21,7 @@ def instantiate(
     )
 
     # fail fast if workspace is not empty
-    if not force and any(iter_workspace_dir(workspace_path)):
-        raise LDBException("Workspace is not empty")
+    ensure_empty_workspace(workspace_path, force)
 
     tmp_dir_base = workspace_path / WorkspacePath.TMP
     tmp_dir_base.mkdir(exist_ok=True)
@@ -59,12 +57,9 @@ def instantiate(
         fs = fsspec.filesystem(data_object_meta["fs"]["protocol"])
         fs.get_file(path, dest)
 
-    if any(iter_workspace_dir(workspace_path)):
-        if force:
-            for path in iter_workspace_dir(workspace_path):
-                shutil.rmtree(path)
-        else:
-            raise LDBException("Workspace is not empty")
+    # check again to make sure nothing was added while writing to the
+    # temporary location
+    ensure_empty_workspace(workspace_path, force)
     for path in tmp_dir.iterdir():
         shutil.move(os.fspath(path), os.fspath(workspace_path))
 
