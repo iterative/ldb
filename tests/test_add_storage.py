@@ -6,6 +6,7 @@ from fsspec.implementations.local import make_path_posix
 from ldb import storage
 from ldb.main import main
 from ldb.path import Filename, GlobalDir
+from ldb.utils import chdir
 
 
 def test_add_storage_command_default(global_base, tmp_path):
@@ -41,6 +42,32 @@ def test_add_storage_command_default(global_base, tmp_path):
     }
     assert ret1 == 0
     assert ret2 == 0
+    assert config_dict == expected
+
+
+def test_add_storage_command_unnormalized(global_base, tmp_path):
+    working_dir = tmp_path / "a"
+    path = working_dir / "e"
+    path.mkdir(parents=True, exist_ok=True)
+    with chdir(working_dir):
+        ret = main(["add-storage", "../a/b/c/../../d/../e"])
+    storage_config = storage.load_from_path(
+        global_base / GlobalDir.DEFAULT_INSTANCE / Filename.STORAGE,
+    )
+    config_dict = asdict(storage_config)
+    expected = {
+        "locations": [
+            {
+                "path": make_path_posix(os.fspath(path)),
+                "protocol": "file",
+                "fs_id": "",
+                "read_access_verified": True,
+                "write_access_verified": True,
+                "read_and_add": False,
+            },
+        ],
+    }
+    assert ret == 0
     assert config_dict == expected
 
 

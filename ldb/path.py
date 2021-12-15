@@ -17,6 +17,7 @@ class InstanceDir:
     ANNOTATIONS = OBJECTS / "annotations"
     COLLECTIONS = OBJECTS / "collections"
     DATASET_VERSIONS = OBJECTS / "dataset_versions"
+    USER_FUNCTIONS = PurePath("custom_code") / "ldb_user_functions"
 
 
 class WorkspacePath:
@@ -33,6 +34,7 @@ INSTANCE_DIRS = (
     InstanceDir.ANNOTATIONS,
     InstanceDir.COLLECTIONS,
     InstanceDir.DATASET_VERSIONS,
+    InstanceDir.USER_FUNCTIONS,
 )
 
 

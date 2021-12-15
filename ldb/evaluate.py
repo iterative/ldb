@@ -4,7 +4,7 @@ from typing import Iterable, Iterator, List, Optional, Sequence, Tuple, Union
 from ldb.add import process_args_for_delete, process_args_for_ls
 from ldb.dataset import get_annotations, get_data_object_meta
 from ldb.func_utils import apply_optional
-from ldb.query import get_search_func
+from ldb.query.search import get_search_func
 from ldb.typing import JSONDecoded
 
 EvaluateResult = Union[
@@ -38,10 +38,7 @@ def evaluate(
             paths,
         )
         if search is None and file_search is None:
-            search_results = [
-                get_data_object_meta(ldb_dir, data_object_hashes),
-                get_annotations(ldb_dir, annotation_hashes),
-            ]
+            search_results = [get_annotations(ldb_dir, annotation_hashes)]
         else:
             search_results = []
             if file_search is not None:

@@ -6,7 +6,7 @@ from ldb.add import process_args_for_ls
 from ldb.dataset import apply_queries
 from ldb.func_utils import apply_optional
 from ldb.path import InstanceDir
-from ldb.query import get_bool_search_func
+from ldb.query.search import get_bool_search_func
 from ldb.string_utils import left_truncate
 from ldb.utils import get_hash_path, load_data_file
 
@@ -45,6 +45,8 @@ def print_dataset_listings(
     dataset_listings: List[DatasetListing],
     verbose: bool = False,
 ) -> None:
+    if not dataset_listings:
+        return
     print(f"{'Data Object Hash':37} {'Annot.':8} Data Object Path")
     for item in dataset_listings:
         annotation_version = str(item.annotation_version or "-")
