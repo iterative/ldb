@@ -109,7 +109,7 @@ def format_dataset_identifier(
     name: str,
     version: Optional[int] = None,
 ) -> str:
-    version_suffix = f".v{version}" if version is not None else ""
+    version_suffix = f".v{version}" if version else ""
     return f"{DATASET_PREFIX}{name}{version_suffix}"
 
 
