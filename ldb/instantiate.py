@@ -57,7 +57,6 @@ def instantiate(
         dest = tmp_dir / (data_object_hash + os.path.splitext(path)[1])
 
         fs = fsspec.filesystem(data_object_meta["fs"]["protocol"])
-        print(path)
         fs.get_file(path, dest)
 
     if any(iter_workspace_dir(workspace_path)):
