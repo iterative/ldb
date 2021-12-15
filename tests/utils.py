@@ -9,35 +9,35 @@ from ldb.workspace import WorkspaceDataset
 
 DATA_DIR = Path(__file__).parent.parent / "data"
 DATA_OBJECT_KEYS = (
-    "type",
+    "alternate_paths",
     "first_indexed",
+    "fs",
     "last_indexed",
     "last_indexed_by",
     "tags",
-    "alternate_paths",
-    "fs",
+    "type",
 )
 DATA_OBJECT_FS_KEYS = (
-    "fs_id",
-    "protocol",
-    "path",
-    "size",
-    "mode",
-    "uid",
-    "gid",
     "atime",
-    "mtime",
     "ctime",
+    "fs_id",
+    "gid",
+    "mode",
+    "mtime",
+    "path",
+    "protocol",
+    "size",
+    "uid",
 )
 ANNOTATION_META_KEYS = (
-    "version",
-    "mtime",
     "first_indexed_time",
     "last_indexed_time",
+    "mtime",
+    "version",
 )
 ANNOTATION_LDB_KEYS = (
-    "user_version",
     "schema_version",
+    "user_version",
 )
 
 

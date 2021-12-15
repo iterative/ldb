@@ -8,7 +8,7 @@ from typing import Tuple
 import fsspec
 
 from ldb.path import InstanceDir, WorkspacePath
-from ldb.utils import get_hash_path, load_data_file
+from ldb.utils import get_hash_path, json_dumps, load_data_file
 from ldb.workspace import collection_dir_to_object, ensure_empty_workspace
 
 
@@ -42,7 +42,7 @@ def instantiate(
             )
             with open(user_annotation_file_path, encoding="utf-8") as f:
                 data = f.read()
-            data = json.dumps(json.loads(data), indent=2)
+            data = json_dumps(json.loads(data), indent=2)
             with open(dest, "x", encoding="utf-8") as f:
                 f.write(data)
             num_annotations += 1

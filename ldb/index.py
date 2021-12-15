@@ -34,6 +34,7 @@ from ldb.utils import (
     get_hash_path,
     hash_data,
     hash_file,
+    json_dumps,
     load_data_file,
     parse_datetime,
     timestamp_to_datetime,
@@ -258,15 +259,15 @@ def index_files(
         to_write = [
             (
                 data_object_meta_file_path,
-                json.dumps(meta_contents).encode(),
+                json_dumps(meta_contents).encode(),
                 True,
             ),
         ]
 
         if annotation_file is not None:
             ldb_content, user_content = get_annotation_content(annotation_file)
-            ldb_content_bytes = json.dumps(ldb_content).encode()
-            user_content_bytes = json.dumps(user_content).encode()
+            ldb_content_bytes = json_dumps(ldb_content).encode()
+            user_content_bytes = json_dumps(user_content).encode()
             annotation_hash = hash_data(ldb_content_bytes + user_content_bytes)
 
             annotation_meta_dir_path = data_object_dir / "annotations"
@@ -288,7 +289,7 @@ def index_files(
                 current_timestamp,
                 version,
             )
-            annotation_meta_bytes = json.dumps(annotation_meta).encode()
+            annotation_meta_bytes = json_dumps(annotation_meta).encode()
             annotation_dir = get_hash_path(
                 ldb_dir / InstanceDir.ANNOTATIONS,
                 annotation_hash,

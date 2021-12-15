@@ -20,6 +20,10 @@ HASH_DIR_SPLIT_POINT = 3
 UNIQUE_ID_ALPHABET = string.ascii_lowercase + string.digits
 
 
+def json_dumps(obj: Any, **kwargs: Any) -> str:
+    return json.dumps(obj, sort_keys=True, **kwargs)
+
+
 def write_data_file(
     file_path: Path,
     data: bytes,

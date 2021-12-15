@@ -1,5 +1,4 @@
 import getpass
-import json
 import os
 from pathlib import Path
 
@@ -10,6 +9,7 @@ from ldb.utils import (
     format_dataset_identifier,
     get_hash_path,
     hash_data,
+    json_dumps,
     load_data_file,
     write_data_file,
 )
@@ -38,7 +38,7 @@ def commit(
     collection_obj = collection_dir_to_object(
         workspace_path / WorkspacePath.COLLECTION,
     )
-    collection_obj_bytes = json.dumps(collection_obj).encode()
+    collection_obj_bytes = json_dumps(collection_obj).encode()
     collection_hash = hash_data(collection_obj_bytes)
     collection_path = get_hash_path(
         ldb_dir / InstanceDir.COLLECTIONS,
@@ -74,7 +74,7 @@ def commit(
             commit_message=message,
         ),
     )
-    dataset_version_bytes = json.dumps(dataset_version.format()).encode()
+    dataset_version_bytes = json_dumps(dataset_version.format()).encode()
     dataset_version_hash = hash_data(dataset_version_bytes)
     dataset_version_file_path = get_hash_path(
         ldb_dir / InstanceDir.DATASET_VERSIONS,
@@ -84,14 +84,14 @@ def commit(
     dataset.versions.append(dataset_version_hash)
     write_data_file(
         dataset_file_path,
-        json.dumps(dataset.format()).encode(),
+        json_dumps(dataset.format()).encode(),
         overwrite_existing=True,
     )
     workspace_ds.staged_time = curr_time
     workspace_ds.parent = dataset_version_hash
     write_data_file(
         workspace_path / WorkspacePath.DATASET,
-        json.dumps(workspace_ds.format()).encode(),
+        json_dumps(workspace_ds.format()).encode(),
         overwrite_existing=True,
     )
     dataset_identifier = format_dataset_identifier(
