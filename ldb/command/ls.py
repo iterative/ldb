@@ -15,7 +15,10 @@ def ls_command(options: Namespace) -> None:
         options.annotation_query,
         options.file_query,
     )
-    print_dataset_listings(ds_listings, verbose=options.verbose)
+    if options.short:
+        print(len(ds_listings))
+    else:
+        print_dataset_listings(ds_listings, verbose=options.verbose)
 
 
 def add_parser(
@@ -26,6 +29,13 @@ def add_parser(
         "list",
         parents=parents,
         help="List objects and annotations",
+    )
+    parser.add_argument(
+        "-s",
+        "--short",
+        action="store_true",
+        default=False,
+        help="Show a short summary",
     )
     add_data_object_arguments(parser)
     parser.set_defaults(func=ls_command)

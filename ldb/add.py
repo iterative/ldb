@@ -76,6 +76,8 @@ def process_args_for_add(
     ldb_dir: Path,
     paths: Sequence[str],
 ) -> AddInput:
+    if not paths:
+        raise LDBException("Must supply path")
     return ADD_FUNCTIONS[get_arg_type(paths)](ldb_dir, paths)
 
 
