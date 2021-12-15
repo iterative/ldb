@@ -8,7 +8,7 @@ import fsspec
 
 from ldb.exceptions import LDBException
 from ldb.path import InstanceDir, WorkspacePath
-from ldb.utils import get_fsspec_path_suffix, get_hash_path, load_data_file
+from ldb.utils import get_hash_path, load_data_file
 from ldb.workspace import collection_dir_to_object, iter_workspace_dir
 
 
@@ -52,7 +52,9 @@ def instantiate(
         data_object_meta = load_data_file(data_object_dir / "meta")
 
         path = data_object_meta["fs"]["path"]
-        dest = tmp_dir / (data_object_hash + get_fsspec_path_suffix(path))
+        # TODO: Once index function checks all extension levels, use
+        # get_fsspec_path_suffix to get entire extension
+        dest = tmp_dir / (data_object_hash + os.path.splitext(path)[1])
 
         fs = fsspec.filesystem(data_object_meta["fs"]["protocol"])
         fs.get_file(path, dest)
