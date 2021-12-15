@@ -18,7 +18,7 @@ def import_path(path: str, name: str = "") -> ModuleType:
         name = os.path.splitext(os.path.basename(path))[0]
     spec = importlib.util.spec_from_file_location(name, path)
     if spec is None or spec.loader is None:
-        raise ValueError("Could not load module with args: {name=}, {path=}")
+        raise ImportError("Could not load module with args: {name=}, {path=}")
     module = importlib.util.module_from_spec(spec)
     loader: importlib.abc.Loader = spec.loader  # type: ignore[assignment]
     loader.exec_module(module)
