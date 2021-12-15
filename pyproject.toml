@@ -167,6 +167,7 @@ disable = [
     'bad-inline-option',
     'deprecated-pragma',
     'file-ignored',
+    'fixme',
     'line-too-long',  # covered by flake8
     'locally-disabled',
     'missing-class-docstring',
