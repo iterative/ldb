@@ -52,6 +52,8 @@ def create_storage_location(
     protocol: str = "file",
     read_and_add: bool = False,
 ) -> StorageLocation:
+    if protocol == "file":
+        path = os.path.abspath(path)
     return StorageLocation(
         path=make_path_posix(path),
         protocol=protocol,
