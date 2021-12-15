@@ -9,7 +9,7 @@ from ldb.core import add_default_read_add_storage
 from ldb.ls import DatasetListing, ls, ls_collection
 from ldb.main import main
 from ldb.path import WorkspacePath
-from ldb.utils import DATASET_PREFIX, ROOT
+from ldb.utils import DATASET_PREFIX, ROOT, chdir
 from ldb.workspace import collection_dir_to_object
 
 from .utils import DATA_DIR, stage_new_workspace
@@ -98,7 +98,7 @@ def test_ls_storage_locations(ldb_instance, workspace_path, data_dir):
     loc1 = data_dir / "fashion-mnist/updates/diff_inference"
     loc2 = data_dir / "fashion-mnist/updates/no_inference"
     loc_strings = [os.fspath(loc1), os.fspath(loc2)]
-    main(["add", *loc_strings])
+    main(["index", "-f", "bare", *loc_strings])
     listings = sorted_ls(ldb_instance, loc_strings)
     expected = [
         DatasetListing(
@@ -314,13 +314,17 @@ def test_ls_datasets(ldb_instance, ds_a, ds_b):
 
 
 def test_ls_root_dataset(ldb_instance, data_dir):
-    main(["index", os.fspath(data_dir / "fashion-mnist/updates")])
+    main(
+        ["index", "-f", "bare", os.fspath(data_dir / "fashion-mnist/updates")],
+    )
     listings = sorted_ls(ldb_instance, [f"{DATASET_PREFIX}{ROOT}"])
     assert listings == UPDATES_DIR_LISTINGS
 
 
 def test_ls_root_dataset_query(ldb_instance, data_dir):
-    main(["index", os.fspath(data_dir / "fashion-mnist/updates")])
+    main(
+        ["index", "-f", "bare", os.fspath(data_dir / "fashion-mnist/updates")],
+    )
     listings = sorted_ls(
         ldb_instance,
         [f"{DATASET_PREFIX}{ROOT}"],
@@ -392,7 +396,9 @@ def test_ls_root_dataset_query(ldb_instance, data_dir):
 
 
 def test_ls_current_workspace(workspace_path, data_dir, ldb_instance):
-    main(["index", os.fspath(data_dir / "fashion-mnist/updates")])
+    main(
+        ["index", "-f", "bare", os.fspath(data_dir / "fashion-mnist/updates")],
+    )
     add_default_read_add_storage(ldb_instance)
     shutil.copytree(
         data_dir / "fashion-mnist/updates",
@@ -409,13 +415,14 @@ def test_ls_another_workspace(
     tmp_path,
 ):
     other_workspace_path = tmp_path / "other-workspace"
-    stage_new_workspace(other_workspace_path)
-    os.chdir(other_workspace_path)
     main(
-        ["add", os.fspath(data_dir / "fashion-mnist/updates")],
+        ["index", "-f", "bare", os.fspath(data_dir / "fashion-mnist/updates")],
     )
-    os.chdir(workspace_path)
-    listings = sorted_ls(ldb_instance, [os.fspath(other_workspace_path)])
+    stage_new_workspace(other_workspace_path)
+    with chdir(other_workspace_path):
+        main(["add", f"{DATASET_PREFIX}{ROOT}"])
+    with chdir(workspace_path):
+        listings = sorted_ls(ldb_instance, [os.fspath(other_workspace_path)])
     assert listings == UPDATES_DIR_LISTINGS
 
 
@@ -430,15 +437,15 @@ def test_ls_collection_with_workspace_dataset(
         data_dir / "fashion-mnist/original/data_objects_only/00011.png",
         data_dir / "fashion-mnist/updates",
     ]
-    stage_new_workspace(workspace_path)
-    os.chdir(workspace_path)
     for dir_path in dirs_to_add:
-        main(["add", os.fspath(dir_path)])
-
-    ws_collection = collection_dir_to_object(
-        workspace_path / WorkspacePath.COLLECTION,
-    )
-    ds_listings = ls_collection(ldb_instance, ws_collection)
+        main(["index", "-f", "bare", os.fspath(dir_path)])
+    stage_new_workspace(workspace_path)
+    with chdir(workspace_path):
+        main(["add", f"{DATASET_PREFIX}{ROOT}"])
+        ws_collection = collection_dir_to_object(
+            workspace_path / WorkspacePath.COLLECTION,
+        )
+        ds_listings = ls_collection(ldb_instance, ws_collection)
     annot_versions = [d.annotation_version for d in ds_listings]
     # fsspec's LocalFileSystem._strip_protocol does some normalization during
     # indexing, so we cast everything to Path objects for comparison

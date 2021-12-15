@@ -38,10 +38,7 @@ def evaluate(
             paths,
         )
         if search is None and file_search is None:
-            search_results = [
-                get_data_object_meta(ldb_dir, data_object_hashes),
-                get_annotations(ldb_dir, annotation_hashes),
-            ]
+            search_results = [get_annotations(ldb_dir, annotation_hashes)]
         else:
             search_results = []
             if file_search is not None:

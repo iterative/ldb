@@ -1,10 +1,12 @@
 import os
 from enum import Enum, unique
+from itertools import tee
 from pathlib import Path
 from typing import (
     Callable,
     Dict,
     Iterable,
+    Iterator,
     List,
     Mapping,
     NamedTuple,
@@ -13,6 +15,7 @@ from typing import (
 )
 
 import fsspec
+from fsspec.core import OpenFile
 
 from ldb import config
 from ldb.config import ConfigType
@@ -22,7 +25,7 @@ from ldb.dataset import (
     get_collection_dir_keys,
     get_collection_from_dataset_identifier,
 )
-from ldb.exceptions import LDBException
+from ldb.exceptions import DataObjectNotFoundError, LDBException
 from ldb.index import get_storage_files_for_paths, index
 from ldb.path import InstanceDir, WorkspacePath
 from ldb.utils import (
@@ -73,6 +76,8 @@ def process_args_for_add(
     ldb_dir: Path,
     paths: Sequence[str],
 ) -> AddInput:
+    if not paths:
+        raise LDBException("Must supply path")
     return ADD_FUNCTIONS[get_arg_type(paths)](ldb_dir, paths)
 
 
@@ -153,25 +158,41 @@ def data_object_for_add(
 
 
 def path_for_add(ldb_dir: Path, paths: Sequence[str]) -> AddInput:
-    indexing_result = index(
-        ldb_dir,
-        paths,
-        read_any_cloud_location=(
-            (
-                config.load_first([ConfigType.INSTANCE])  # type: ignore[union-attr,call-overload] # noqa: E501
-                or {}
-            )
-            .get("core", {})
-            .get("read_any_cloud_location", False)
-        ),
+    data_object_hash_iter, data_object_hash_iter2 = tee(
+        data_object_hashes_from_path(paths),
     )
-    return AddInput(
-        indexing_result.data_object_hashes,
-        get_current_annotation_hashes(
+    try:
+        annotation_hashes = get_current_annotation_hashes(
             ldb_dir,
-            indexing_result.data_object_hashes,
-        ),
-        indexing_result.summary(),
+            data_object_hash_iter,
+        )
+    except DataObjectNotFoundError:
+        indexing_result = index(
+            ldb_dir,
+            paths,
+            read_any_cloud_location=(
+                (
+                    config.load_first([ConfigType.INSTANCE])  # type: ignore[union-attr,call-overload] # noqa: E501
+                    or {}
+                )
+                .get("core", {})
+                .get("read_any_cloud_location", False)
+            ),
+        )
+        data_object_hashes = indexing_result.data_object_hashes
+        annotation_hashes = get_current_annotation_hashes(
+            ldb_dir,
+            data_object_hashes,
+        )
+        message = indexing_result.summary()
+    else:
+        data_object_hashes = list(data_object_hash_iter2)
+        message = ""
+
+    return AddInput(
+        data_object_hashes,
+        annotation_hashes,
+        message,
     )
 
 
@@ -277,20 +298,23 @@ def data_object_for_delete(
         ) from exc
 
 
-def path_for_delete(ldb_dir: Path, paths: Sequence[str]) -> List[str]:
-    indexing_result = index(
-        ldb_dir,
-        paths,
-        read_any_cloud_location=(
-            (
-                config.load_first([ConfigType.INSTANCE])  # type: ignore[union-attr,call-overload] # noqa: E501
-                or {}
-            )
-            .get("core", {})
-            .get("read_any_cloud_location", False)
-        ),
-    )
-    return indexing_result.data_object_hashes
+def path_for_delete(
+    ldb_dir: Path,  # pylint: disable=unused-argument
+    paths: Sequence[str],
+) -> List[str]:
+    return list(data_object_hashes_from_path(paths))
+
+
+def get_data_object_storage_files(paths: Sequence[str]) -> Iterator[OpenFile]:
+    paths = [os.path.abspath(p) for p in paths]
+    for file in get_storage_files_for_paths(paths, default_format=False):
+        if not file.path.endswith(".json"):
+            yield file
+
+
+def data_object_hashes_from_path(paths: Sequence[str]) -> Iterator[str]:
+    for file in get_data_object_storage_files(paths):
+        yield hash_file(file)
 
 
 DELETE_FUNCTIONS: Dict[ArgType, Callable[[Path, Sequence[str]], List[str]]] = {
@@ -335,7 +359,9 @@ def get_current_annotation_hash(ldb_dir: Path, data_object_hash: str) -> str:
         data_object_hash,
     )
     if not data_object_dir.is_dir():
-        raise LDBException(f"No data object found: {data_object_hash}")
+        raise DataObjectNotFoundError(
+            f"Data object not found: 0x{data_object_hash}",
+        )
     try:
         return (data_object_dir / "current").read_text()
     except FileNotFoundError:
@@ -364,18 +390,29 @@ def process_args_for_ls(
 
 
 def path_for_ls(ldb_dir: Path, paths: Sequence[str]) -> AddInput:
-    paths = [os.path.abspath(p) for p in paths]
-    data_object_hashes = sorted(
-        hash_file(f)
-        for f in get_storage_files_for_paths(
-            paths,
-            default_format=False,
+    hashes = []
+    for file in get_data_object_storage_files(paths):
+        data_object_hash = hash_file(file)
+        try:
+            annotation_hash = get_current_annotation_hash(
+                ldb_dir,
+                data_object_hash,
+            )
+        except DataObjectNotFoundError as exc:
+            raise DataObjectNotFoundError(
+                f"Data object not found: 0x{data_object_hash} "
+                f"(path={file.path!r})",
+            ) from exc
+        hashes.append((data_object_hash, annotation_hash))
+    if hashes:
+        data_object_hashes, annotation_hashes = (
+            list(x) for x in zip(*sorted(hashes))
         )
-        if not f.path.endswith(".json")
-    )
+    else:
+        data_object_hashes, annotation_hashes = [], []
     return AddInput(
         data_object_hashes,
-        get_current_annotation_hashes(ldb_dir, data_object_hashes),
+        annotation_hashes,
         "",
     )
 

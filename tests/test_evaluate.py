@@ -14,12 +14,12 @@ from .utils import is_data_object_meta_obj, stage_new_workspace
 
 
 def test_evaluate_storage_location(ldb_instance, data_dir):
-    dir_to_eval = data_dir / "fashion-mnist/updates"
-    main(["add", os.fspath(dir_to_eval)])
+    dir_to_eval = os.fspath(data_dir / "fashion-mnist/updates")
+    main(["index", "-f", "bare", dir_to_eval])
     result = list(
         evaluate(
             ldb_instance,
-            [os.fspath(dir_to_eval)],
+            [dir_to_eval],
             "[label, inference.label]",
         ),
     )
@@ -59,7 +59,9 @@ def test_evaluate_data_objects(
     if do_file_query:
         file_query = "@"
 
-    main(["index", os.fspath(data_dir / "fashion-mnist/updates")])
+    main(
+        ["index", "-f", "bare", os.fspath(data_dir / "fashion-mnist/updates")],
+    )
     result = evaluate(
         ldb_instance,
         [
@@ -102,7 +104,7 @@ def test_evaluate_data_objects(
             {"label": 7, "inference": {"label": 1}},
             None,
         )
-    if do_file_query or no_query_args:
+    if do_file_query:
         file_meta_result = result_columns[1]
         expected_num_columns += 1
 
@@ -114,7 +116,7 @@ def test_evaluate_data_objects(
 
 def test_evaluate_datasets(ldb_instance, workspace_path, data_dir):
     dir_to_add = data_dir / "fashion-mnist/updates"
-    main(["index", os.fspath(dir_to_add)])
+    main(["index", "-f", "bare", os.fspath(dir_to_add)])
     main(["stage", "ds:a"])
     main(
         [
@@ -163,6 +165,8 @@ def test_evaluate_root_dataset(ldb_instance, data_dir):
     main(
         [
             "index",
+            "-f",
+            "bare",
             os.fspath(data_dir / "fashion-mnist/original/has_both/train"),
             os.fspath(data_dir / "fashion-mnist/updates"),
         ],
@@ -228,10 +232,11 @@ def test_evaluate_another_workspace(
     other_workspace_path = tmp_path / "other-workspace"
     stage_new_workspace(other_workspace_path)
 
+    main(
+        ["index", "-f", "bare", os.fspath(data_dir / "fashion-mnist/updates")],
+    )
     with chdir(other_workspace_path):
-        main(
-            ["add", os.fspath(data_dir / "fashion-mnist/updates")],
-        )
+        main(["add", f"{DATASET_PREFIX}{ROOT}"])
     with chdir(workspace_path):
         result = list(
             evaluate(

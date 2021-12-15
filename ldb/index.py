@@ -66,6 +66,7 @@ def index(
     ldb_dir: Path,
     paths: Sequence[str],
     read_any_cloud_location: bool = False,
+    strict_format: bool = True,
 ) -> IndexingResult:
     paths = [os.path.abspath(p) for p in paths]
     files = get_storage_files_for_paths(paths, default_format=True)
@@ -119,6 +120,7 @@ def index(
         files,
         annotation_files_by_path,
         ephemeral_hashes,
+        strict_format=strict_format,
     )
 
 
@@ -195,15 +197,23 @@ def index_files(
     data_object_files: List[OpenFile],
     annotation_files_by_path: Dict[str, OpenFile],
     hashes: Mapping[str, str],
+    strict_format: bool = True,
 ) -> IndexingResult:
     data_object_hashes = []
     num_annotations_indexed = 0
     num_new_data_objects = 0
     num_new_annotations = 0
     for data_object_file in data_object_files:
+        annotation_file = annotation_files_by_path.get(
+            data_object_path_to_annotation_path(data_object_file.path),
+        )
+        if annotation_file is None and strict_format:
+            continue
+
         hash_str = hashes.get(data_object_file.path)
         if hash_str is None:
             hash_str = hash_file(data_object_file)
+
         data_object_hashes.append(hash_str)
         data_object_dir = get_hash_path(
             ldb_dir / InstanceDir.DATA_OBJECT_INFO,
@@ -229,9 +239,6 @@ def index_files(
             ),
         ]
 
-        annotation_file = annotation_files_by_path.get(
-            data_object_path_to_annotation_path(data_object_file.path),
-        )
         if annotation_file is not None:
             ldb_content, user_content = get_annotation_content(annotation_file)
             ldb_content_bytes = json.dumps(ldb_content).encode()
@@ -287,7 +294,7 @@ def index_files(
             write_data_file(file_path, data, overwrite_existing)
 
     return IndexingResult(
-        num_found_data_objects=len(data_object_files),
+        num_found_data_objects=len(data_object_hashes),
         num_found_annotations=num_annotations_indexed,
         num_new_data_objects=num_new_data_objects,
         num_new_annotations=num_new_annotations,
@@ -339,10 +346,10 @@ def get_storage_files(
     # find corresponding data object for annotation match and vice versa
     # for any files the expanded `path` glob matches
     file_match_globs = []
-    if default_format:
-        for mpath in fs.expand_path(path):
-            if not is_hidden_fsspec_path(mpath) and fs.isfile(mpath):
-                file_match_globs.append(mpath)
+    for mpath in fs.expand_path(path):
+        if not is_hidden_fsspec_path(mpath) and fs.isfile(mpath):
+            file_match_globs.append(mpath)
+            if default_format:
                 # TODO: Check all extension levels (i.e. for abc.tar.gz use
                 # .tar.gz and .gz)
                 p_without_ext, ext = os.path.splitext(path)

@@ -35,10 +35,14 @@ def workspace_diff_setup(tmp_path, ldb_instance, workspace_path, data_dir):
     ]
 
     path = tmp_path / "workspace"
-    stage_new_workspace(path, "a")
     os.chdir(path)
+
+    main(["index", "-f", "bare"] + [os.fspath(f) for f in file_paths1])
+    stage_new_workspace(path, "a")
     main(["add"] + [os.fspath(f) for f in file_paths1])
     main(["commit"])
+
+    main(["index", "-f", "bare"] + [os.fspath(f) for f in file_paths2])
     stage_new_workspace(path, "b")
     main(["add"] + [os.fspath(f) for f in file_paths2])
     return [

@@ -14,6 +14,10 @@ class DatasetNotFoundError(DatasetError):
     pass
 
 
+class DataObjectNotFoundError(LDBException):
+    pass
+
+
 class WorkspaceError(LDBException):
     pass
 
