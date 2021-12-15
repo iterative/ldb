@@ -350,6 +350,8 @@ def get_storage_files(
         if not is_hidden_fsspec_path(mpath) and fs.isfile(mpath):
             file_match_globs.append(mpath)
             if default_format:
+                # TODO: Check all extension levels (i.e. for abc.tar.gz use
+                # .tar.gz and .gz)
                 p_without_ext, ext = os.path.splitext(path)
                 if ext == ".json":
                     file_match_globs.append(p_without_ext)
