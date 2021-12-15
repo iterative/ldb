@@ -18,7 +18,11 @@ def ls_command(options: Namespace) -> None:
     if options.short:
         print(len(ds_listings))
     else:
-        print_dataset_listings(ds_listings, verbose=options.verbose)
+        num_items = print_dataset_listings(
+            ds_listings,
+            verbose=options.verbose,
+        )
+        print(f"\n{num_items} matching data objects")
 
 
 def add_parser(

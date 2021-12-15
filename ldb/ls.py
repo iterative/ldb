@@ -44,9 +44,11 @@ def ls(
 def print_dataset_listings(
     dataset_listings: List[DatasetListing],
     verbose: bool = False,
-) -> None:
+) -> int:
     if not dataset_listings:
-        return
+        return 0
+
+    num_items = 0
     print(f"{'Data Object Hash':37} {'Annot.':8} Data Object Path")
     for item in dataset_listings:
         annotation_version = str(item.annotation_version or "-")
@@ -56,6 +58,8 @@ def print_dataset_listings(
             else left_truncate(item.data_object_path)
         )
         print(f"  0x{item.data_object_hash:35} {annotation_version:8} {path}")
+        num_items += 1
+    return num_items
 
 
 def ls_collection(
