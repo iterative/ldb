@@ -1,4 +1,3 @@
-import json
 import os
 import shutil
 from pathlib import Path
@@ -11,6 +10,7 @@ from ldb.utils import (
     current_time,
     format_dataset_identifier,
     get_hash_path,
+    json_dumps,
     load_data_file,
     parse_dataset_identifier,
     write_data_file,
@@ -123,7 +123,7 @@ def stage_workspace(
     collection_obj: Optional[Dict[str, Optional[str]]] = None,
 ) -> None:
     collection_path = workspace_path / WorkspacePath.COLLECTION
-    workspace_ds_bytes = json.dumps(workspace_ds_obj.format()).encode()
+    workspace_ds_bytes = json_dumps(workspace_ds_obj.format()).encode()
     if collection_obj:
         collection_path_data = get_workspace_collection_path_data(
             collection_path,

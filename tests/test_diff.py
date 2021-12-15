@@ -48,7 +48,7 @@ def workspace_diff_setup(tmp_path, ldb_instance, workspace_path, data_dir):
     return [
         DiffItem(
             data_object_hash="2c4a9d28cc2ce780d17bea08d45d33b3",
-            annotation_hash1="438def7684ae376b65cf522258d9aa8a",
+            annotation_hash1="5ca184106560369a01db4fdfc3bbf5da",
             annotation_hash2="",
             diff_type=DiffType.DELETION,
             data_object_path=os.fspath(
@@ -59,8 +59,8 @@ def workspace_diff_setup(tmp_path, ldb_instance, workspace_path, data_dir):
         ),
         DiffItem(
             data_object_hash="399146164375493f916025b04d00709c",
-            annotation_hash1="818e4e07715f01efd2b8b823163b910d",
-            annotation_hash2="818e4e07715f01efd2b8b823163b910d",
+            annotation_hash1="97dde24d0e61ac83f051cd748e16f5dc",
+            annotation_hash2="97dde24d0e61ac83f051cd748e16f5dc",
             diff_type=DiffType.SAME,
             data_object_path=os.fspath(
                 data_dir / "fashion-mnist/updates/no_inference/00023.png",
@@ -70,8 +70,8 @@ def workspace_diff_setup(tmp_path, ldb_instance, workspace_path, data_dir):
         ),
         DiffItem(
             data_object_hash="47149106168f7d88fcea9e168608f129",
-            annotation_hash1="818e4e07715f01efd2b8b823163b910d",
-            annotation_hash2="83c839bd3ca50c68cd17af5395d879d6",
+            annotation_hash1="97dde24d0e61ac83f051cd748e16f5dc",
+            annotation_hash2="062133135568b9e077d15703593fb0e6",
             diff_type=DiffType.MODIFICATION,
             data_object_path=os.fspath(
                 data_dir / "fashion-mnist/updates/same_inference/00029.png",
@@ -81,8 +81,8 @@ def workspace_diff_setup(tmp_path, ldb_instance, workspace_path, data_dir):
         ),
         DiffItem(
             data_object_hash="65383bee429980b89febc3f9b3349379",
-            annotation_hash1="558d2a3f75f93be0b74a75a58b992403",
-            annotation_hash2="558d2a3f75f93be0b74a75a58b992403",
+            annotation_hash1="5bd583e12fd78ccc9dc61a36debd985f",
+            annotation_hash2="5bd583e12fd78ccc9dc61a36debd985f",
             diff_type=DiffType.SAME,
             data_object_path=os.fspath(
                 data_dir / "fashion-mnist/updates/no_inference/00010.png",
@@ -92,7 +92,7 @@ def workspace_diff_setup(tmp_path, ldb_instance, workspace_path, data_dir):
         ),
         DiffItem(
             data_object_hash="66e0373a2a989870fbc2c7791d8e6490",
-            annotation_hash1="ea37760e357f44bf15d525022a5a87db",
+            annotation_hash1="ef8b9794e2e24d461477fc6b847e8540",
             annotation_hash2="",
             diff_type=DiffType.DELETION,
             data_object_path=os.fspath(
@@ -103,8 +103,8 @@ def workspace_diff_setup(tmp_path, ldb_instance, workspace_path, data_dir):
         ),
         DiffItem(
             data_object_hash="a2430513e897d5abcf62a55b8df81355",
-            annotation_hash1="a971780236ad55f28aa6248467f6e27f",
-            annotation_hash2="89723aed8ac59ede5e9884956f8fa90a",
+            annotation_hash1="268daa854dde9f160c2b2ffe1d2ed74b",
+            annotation_hash2="8d68100832b01b8b8470a14b467d2f63",
             diff_type=DiffType.MODIFICATION,
             data_object_path=os.fspath(
                 data_dir / "fashion-mnist/updates/diff_inference/00015.png",
@@ -125,8 +125,8 @@ def workspace_diff_setup(tmp_path, ldb_instance, workspace_path, data_dir):
         ),
         DiffItem(
             data_object_hash="e299594dc1f79f8e69c6d79a42699822",
-            annotation_hash1="5c2be1dfbf9bc784a3e1bb42e1f2ccaf",
-            annotation_hash2="cc0b2928a6401478688b7a382290c86a",
+            annotation_hash1="46fa5381b9cd9433f03670ca9d7828dc",
+            annotation_hash2="3ee7b8de6da6d440c43f7afecaf590ef",
             diff_type=DiffType.MODIFICATION,
             data_object_path=os.fspath(
                 data_dir / "fashion-mnist/updates/diff_inference/00002.png",

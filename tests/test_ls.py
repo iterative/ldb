@@ -26,13 +26,13 @@ UPDATES_DIR_LISTINGS = [
     DatasetListing(
         data_object_hash="399146164375493f916025b04d00709c",
         data_object_path=path.join(UPDATES_DIR, "no_inference", "00023.png"),
-        annotation_hash="818e4e07715f01efd2b8b823163b910d",
+        annotation_hash="97dde24d0e61ac83f051cd748e16f5dc",
         annotation_version=1,
     ),
     DatasetListing(
         data_object_hash="47149106168f7d88fcea9e168608f129",
         data_object_path=path.join(UPDATES_DIR, "same_inference", "00029.png"),
-        annotation_hash="83c839bd3ca50c68cd17af5395d879d6",
+        annotation_hash="062133135568b9e077d15703593fb0e6",
         annotation_version=1,
     ),
     DatasetListing(
@@ -44,19 +44,19 @@ UPDATES_DIR_LISTINGS = [
     DatasetListing(
         data_object_hash="66e0373a2a989870fbc2c7791d8e6490",
         data_object_path=path.join(UPDATES_DIR, "no_inference", "00021.png"),
-        annotation_hash="ea37760e357f44bf15d525022a5a87db",
+        annotation_hash="ef8b9794e2e24d461477fc6b847e8540",
         annotation_version=1,
     ),
     DatasetListing(
         data_object_hash="a2430513e897d5abcf62a55b8df81355",
         data_object_path=path.join(UPDATES_DIR, "diff_inference", "00015.png"),
-        annotation_hash="89723aed8ac59ede5e9884956f8fa90a",
+        annotation_hash="8d68100832b01b8b8470a14b467d2f63",
         annotation_version=1,
     ),
     DatasetListing(
         data_object_hash="b5fba326c8247d9e62aa17a109146c02",
         data_object_path=path.join(UPDATES_DIR, "same_inference", "00040.png"),
-        annotation_hash="131ce3a7527d7d2cbc843092bd7f1bd0",
+        annotation_hash="5a86b5dbd8161f6fb6ec7c3b6a75ec5c",
         annotation_version=1,
     ),
     DatasetListing(
@@ -68,7 +68,7 @@ UPDATES_DIR_LISTINGS = [
     DatasetListing(
         data_object_hash="e299594dc1f79f8e69c6d79a42699822",
         data_object_path=path.join(UPDATES_DIR, "diff_inference", "00002.png"),
-        annotation_hash="cc0b2928a6401478688b7a382290c86a",
+        annotation_hash="3ee7b8de6da6d440c43f7afecaf590ef",
         annotation_version=1,
     ),
 ]
@@ -118,7 +118,7 @@ def test_ls_storage_locations(ldb_instance, workspace_path, data_dir):
                 "no_inference",
                 "00023.png",
             ),
-            annotation_hash="818e4e07715f01efd2b8b823163b910d",
+            annotation_hash="97dde24d0e61ac83f051cd748e16f5dc",
             annotation_version=1,
         ),
         DatasetListing(
@@ -138,7 +138,7 @@ def test_ls_storage_locations(ldb_instance, workspace_path, data_dir):
                 "no_inference",
                 "00021.png",
             ),
-            annotation_hash="ea37760e357f44bf15d525022a5a87db",
+            annotation_hash="ef8b9794e2e24d461477fc6b847e8540",
             annotation_version=1,
         ),
         DatasetListing(
@@ -148,7 +148,7 @@ def test_ls_storage_locations(ldb_instance, workspace_path, data_dir):
                 "diff_inference",
                 "00015.png",
             ),
-            annotation_hash="89723aed8ac59ede5e9884956f8fa90a",
+            annotation_hash="8d68100832b01b8b8470a14b467d2f63",
             annotation_version=1,
         ),
         DatasetListing(
@@ -168,7 +168,7 @@ def test_ls_storage_locations(ldb_instance, workspace_path, data_dir):
                 "diff_inference",
                 "00002.png",
             ),
-            annotation_hash="cc0b2928a6401478688b7a382290c86a",
+            annotation_hash="3ee7b8de6da6d440c43f7afecaf590ef",
             annotation_version=1,
         ),
     ]
@@ -215,7 +215,7 @@ def test_ls_data_objects(ldb_instance, workspace_path, index_original):
                 "test",
                 "00025.png",
             ),
-            annotation_hash="818e4e07715f01efd2b8b823163b910d",
+            annotation_hash="97dde24d0e61ac83f051cd748e16f5dc",
             annotation_version=1,
         ),
         DatasetListing(
@@ -226,7 +226,7 @@ def test_ls_data_objects(ldb_instance, workspace_path, index_original):
                 "test",
                 "00047.png",
             ),
-            annotation_hash="a971780236ad55f28aa6248467f6e27f",
+            annotation_hash="268daa854dde9f160c2b2ffe1d2ed74b",
             annotation_version=1,
         ),
     ]
@@ -274,7 +274,7 @@ def test_ls_datasets(ldb_instance, ds_a, ds_b):
                 "train",
                 "00007.png",
             ),
-            annotation_hash="a971780236ad55f28aa6248467f6e27f",
+            annotation_hash="268daa854dde9f160c2b2ffe1d2ed74b",
             annotation_version=1,
         ),
         DatasetListing(
@@ -285,7 +285,7 @@ def test_ls_datasets(ldb_instance, ds_a, ds_b):
                 "test",
                 "00025.png",
             ),
-            annotation_hash="818e4e07715f01efd2b8b823163b910d",
+            annotation_hash="97dde24d0e61ac83f051cd748e16f5dc",
             annotation_version=1,
         ),
         DatasetListing(
@@ -306,10 +306,11 @@ def test_ls_datasets(ldb_instance, ds_a, ds_b):
                 "test",
                 "00047.png",
             ),
-            annotation_hash="a971780236ad55f28aa6248467f6e27f",
+            annotation_hash="268daa854dde9f160c2b2ffe1d2ed74b",
             annotation_version=1,
         ),
     ]
+
     assert listings == expected
 
 
@@ -348,7 +349,7 @@ def test_ls_root_dataset_query(ldb_instance, data_dir):
                 "same_inference",
                 "00029.png",
             ),
-            annotation_hash="83c839bd3ca50c68cd17af5395d879d6",
+            annotation_hash="062133135568b9e077d15703593fb0e6",
             annotation_version=1,
         ),
         DatasetListing(
@@ -368,7 +369,7 @@ def test_ls_root_dataset_query(ldb_instance, data_dir):
                 "no_inference",
                 "00021.png",
             ),
-            annotation_hash="ea37760e357f44bf15d525022a5a87db",
+            annotation_hash="ef8b9794e2e24d461477fc6b847e8540",
             annotation_version=1,
         ),
         DatasetListing(
@@ -378,7 +379,7 @@ def test_ls_root_dataset_query(ldb_instance, data_dir):
                 "same_inference",
                 "00040.png",
             ),
-            annotation_hash="131ce3a7527d7d2cbc843092bd7f1bd0",
+            annotation_hash="5a86b5dbd8161f6fb6ec7c3b6a75ec5c",
             annotation_version=1,
         ),
         DatasetListing(
