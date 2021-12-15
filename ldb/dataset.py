@@ -9,7 +9,6 @@ from typing import (
     Any,
     DefaultDict,
     Dict,
-    Generator,
     Iterable,
     Iterator,
     List,
@@ -141,7 +140,7 @@ def get_collection_dir_keys(
 def get_collection_dir_items(
     collection_dir: Path,
     is_workspace: bool = True,
-) -> Generator[Tuple[str, Optional[str]], None, None]:
+) -> Iterator[Tuple[str, Optional[str]]]:
     annotation_hash_func = (
         get_workspace_collection_annotation_hash
         if is_workspace
