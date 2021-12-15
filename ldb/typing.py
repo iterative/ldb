@@ -1,4 +1,13 @@
-from typing import Any, Dict, List, Union
+from typing import (
+    Any,
+    Dict,
+    List,
+    Mapping,
+    MutableMapping,
+    Sequence,
+    Tuple,
+    Union,
+)
 
 from typing_extensions import Protocol
 
@@ -16,3 +25,9 @@ class JSONFunc(Protocol):
 class JSONInstanceFunc(Protocol):
     def __call__(self, self_: Any, *args: JSONDecoded) -> JSONDecoded:
         ...
+
+
+JSONArgTypes = Sequence[str]
+JSONFuncDef = Tuple[JSONFunc, JSONArgTypes]
+JSONFuncMapping = Mapping[str, JSONFuncDef]
+JSONFuncMutableMapping = MutableMapping[str, JSONFuncDef]
