@@ -21,9 +21,10 @@ def status_command(options: Namespace) -> None:
         ws_status.dataset_name,
         ws_status.dataset_version,
     )
+    workspace_path = Path(".")
     prefix = ""
     if not dataset:
-        prefix = f"Workspace directory: {os.fspath(dataset)!r}\n\n"
+        prefix = f"Workspace directory: {os.fspath(workspace_path)!r}\n\n"
     print(
         f"{prefix}"
         f"{ds_identifier}\n"
@@ -31,7 +32,6 @@ def status_command(options: Namespace) -> None:
         f"  Num annotations:  {ws_status.num_annotations:8d}",
     )
     if not dataset:
-        workspace_path = Path(".")
         workspace_ds = load_workspace_dataset(workspace_path)
         if workspace_ds.parent:
             summary_items = summarize_diff(
