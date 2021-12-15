@@ -131,10 +131,11 @@ def get_collection_from_dataset_identifier(
 
 
 def get_collection_dir_keys(
-    collection_dir: Path,
-) -> Generator[str, None, None]:
-    for path in sorted(collection_dir.glob("*/*")):
-        yield path.parent.name + path.name
+    collection_dir: Union[str, Path],
+) -> Iterator[str]:
+    for path in iter_collection_dir(collection_dir):
+        parent, name = os.path.split(path)
+        yield os.path.basename(parent) + name
 
 
 def get_collection_dir_items(

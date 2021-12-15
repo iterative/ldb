@@ -11,7 +11,7 @@ from ldb.env import Env
 from ldb.main import main
 from ldb.path import Filename
 from ldb.storage import add_storage, create_storage_location
-from ldb.utils import DATASET_PREFIX
+from ldb.utils import DATASET_PREFIX, ROOT
 
 from .utils import DATA_DIR, stage_new_workspace
 
@@ -106,7 +106,7 @@ def workspace_path(tmp_path: Path, ldb_instance: Path) -> Path:
 @pytest.fixture
 def index_original(ldb_instance: Path, data_dir: Path) -> Path:
     dir_to_index = data_dir / "fashion-mnist/original"
-    main(["index", os.fspath(dir_to_index)])
+    main(["index", "-f", "bare", os.fspath(dir_to_index)])
     return dir_to_index
 
 
@@ -149,5 +149,6 @@ def ds_b(workspace_path: Path, index_original: Path) -> str:
 def staged_ds_fashion(workspace_path: Path) -> str:
     ds_identifier = f"{DATASET_PREFIX}fashion"
     main(["stage", ds_identifier])
-    main(["add", os.fspath(DATA_DIR / "fashion-mnist")])
+    main(["index", "-f", "bare", os.fspath(DATA_DIR / "fashion-mnist")])
+    main(["add", f"{DATASET_PREFIX}{ROOT}"])
     return ds_identifier
