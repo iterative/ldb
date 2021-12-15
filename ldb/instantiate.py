@@ -1,3 +1,4 @@
+import json
 import os
 import shutil
 import tempfile
@@ -41,7 +42,11 @@ def instantiate(
                 )
                 / "user"
             )
-            shutil.copy2(user_annotation_file_path, dest)
+            with open(user_annotation_file_path, encoding="utf-8") as f:
+                data = f.read()
+            data = json.dumps(json.loads(data), indent=2)
+            with open(dest, "x", encoding="utf-8") as f:
+                f.write(data)
             num_annotations += 1
 
     for data_object_hash in collection_obj:
