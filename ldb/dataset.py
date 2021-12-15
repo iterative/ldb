@@ -215,6 +215,17 @@ def get_dataset(ldb_dir: Path, dataset_name: str) -> Dataset:
         ) from exc
 
 
+def iter_dataset_dir(
+    ldb_dir: Union[str, Path],
+) -> Iterator[os.DirEntry]:  # type: ignore[type-arg]
+    yield from os.scandir(os.path.join(ldb_dir, InstanceDir.DATASETS))
+
+
+def iter_datasets(ldb_dir: Union[str, Path]) -> Iterator[Dataset]:
+    for entry in iter_dataset_dir(ldb_dir):
+        yield Dataset.parse(load_data_file(Path(entry.path)))
+
+
 def get_dataset_version_hash(
     dataset: Dataset,
     dataset_version: Optional[int] = None,
