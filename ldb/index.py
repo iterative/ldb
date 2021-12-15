@@ -2,7 +2,7 @@ import getpass
 import json
 import os
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 from datetime import date
 from pathlib import Path
 from typing import (
@@ -52,6 +52,14 @@ class IndexingResult:
     num_new_annotations: int
     data_object_hashes: List[str]
 
+    def __add__(self, other: "IndexingResult") -> "IndexingResult":
+        return self.__class__(
+            **{
+                f.name: getattr(self, f.name) + getattr(other, f.name)
+                for f in fields(self)
+            },
+        )
+
     def summary(self) -> str:
         return (
             "Finished indexing:\n"
@@ -96,7 +104,7 @@ def index(
         ephemeral_hashes,
         ephemeral_files,
     )
-    files = cloud_files + local_storage_files + indexed_ephemeral_files
+    files = cloud_files + local_storage_files
     if ephemeral_files:
         read_add_location = next(
             (loc for loc in storage_locations if loc.read_and_add),
@@ -115,13 +123,24 @@ def index(
             read_add_location,
         )
         files.extend(added_storage_files)
-    return index_files(
+    indexing_result = index_files(
         ldb_dir,
         files,
         annotation_files_by_path,
         ephemeral_hashes,
+        is_indexed_ephemeral=False,
         strict_format=strict_format,
     )
+    if indexed_ephemeral_files:
+        indexing_result += index_files(
+            ldb_dir,
+            indexed_ephemeral_files,
+            annotation_files_by_path,
+            ephemeral_hashes,
+            is_indexed_ephemeral=True,
+            strict_format=strict_format,
+        )
+    return indexing_result
 
 
 def copy_to_read_add_storage(
@@ -197,6 +216,7 @@ def index_files(
     data_object_files: List[OpenFile],
     annotation_files_by_path: Dict[str, OpenFile],
     hashes: Mapping[str, str],
+    is_indexed_ephemeral: bool = False,
     strict_format: bool = True,
 ) -> IndexingResult:
     data_object_hashes = []
@@ -224,13 +244,17 @@ def index_files(
         data_object_meta_file_path = data_object_dir / "meta"
 
         current_timestamp = format_datetime(current_time())
-        meta_contents = construct_data_object_meta(
-            data_object_file,
-            load_data_file(data_object_meta_file_path)
-            if data_object_meta_file_path.exists()
-            else {},
-            current_timestamp,
-        )
+        if is_indexed_ephemeral:
+            meta_contents = load_data_file(data_object_meta_file_path)
+            meta_contents["last_indexed"] = current_timestamp
+        else:
+            meta_contents = construct_data_object_meta(
+                data_object_file,
+                load_data_file(data_object_meta_file_path)
+                if data_object_meta_file_path.exists()
+                else {},
+                current_timestamp,
+            )
         to_write = [
             (
                 data_object_meta_file_path,
