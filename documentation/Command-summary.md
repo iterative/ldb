@@ -487,7 +487,7 @@ ldb completion -s bash | sudo tee /usr/share/bash-completion/completions/ldb
 ```
 And adding zsh completion might be:
 ```
-dvc completion -s zsh | sudo tee /usr/local/share/zsh/site-functions/_dvc
+ldb completion -s zsh | sudo tee /usr/local/share/zsh/site-functions/_ldb
 ```
 
 The exact location of each shell's completion directory varies from system to system.
