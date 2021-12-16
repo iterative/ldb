@@ -249,6 +249,7 @@ def index_files(
                 result.append(obj_result)
     except Exception:
         print(result.summary(finished=False))
+        print()
         raise
     return result
 
