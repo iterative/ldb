@@ -15,7 +15,7 @@ def ls_command(options: Namespace) -> None:
         options.annotation_query,
         options.file_query,
     )
-    if options.short:
+    if options.summary:
         print(len(ds_listings))
     else:
         num_items = print_dataset_listings(
@@ -36,10 +36,10 @@ def add_parser(
     )
     parser.add_argument(
         "-s",
-        "--short",
+        "--summary",
         action="store_true",
         default=False,
-        help="Show a short summary",
+        help="Show the number of objects instead of listing them out",
     )
     add_data_object_arguments(parser)
     parser.set_defaults(func=ls_command)
