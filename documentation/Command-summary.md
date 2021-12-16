@@ -381,7 +381,10 @@ More query examples are given [here](LDB-queries.md)
 
 ### LDB-provided Custom Query Functions
 
-LDB provides a number of custom JMESPath functions.
+LDB provides a number of custom JMESPath functions. These are specified below with a signature in the format used by the [JMESPath spec documentation](https://jmespath.org/specification.html#built-in-functions):
+```
+return_type function_name(type $argname)
+```
 
 Regex functions:
 
@@ -401,6 +404,8 @@ Returns a string containing the matched group if `$input_str` matches `$pattern`
 
 Math functions:
 Each of the following takes two arguments, which may be either a one-dimension array of numbers (vector) or a single number and applies a binary operator. If both arguments are an array, then the operation is applied element-wise. If at least one argument is an array, then an array is returned.
+
+**add**, **sub**, **mul**, **div**
 ```
 array|number add(array|number $x1, array|number $x2)
 array|number sub(array|number $x1, array|number $x2)
