@@ -28,11 +28,33 @@ def instantiate(
     tmp_dir_base.mkdir(exist_ok=True)
     tmp_dir = Path(tempfile.mkdtemp(dir=tmp_dir_base))
 
+    prefixes = {}
+    for data_object_hash in collection_obj:
+        data_object_dir = get_hash_path(
+            ldb_dir / InstanceDir.DATA_OBJECT_INFO,
+            data_object_hash,
+        )
+        data_object_meta = load_data_file(data_object_dir / "meta")
+
+        path = data_object_meta["fs"]["path"]
+        prefix = path.rsplit("/", 1)[-1].rsplit("\\", 1)[-1]
+        prefix, ext = os.path.splitext(prefix)
+        prefix = prefix.replace(".", "-") + "-"
+        prefixes[data_object_hash] = prefix
+        # TODO: Once index function checks all extension levels, use
+        # get_fsspec_path_suffix to get entire extension
+        dest = tmp_dir / (prefix + data_object_hash + ext.lower())
+
+        fs = fsspec.filesystem(data_object_meta["fs"]["protocol"])
+        fs.get_file(path, dest)
+
     # annotations are small and stored in ldb; copy them first
     num_annotations = 0
     for data_object_hash, annotation_hash in collection_obj.items():
         if annotation_hash:
-            dest = tmp_dir / (data_object_hash + ".json")
+            dest = tmp_dir / (
+                prefixes.get(data_object_hash, "") + data_object_hash + ".json"
+            )
             user_annotation_file_path = (
                 get_hash_path(
                     ldb_dir / InstanceDir.ANNOTATIONS,
@@ -46,21 +68,6 @@ def instantiate(
             with open(dest, "x", encoding="utf-8") as f:
                 f.write(data)
             num_annotations += 1
-
-    for data_object_hash in collection_obj:
-        data_object_dir = get_hash_path(
-            ldb_dir / InstanceDir.DATA_OBJECT_INFO,
-            data_object_hash,
-        )
-        data_object_meta = load_data_file(data_object_dir / "meta")
-
-        path = data_object_meta["fs"]["path"]
-        # TODO: Once index function checks all extension levels, use
-        # get_fsspec_path_suffix to get entire extension
-        dest = tmp_dir / (data_object_hash + os.path.splitext(path)[1])
-
-        fs = fsspec.filesystem(data_object_meta["fs"]["protocol"])
-        fs.get_file(path, dest)
 
     # check again to make sure nothing was added while writing to the
     # temporary location
