@@ -32,3 +32,7 @@ class StorageConfigurationError(LDBException):
 
 class NotAStorageLocationError(LDBException):
     pass
+
+
+class IndexingException(LDBException):
+    pass

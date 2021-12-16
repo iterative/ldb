@@ -2,8 +2,9 @@ import getpass
 import json
 import os
 import re
-from dataclasses import dataclass, fields
+from dataclasses import dataclass, field
 from datetime import date
+from itertools import chain, repeat
 from pathlib import Path
 from typing import (
     Any,
@@ -11,6 +12,7 @@ from typing import (
     Iterable,
     List,
     Mapping,
+    NamedTuple,
     Optional,
     Sequence,
     Set,
@@ -23,7 +25,11 @@ from fsspec.core import OpenFile
 from fsspec.implementations.local import make_path_posix
 
 from ldb.dataset import get_collection_dir_keys
-from ldb.exceptions import LDBException, NotAStorageLocationError
+from ldb.exceptions import (
+    IndexingException,
+    LDBException,
+    NotAStorageLocationError,
+)
 from ldb.path import InstanceDir
 from ldb.storage import StorageLocation, get_storage_locations
 from ldb.utils import (
@@ -45,25 +51,35 @@ from ldb.utils import (
 AnnotationMeta = Dict[str, Union[str, int, None]]
 
 
+class IndexedObjectResult(NamedTuple):
+    found_annotation: bool
+    new_data_object: bool
+    new_annotation: bool
+    data_object_hash: str
+
+
 @dataclass
 class IndexingResult:
-    num_found_data_objects: int
-    num_found_annotations: int
-    num_new_data_objects: int
-    num_new_annotations: int
-    data_object_hashes: List[str]
+    num_found_data_objects: int = 0
+    num_found_annotations: int = 0
+    num_new_data_objects: int = 0
+    num_new_annotations: int = 0
+    data_object_hashes: List[str] = field(default_factory=list)
 
-    def __add__(self, other: "IndexingResult") -> "IndexingResult":
-        return self.__class__(
-            **{
-                f.name: getattr(self, f.name) + getattr(other, f.name)
-                for f in fields(self)
-            },
-        )
+    def append(self, item: IndexedObjectResult) -> None:
+        self.num_found_data_objects += 1
+        self.num_found_annotations += item.found_annotation
+        self.num_new_data_objects += item.new_data_object
+        self.num_new_annotations += item.new_annotation
+        self.data_object_hashes.append(item.data_object_hash)
 
-    def summary(self) -> str:
+    def summary(self, finished: bool = True) -> str:
+        if finished:
+            heading = "Finished indexing"
+        else:
+            heading = "Unable to finish indexing. Partial indexing results"
         return (
-            "Finished indexing:\n"
+            f"\n{heading}:\n"
             f"  Found data objects: {self.num_found_data_objects:9d}\n"
             f"  Found annotations:  {self.num_found_annotations:9d}\n"
             f"  New data objects:   {self.num_new_data_objects:9d}\n"
@@ -124,24 +140,19 @@ def index(
             read_add_location,
         )
         files.extend(added_storage_files)
-    indexing_result = index_files(
+    files.extend(indexed_ephemeral_files)
+    indexed_ephemeral_bools = chain(
+        repeat(False, len(files) - len(indexed_ephemeral_files)),
+        repeat(True),
+    )
+    return index_files(
         ldb_dir,
         files,
+        indexed_ephemeral_bools,
         annotation_files_by_path,
         ephemeral_hashes,
-        is_indexed_ephemeral=False,
         strict_format=strict_format,
     )
-    if indexed_ephemeral_files:
-        indexing_result += index_files(
-            ldb_dir,
-            indexed_ephemeral_files,
-            annotation_files_by_path,
-            ephemeral_hashes,
-            is_indexed_ephemeral=True,
-            strict_format=strict_format,
-        )
-    return indexing_result
 
 
 def copy_to_read_add_storage(
@@ -215,115 +226,136 @@ def copy_to_read_add_storage(
 def index_files(
     ldb_dir: Path,
     data_object_files: List[OpenFile],
+    indexed_ephemeral_bools: Iterable[bool],
     annotation_files_by_path: Dict[str, OpenFile],
     hashes: Mapping[str, str],
-    is_indexed_ephemeral: bool = False,
     strict_format: bool = True,
 ) -> IndexingResult:
-    data_object_hashes = []
-    num_annotations_indexed = 0
-    num_new_data_objects = 0
-    num_new_annotations = 0
-    for data_object_file in data_object_files:
-        annotation_file = annotation_files_by_path.get(
-            data_object_path_to_annotation_path(data_object_file.path),
-        )
-        if annotation_file is None and strict_format:
-            continue
-
-        hash_str = hashes.get(data_object_file.path)
-        if hash_str is None:
-            hash_str = hash_file(data_object_file)
-
-        data_object_hashes.append(hash_str)
-        data_object_dir = get_hash_path(
-            ldb_dir / InstanceDir.DATA_OBJECT_INFO,
-            hash_str,
-        )
-        if not data_object_dir.is_dir():
-            num_new_data_objects += 1
-        data_object_meta_file_path = data_object_dir / "meta"
-
-        current_timestamp = format_datetime(current_time())
-        if is_indexed_ephemeral:
-            meta_contents = load_data_file(data_object_meta_file_path)
-            meta_contents["last_indexed"] = current_timestamp
-        else:
-            meta_contents = construct_data_object_meta(
+    result = IndexingResult()
+    try:
+        for data_object_file, is_indexed_ephemeral in zip(
+            data_object_files,
+            indexed_ephemeral_bools,
+        ):
+            obj_result = index_single_object(
+                ldb_dir,
                 data_object_file,
-                load_data_file(data_object_meta_file_path)
-                if data_object_meta_file_path.exists()
-                else {},
-                current_timestamp,
+                is_indexed_ephemeral,
+                annotation_files_by_path,
+                hashes,
+                strict_format=strict_format,
             )
-        to_write = [
+            if obj_result is not None:
+                result.append(obj_result)
+    except Exception:
+        print(result.summary(finished=False))
+        raise
+    return result
+
+
+def index_single_object(
+    ldb_dir: Path,
+    data_object_file: OpenFile,
+    is_indexed_ephemeral: bool,
+    annotation_files_by_path: Dict[str, OpenFile],
+    hashes: Mapping[str, str],
+    strict_format: bool = True,
+) -> Optional[IndexedObjectResult]:
+    annotation_file = annotation_files_by_path.get(
+        data_object_path_to_annotation_path(data_object_file.path),
+    )
+    if annotation_file is None and strict_format:
+        return None
+
+    hash_str = hashes.get(data_object_file.path)
+    if hash_str is None:
+        hash_str = hash_file(data_object_file)
+
+    data_object_dir = get_hash_path(
+        ldb_dir / InstanceDir.DATA_OBJECT_INFO,
+        hash_str,
+    )
+    new_data_object = not data_object_dir.is_dir()
+    data_object_meta_file_path = data_object_dir / "meta"
+
+    current_timestamp = format_datetime(current_time())
+    if is_indexed_ephemeral:
+        meta_contents = load_data_file(data_object_meta_file_path)
+        meta_contents["last_indexed"] = current_timestamp
+    else:
+        meta_contents = construct_data_object_meta(
+            data_object_file,
+            load_data_file(data_object_meta_file_path)
+            if data_object_meta_file_path.exists()
+            else {},
+            current_timestamp,
+        )
+    to_write = [
+        (
+            data_object_meta_file_path,
+            json_dumps(meta_contents).encode(),
+            True,
+        ),
+    ]
+
+    found_annotation = annotation_file is not None
+    new_annotation = False
+    if found_annotation:
+        found_annotation = True
+        ldb_content, user_content = get_annotation_content(annotation_file)
+        ldb_content_bytes = json_dumps(ldb_content).encode()
+        user_content_bytes = json_dumps(user_content).encode()
+        annotation_hash = hash_data(ldb_content_bytes + user_content_bytes)
+
+        annotation_meta_dir_path = data_object_dir / "annotations"
+        annotation_meta_file_path = annotation_meta_dir_path / annotation_hash
+        new_annotation = not annotation_meta_file_path.is_file()
+
+        try:
+            version = len(list(annotation_meta_dir_path.iterdir())) + 1
+        except FileNotFoundError:
+            version = 1
+        annotation_meta = construct_annotation_meta(
+            annotation_file,
             (
-                data_object_meta_file_path,
-                json_dumps(meta_contents).encode(),
-                True,
+                load_data_file(annotation_meta_file_path)
+                if annotation_meta_file_path.exists()
+                else {}
             ),
-        ]
-
-        if annotation_file is not None:
-            ldb_content, user_content = get_annotation_content(annotation_file)
-            ldb_content_bytes = json_dumps(ldb_content).encode()
-            user_content_bytes = json_dumps(user_content).encode()
-            annotation_hash = hash_data(ldb_content_bytes + user_content_bytes)
-
-            annotation_meta_dir_path = data_object_dir / "annotations"
-            annotation_meta_file_path = (
-                annotation_meta_dir_path / annotation_hash
+            current_timestamp,
+            version,
+        )
+        annotation_meta_bytes = json_dumps(annotation_meta).encode()
+        annotation_dir = get_hash_path(
+            ldb_dir / InstanceDir.ANNOTATIONS,
+            annotation_hash,
+        )
+        to_write.append(
+            (annotation_meta_file_path, annotation_meta_bytes, True),
+        )
+        if not annotation_dir.is_dir():
+            to_write.append(
+                (annotation_dir / "ldb", ldb_content_bytes, False),
             )
-
-            try:
-                version = len(list(annotation_meta_dir_path.iterdir())) + 1
-            except FileNotFoundError:
-                version = 1
-            annotation_meta = construct_annotation_meta(
-                annotation_file,
+            to_write.append(
                 (
-                    load_data_file(annotation_meta_file_path)
-                    if annotation_meta_file_path.exists()
-                    else {}
+                    annotation_dir / "user",
+                    user_content_bytes,
+                    False,
                 ),
-                current_timestamp,
-                version,
             )
-            annotation_meta_bytes = json_dumps(annotation_meta).encode()
-            annotation_dir = get_hash_path(
-                ldb_dir / InstanceDir.ANNOTATIONS,
-                annotation_hash,
-            )
-            to_write.append(
-                (annotation_meta_file_path, annotation_meta_bytes, True),
-            )
-            if not annotation_meta_file_path.is_file():
-                num_new_annotations += 1
-            if not annotation_dir.is_dir():
-                to_write.append(
-                    (annotation_dir / "ldb", ldb_content_bytes, False),
-                )
-                to_write.append(
-                    (
-                        annotation_dir / "user",
-                        user_content_bytes,
-                        False,
-                    ),
-                )
-            to_write.append(
-                (data_object_dir / "current", annotation_hash.encode(), True),
-            )
-            num_annotations_indexed += 1
+        to_write.append(
+            (data_object_dir / "current", annotation_hash.encode(), True),
+        )
 
-        for file_path, data, overwrite_existing in to_write:
-            write_data_file(file_path, data, overwrite_existing)
+    for file_path, data, overwrite_existing in to_write:
+        write_data_file(file_path, data, overwrite_existing)
 
-    return IndexingResult(
-        num_found_data_objects=len(data_object_hashes),
-        num_found_annotations=num_annotations_indexed,
-        num_new_data_objects=num_new_data_objects,
-        num_new_annotations=num_new_annotations,
-        data_object_hashes=data_object_hashes,
+    return IndexedObjectResult(
+        found_annotation=found_annotation,
+        new_data_object=new_data_object,
+        new_annotation=new_annotation,
+        data_object_hash=hash_str,
     )
 
 
@@ -542,9 +574,15 @@ def construct_data_object_meta(
 def get_annotation_content(
     annotation_file: OpenFile,
 ) -> Tuple[Dict[str, None], Dict[str, int]]:
-    with annotation_file as open_annotation_file:
-        annotation_str = open_annotation_file.read()
-    original_content: Dict[str, int] = json.loads(annotation_str)
+    try:
+        with annotation_file as open_annotation_file:
+            annotation_str = open_annotation_file.read()
+        original_content: Dict[str, int] = json.loads(annotation_str)
+    except Exception as exc:
+        raise IndexingException(
+            f"Unable to parse JSON annotation: {annotation_file.path!r}\n"
+            f"{type(exc).__name__}: {exc}",
+        ) from exc
     ldb_content = {
         "user_version": None,
         "schema_version": None,
