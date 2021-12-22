@@ -304,6 +304,57 @@ class PairIndexingItem(IndexingItem):
         return json_dumps(self.annotation_content).encode()
 
 
+@dataclass
+class InferredIndexingItem(IndexingItem):
+    annotation_file: OpenFile
+
+    @cached_property
+    def annotation_file_contents(self) -> JSONObject:
+        return get_annotation_content(  # type: ignore[return-value]
+            self.annotation_file,
+        )
+
+    @cached_property
+    def data_object_hash(self) -> str:
+        return self.annotation_file_contents[  # type: ignore[no-any-return]
+            "ldb_meta"
+        ]["data_object_id"]
+
+    @cached_property
+    def data_object_meta(self) -> DataObjectMeta:
+        meta_contents: DataObjectMeta = load_data_file(
+            self.data_object_meta_file_path,
+        )
+        meta_contents["last_indexed"] = self.current_timestamp
+        return meta_contents
+
+    @cached_property
+    def annotation_meta(self) -> AnnotationMeta:
+        if self.annotation_meta_file_path.exists():
+            first_indexed_time = load_data_file(
+                self.annotation_meta_file_path,
+            )["first_indexed_time"]
+        else:
+            first_indexed_time = self.current_timestamp
+        return {
+            "version": self.annotation_version,
+            "mtime": self.current_timestamp,
+            "first_indexed_time": first_indexed_time,
+            "last_indexed_time": self.current_timestamp,
+        }
+
+    @cached_property
+    def annotation_ldb_content(self) -> JSONObject:
+        return {
+            "user_version": None,
+            "schema_version": None,
+        }
+
+    @cached_property
+    def annotation_content(self) -> JSONObject:  # type: ignore[override]
+        return self.annotation_file_contents["annotation"]  # type: ignore[no-any-return] # noqa: E501
+
+
 def copy_to_read_add_storage(
     data_object_files: Sequence[OpenFile],
     annotation_files_by_path: Dict[str, OpenFile],
