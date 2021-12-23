@@ -7,7 +7,7 @@ import shtab
 from ldb import config
 from ldb.config import ConfigType
 from ldb.core import get_ldb_instance
-from ldb.index import index
+from ldb.index import FORMATS, index
 
 
 def index_command(options: Namespace) -> None:
@@ -24,9 +24,14 @@ def index_command(options: Namespace) -> None:
             .get("core", {})
             .get("read_any_cloud_location", False)
         ),
-        strict_format=options.format == "strict",
+        fmt=options.format,
     )
     print(result.summary())
+
+
+def choice_str(choices: Iterable[str]) -> str:
+    choice_strings = ",".join(str(c) for c in choices)
+    return f"{{{choice_strings}}}"
 
 
 def add_parser(
@@ -41,9 +46,13 @@ def add_parser(
     parser.add_argument(
         "-f",
         "--format",
-        default="strict",
-        choices=["strict", "bare"],
-        help="Format of the given storage location",
+        default="auto",
+        metavar="<format>",
+        choices=FORMATS,
+        help=(
+            "Format of the given storage location. "
+            f"Options: {choice_str(FORMATS)}"
+        ),
     )
     parser.add_argument(  # type: ignore[attr-defined]
         "paths",
