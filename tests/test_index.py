@@ -262,3 +262,30 @@ def test_index_relative_path(ldb_instance, data_dir):
     assert non_data_object_meta == []
     assert non_annotation_meta == []
     assert non_annotation == []
+
+
+def test_index_annotation_only(ldb_instance, data_dir):
+    main(["index", "-f", "bare", os.fspath(data_dir / "data-object-only")])
+    ret = main(
+        ["index", "-f", "annot", os.fspath(data_dir / "annotation-only")],
+    )
+    (
+        data_object_meta_paths,
+        annotation_meta_paths,
+        annotation_paths,
+    ) = get_indexed_data_paths(ldb_instance)
+    non_data_object_meta = [
+        p for p in data_object_meta_paths if not is_data_object_meta(p)
+    ]
+    non_annotation_meta = [
+        p for p in annotation_meta_paths if not is_annotation_meta(p)
+    ]
+    non_annotation = [p for p in annotation_paths if not is_annotation(p)]
+
+    assert ret == 0
+    assert len(data_object_meta_paths) == 32
+    assert len(annotation_meta_paths) == 29
+    assert len(annotation_paths) == 16
+    assert non_data_object_meta == []
+    assert non_annotation_meta == []
+    assert non_annotation == []

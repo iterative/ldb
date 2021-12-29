@@ -2,6 +2,7 @@ import getpass
 import json
 import os
 import re
+from abc import ABC
 from dataclasses import dataclass, field
 from datetime import date
 from itertools import chain, repeat
@@ -217,7 +218,7 @@ def index_pairs(
 
 
 @dataclass
-class IndexingItem:
+class IndexingItem(ABC):
     ldb_dir: Path
     current_timestamp: str
 
@@ -262,10 +263,6 @@ class IndexingItem:
         raise NotImplementedError
 
     @cached_property
-    def annotation_meta(self) -> AnnotationMeta:
-        raise NotImplementedError
-
-    @cached_property
     def annotation_ldb_content(  # pylint: disable=no-self-use
         self,
     ) -> JSONObject:
@@ -295,33 +292,42 @@ class IndexingItem:
 
 
 @dataclass
-class PairIndexingItem(IndexingItem):
-    data_object_file: OpenFile
+class AnnotationFileIndexingItem(IndexingItem):
     annotation_file: OpenFile
-    is_indexed_ephemeral: bool
-    hashes: Mapping[str, str]
 
     @cached_property
-    def data_object_dir(self) -> Path:
-        return get_hash_path(
-            self.ldb_dir / InstanceDir.DATA_OBJECT_INFO,
-            self.data_object_hash,
+    def annotation_meta(self) -> AnnotationMeta:
+        fs_info = self.annotation_file.fs.info(self.annotation_file.path)
+        curr_mtime = fs_info.get("created")
+        prev_annotation = (
+            load_data_file(self.annotation_meta_file_path)
+            if self.annotation_meta_file_path.exists()
+            else {}
+        )
+        return construct_annotation_meta(
+            prev_annotation,
+            self.current_timestamp,
+            self.annotation_version,
+            curr_mtime,
         )
 
-    @cached_property
-    def data_object_meta_file_path(self) -> Path:
-        return self.data_object_dir / "meta"
+
+@dataclass
+class DataObjectFileIndexingItem(IndexingItem):
+    data_object_file: OpenFile
+    save_data_object_path_info: bool
+    data_object_hash_cache: Mapping[str, str]
 
     @cached_property
     def data_object_hash(self) -> str:
-        hash_str = self.hashes.get(self.data_object_file.path)
+        hash_str = self.data_object_hash_cache.get(self.data_object_file.path)
         if hash_str is None:
             hash_str = hash_file(self.data_object_file)
         return hash_str
 
     @cached_property
     def data_object_meta(self) -> DataObjectMeta:
-        if self.is_indexed_ephemeral:
+        if not self.save_data_object_path_info:
             meta_contents: DataObjectMeta = load_data_file(
                 self.data_object_meta_file_path,
             )
@@ -336,18 +342,19 @@ class PairIndexingItem(IndexingItem):
             )
         return meta_contents
 
+
+@dataclass
+class PairIndexingItem(AnnotationFileIndexingItem, DataObjectFileIndexingItem):
     @cached_property
-    def annotation_meta(self) -> AnnotationMeta:
-        return construct_annotation_meta(
-            self.annotation_file,
-            (
-                load_data_file(self.annotation_meta_file_path)
-                if self.annotation_meta_file_path.exists()
-                else {}
-            ),
-            self.current_timestamp,
-            self.annotation_version,
+    def data_object_dir(self) -> Path:
+        return get_hash_path(
+            self.ldb_dir / InstanceDir.DATA_OBJECT_INFO,
+            self.data_object_hash,
         )
+
+    @cached_property
+    def data_object_meta_file_path(self) -> Path:
+        return self.data_object_dir / "meta"
 
     @cached_property
     def annotation_content(self) -> JSONDecoded:
@@ -363,9 +370,7 @@ class PairIndexingItem(IndexingItem):
 
 
 @dataclass
-class AnnotationOnlyIndexingItem(IndexingItem):
-    annotation_file: OpenFile
-
+class AnnotationOnlyIndexingItem(AnnotationFileIndexingItem):
     @cached_property
     def annotation_file_contents(self) -> JSONObject:
         return get_annotation_content(  # type: ignore[return-value]
@@ -389,21 +394,6 @@ class AnnotationOnlyIndexingItem(IndexingItem):
         )
         meta_contents["last_indexed"] = self.current_timestamp
         return meta_contents
-
-    @cached_property
-    def annotation_meta(self) -> AnnotationMeta:
-        if self.annotation_meta_file_path.exists():
-            first_indexed_time = load_data_file(
-                self.annotation_meta_file_path,
-            )["first_indexed_time"]
-        else:
-            first_indexed_time = self.current_timestamp
-        return {
-            "version": self.annotation_version,
-            "mtime": self.current_timestamp,
-            "first_indexed_time": first_indexed_time,
-            "last_indexed_time": self.current_timestamp,
-        }
 
     @cached_property
     def annotation_ldb_content(self) -> JSONObject:
@@ -468,13 +458,13 @@ def index_single_annotation_only_file(
                 False,
             ),
         )
-        to_write.append(
-            (
-                item.data_object_dir / "current",
-                item.annotation_hash.encode(),
-                True,
-            ),
-        )
+    to_write.append(
+        (
+            item.data_object_dir / "current",
+            item.annotation_hash.encode(),
+            True,
+        ),
+    )
     for file_path, data, overwrite_existing in to_write:
         write_data_file(file_path, data, overwrite_existing)
     return IndexedObjectResult(
@@ -604,9 +594,9 @@ def index_single_object(
         ldb_dir,
         current_timestamp,
         data_object_file,
-        annotation_file,
-        is_indexed_ephemeral,
+        not is_indexed_ephemeral,
         hashes,
+        annotation_file,
     )
     new_data_object = not item.data_object_dir.is_dir()
     to_write = [
@@ -889,10 +879,10 @@ def get_annotation_content(
 
 
 def construct_annotation_meta(
-    annotation_file: OpenFile,
     prev_annotation_meta: AnnotationMeta,
     current_timestamp: str,
     version: int,
+    curr_mtime: Optional[float],
 ) -> AnnotationMeta:
     mtimes = []
     if prev_annotation_meta:
@@ -906,8 +896,6 @@ def construct_annotation_meta(
     else:
         first_indexed_time = current_timestamp
 
-    fs_info = annotation_file.fs.info(annotation_file.path)
-    curr_mtime = fs_info.get("created")
     if curr_mtime is not None:
         mtimes.append(timestamp_to_datetime(curr_mtime))
 
