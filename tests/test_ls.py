@@ -98,7 +98,7 @@ def test_ls_storage_locations(ldb_instance, workspace_path, data_dir):
     loc1 = data_dir / "fashion-mnist/updates/diff_inference"
     loc2 = data_dir / "fashion-mnist/updates/no_inference"
     loc_strings = [os.fspath(loc1), os.fspath(loc2)]
-    main(["index", "-f", "bare", *loc_strings])
+    main(["index", "-m", "bare", *loc_strings])
     listings = sorted_ls(ldb_instance, loc_strings)
     expected = [
         DatasetListing(
@@ -316,7 +316,7 @@ def test_ls_datasets(ldb_instance, ds_a, ds_b):
 
 def test_ls_root_dataset(ldb_instance, data_dir):
     main(
-        ["index", "-f", "bare", os.fspath(data_dir / "fashion-mnist/updates")],
+        ["index", "-m", "bare", os.fspath(data_dir / "fashion-mnist/updates")],
     )
     listings = sorted_ls(ldb_instance, [f"{DATASET_PREFIX}{ROOT}"])
     assert listings == UPDATES_DIR_LISTINGS
@@ -324,7 +324,7 @@ def test_ls_root_dataset(ldb_instance, data_dir):
 
 def test_ls_root_dataset_query(ldb_instance, data_dir):
     main(
-        ["index", "-f", "bare", os.fspath(data_dir / "fashion-mnist/updates")],
+        ["index", "-m", "bare", os.fspath(data_dir / "fashion-mnist/updates")],
     )
     listings = sorted_ls(
         ldb_instance,
@@ -398,7 +398,7 @@ def test_ls_root_dataset_query(ldb_instance, data_dir):
 
 def test_ls_current_workspace(workspace_path, data_dir, ldb_instance):
     main(
-        ["index", "-f", "bare", os.fspath(data_dir / "fashion-mnist/updates")],
+        ["index", "-m", "bare", os.fspath(data_dir / "fashion-mnist/updates")],
     )
     add_default_read_add_storage(ldb_instance)
     shutil.copytree(
@@ -417,7 +417,7 @@ def test_ls_another_workspace(
 ):
     other_workspace_path = tmp_path / "other-workspace"
     main(
-        ["index", "-f", "bare", os.fspath(data_dir / "fashion-mnist/updates")],
+        ["index", "-m", "bare", os.fspath(data_dir / "fashion-mnist/updates")],
     )
     stage_new_workspace(other_workspace_path)
     with chdir(other_workspace_path):
@@ -439,7 +439,7 @@ def test_ls_collection_with_workspace_dataset(
         data_dir / "fashion-mnist/updates",
     ]
     for dir_path in dirs_to_add:
-        main(["index", "-f", "bare", os.fspath(dir_path)])
+        main(["index", "-m", "bare", os.fspath(dir_path)])
     stage_new_workspace(workspace_path)
     with chdir(workspace_path):
         main(["add", f"{DATASET_PREFIX}{ROOT}"])

@@ -25,7 +25,7 @@ from .utils import (
 def test_add_storage_location(index_first, objects, annots, workspace_path):
     dir_to_add = os.fspath(DATA_DIR / "fashion-mnist/original")
     if index_first:
-        ret = main(["index", "-f", "bare", dir_to_add])
+        ret = main(["index", "-m", "bare", dir_to_add])
     ret = main(["add", dir_to_add])
     object_file_paths = get_staged_object_file_paths(workspace_path)
     assert ret == 0
@@ -88,7 +88,7 @@ def test_add_root_dataset(workspace_path, add_args, expected):
         DATA_DIR / "fashion-mnist/original",
         DATA_DIR / "fashion-mnist/updates",
     ):
-        main(["index", "-f", "bare", os.fspath(path_obj)])
+        main(["index", "-m", "bare", os.fspath(path_obj)])
     ret = main(["add", f"{DATASET_PREFIX}{ROOT}", *add_args])
     object_file_paths = get_staged_object_file_paths(workspace_path)
     assert ret == 0
@@ -133,7 +133,7 @@ def test_add_current_workspace(
         "./train",
     )
     if index_first:
-        main(["index", "-f", "bare", "."])
+        main(["index", "-m", "bare", "."])
     ret = main(["add", "."])
     object_file_paths = get_staged_object_file_paths(workspace_path)
     assert ret == 0
@@ -162,7 +162,7 @@ def test_add_another_workspace(
     stage_new_workspace(other_workspace_path)
     os.chdir(other_workspace_path)
     if index_first:
-        main(["index", "-f", "bare", dir_to_add])
+        main(["index", "-m", "bare", dir_to_add])
     main(["add", dir_to_add])
     os.chdir(workspace_path)
     ret = main(["add", os.fspath(other_workspace_path)])

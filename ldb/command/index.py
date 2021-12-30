@@ -5,8 +5,10 @@ from typing import Iterable
 import shtab
 
 from ldb import config
+from ldb.cli_utils import add_data_format_arguments
 from ldb.config import ConfigType
 from ldb.core import get_ldb_instance
+from ldb.data_formats import INDEX_FORMATS, Format
 from ldb.index import index
 
 
@@ -24,7 +26,7 @@ def index_command(options: Namespace) -> None:
             .get("core", {})
             .get("read_any_cloud_location", False)
         ),
-        strict_format=options.format == "strict",
+        fmt=options.format,
     )
     print(result.summary())
 
@@ -38,12 +40,10 @@ def add_parser(
         parents=parents,
         help="Index a storage location",
     )
-    parser.add_argument(
-        "-f",
-        "--format",
-        default="strict",
-        choices=["strict", "bare"],
-        help="Format of the given storage location",
+    add_data_format_arguments(
+        parser,
+        default=Format.AUTO,
+        formats=INDEX_FORMATS,
     )
     parser.add_argument(  # type: ignore[attr-defined]
         "paths",

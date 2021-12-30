@@ -2,6 +2,7 @@ import getpass
 import json
 import os
 import re
+from abc import ABC
 from dataclasses import dataclass, field
 from datetime import date
 from itertools import chain, repeat
@@ -23,15 +24,19 @@ from typing import (
 import fsspec
 from fsspec.core import OpenFile
 from fsspec.implementations.local import make_path_posix
+from funcy.objects import cached_property
 
+from ldb.data_formats import INDEX_FORMATS, Format
 from ldb.dataset import get_collection_dir_keys
 from ldb.exceptions import (
+    DataObjectNotFoundError,
     IndexingException,
     LDBException,
     NotAStorageLocationError,
 )
 from ldb.path import InstanceDir
 from ldb.storage import StorageLocation, get_storage_locations
+from ldb.typing import JSONDecoded, JSONObject
 from ldb.utils import (
     current_time,
     format_datetime,
@@ -49,9 +54,11 @@ from ldb.utils import (
 )
 
 AnnotationMeta = Dict[str, Union[str, int, None]]
+DataObjectMeta = Dict[str, Union[str, Dict[str, Union[str, int]]]]
 
 
 class IndexedObjectResult(NamedTuple):
+    found_data_object: bool
     found_annotation: bool
     new_data_object: bool
     new_annotation: bool
@@ -67,7 +74,7 @@ class IndexingResult:
     data_object_hashes: List[str] = field(default_factory=list)
 
     def append(self, item: IndexedObjectResult) -> None:
-        self.num_found_data_objects += 1
+        self.num_found_data_objects += item.found_data_object
         self.num_found_annotations += item.found_annotation
         self.num_new_data_objects += item.new_data_object
         self.num_new_annotations += item.new_annotation
@@ -87,12 +94,22 @@ class IndexingResult:
         )
 
 
+def autodetect_format(
+    files: Sequence[OpenFile],
+    annotation_files: Sequence[OpenFile],
+) -> str:
+    if annotation_files and not files:
+        return Format.ANNOT
+    return Format.STRICT
+
+
 def index(
     ldb_dir: Path,
     paths: Sequence[str],
     read_any_cloud_location: bool = False,
-    strict_format: bool = True,
+    fmt: str = Format.AUTO,
 ) -> IndexingResult:
+    fmt = INDEX_FORMATS[fmt]
     paths = [os.path.abspath(p) for p in paths]
     files = get_storage_files_for_paths(paths, default_format=True)
     if not files:
@@ -100,10 +117,33 @@ def index(
             "No files or directories found matching the given paths.",
         )
 
-    files, annotation_files_by_path = group_storage_files_by_type(
+    files, annotation_files = group_storage_files_by_type(
         files,
     )
+    if fmt == Format.AUTO:
+        fmt = autodetect_format(files, annotation_files)
+    if fmt in (Format.STRICT, Format.BARE):
+        return index_pairs(
+            ldb_dir,
+            files,
+            annotation_files,
+            read_any_cloud_location,
+            fmt,
+        )
+    if fmt == Format.ANNOT:
+        return index_annotation_only(ldb_dir, annotation_files)
+    if fmt == Format.INFER:
+        raise NotImplementedError
+    raise ValueError(f"Not a valid indexing format: {fmt}")
 
+
+def index_pairs(
+    ldb_dir: Path,
+    files: List[OpenFile],
+    annotation_files: List[OpenFile],
+    read_any_cloud_location: bool,
+    fmt: str,
+) -> IndexingResult:
     storage_locations = get_storage_locations(ldb_dir)
     local_files, cloud_files = separate_local_and_cloud_files(files)
     if not read_any_cloud_location:
@@ -122,6 +162,7 @@ def index(
         ephemeral_files,
     )
     files = cloud_files + local_storage_files
+    annotation_files_by_path = {f.path: f for f in annotation_files}
     if ephemeral_files:
         read_add_location = next(
             (loc for loc in storage_locations if loc.read_and_add),
@@ -151,7 +192,251 @@ def index(
         indexed_ephemeral_bools,
         annotation_files_by_path,
         ephemeral_hashes,
-        strict_format=strict_format,
+        strict_format=fmt == Format.STRICT,
+    )
+
+
+@dataclass
+class IndexingItem(ABC):
+    ldb_dir: Path
+    current_timestamp: str
+
+    @cached_property
+    def data_object_dir(self) -> Path:
+        return get_hash_path(
+            self.ldb_dir / InstanceDir.DATA_OBJECT_INFO,
+            self.data_object_hash,
+        )
+
+    @cached_property
+    def data_object_meta_file_path(self) -> Path:
+        return self.data_object_dir / "meta"
+
+    @cached_property
+    def annotation_meta_dir_path(self) -> Path:
+        return self.data_object_dir / "annotations"
+
+    @cached_property
+    def annotation_meta_file_path(self) -> Path:
+        return self.annotation_meta_dir_path / self.annotation_hash
+
+    @cached_property
+    def annotation_dir(self) -> Path:
+        return get_hash_path(
+            self.ldb_dir / InstanceDir.ANNOTATIONS,
+            self.annotation_hash,
+        )
+
+    @cached_property
+    def data_object_hash(self) -> str:
+        raise NotImplementedError
+
+    @cached_property
+    def annotation_hash(self) -> str:
+        return hash_data(
+            self.annotation_ldb_content_bytes + self.annotation_content_bytes,
+        )
+
+    @cached_property
+    def data_object_meta(self) -> DataObjectMeta:
+        raise NotImplementedError
+
+    @cached_property
+    def annotation_ldb_content(  # pylint: disable=no-self-use
+        self,
+    ) -> JSONObject:
+        return {
+            "user_version": None,
+            "schema_version": None,
+        }
+
+    @cached_property
+    def annotation_content(self) -> JSONDecoded:
+        raise NotImplementedError
+
+    @cached_property
+    def annotation_ldb_content_bytes(self) -> bytes:
+        return json_dumps(self.annotation_ldb_content).encode()
+
+    @cached_property
+    def annotation_content_bytes(self) -> bytes:
+        return json_dumps(self.annotation_content).encode()
+
+    @cached_property
+    def annotation_version(self) -> int:
+        try:
+            return len(list(self.annotation_meta_dir_path.iterdir())) + 1
+        except FileNotFoundError:
+            return 1
+
+
+@dataclass
+class AnnotationFileIndexingItem(IndexingItem):
+    annotation_file: OpenFile
+
+    @cached_property
+    def annotation_meta(self) -> AnnotationMeta:
+        fs_info = self.annotation_file.fs.info(self.annotation_file.path)
+        curr_mtime = fs_info.get("created")
+        prev_annotation = (
+            load_data_file(self.annotation_meta_file_path)
+            if self.annotation_meta_file_path.exists()
+            else {}
+        )
+        return construct_annotation_meta(
+            prev_annotation,
+            self.current_timestamp,
+            self.annotation_version,
+            curr_mtime,
+        )
+
+    @cached_property
+    def annotation_content(self) -> JSONDecoded:
+        return get_annotation_content(self.annotation_file)
+
+
+@dataclass
+class DataObjectFileIndexingItem(IndexingItem):
+    data_object_file: OpenFile
+    save_data_object_path_info: bool
+    data_object_hash_cache: Mapping[str, str]
+
+    @cached_property
+    def data_object_hash(self) -> str:
+        hash_str = self.data_object_hash_cache.get(self.data_object_file.path)
+        if hash_str is None:
+            hash_str = hash_file(self.data_object_file)
+        return hash_str
+
+    @cached_property
+    def data_object_meta(self) -> DataObjectMeta:
+        if not self.save_data_object_path_info:
+            meta_contents: DataObjectMeta = load_data_file(
+                self.data_object_meta_file_path,
+            )
+            meta_contents["last_indexed"] = self.current_timestamp
+        else:
+            meta_contents = construct_data_object_meta(
+                self.data_object_file,
+                load_data_file(self.data_object_meta_file_path)
+                if self.data_object_meta_file_path.exists()
+                else {},
+                self.current_timestamp,
+            )
+        return meta_contents
+
+
+@dataclass
+class PairIndexingItem(AnnotationFileIndexingItem, DataObjectFileIndexingItem):
+    @cached_property
+    def data_object_dir(self) -> Path:
+        return get_hash_path(
+            self.ldb_dir / InstanceDir.DATA_OBJECT_INFO,
+            self.data_object_hash,
+        )
+
+    @cached_property
+    def data_object_meta_file_path(self) -> Path:
+        return self.data_object_dir / "meta"
+
+
+@dataclass
+class AnnotationOnlyIndexingItem(AnnotationFileIndexingItem):
+    @cached_property
+    def annotation_file_contents(self) -> JSONObject:
+        return get_annotation_content(  # type: ignore[return-value]
+            self.annotation_file,
+        )
+
+    @cached_property
+    def data_object_hash(self) -> str:
+        try:
+            return self.annotation_file_contents["ldb_meta"]["data_object_id"]  # type: ignore[no-any-return] # noqa: E501
+        except KeyError as exc:
+            raise IndexingException(
+                "Missing ldb_meta.data_object_id key for annotation-only "
+                f"format: {self.annotation_file.path}",
+            ) from exc
+
+    @cached_property
+    def data_object_meta(self) -> DataObjectMeta:
+        meta_contents: DataObjectMeta = load_data_file(
+            self.data_object_meta_file_path,
+        )
+        meta_contents["last_indexed"] = self.current_timestamp
+        return meta_contents
+
+    @cached_property
+    def annotation_content(self) -> JSONObject:  # type: ignore[override]
+        return self.annotation_file_contents["annotation"]  # type: ignore[no-any-return] # noqa: E501
+
+
+def index_annotation_only(
+    ldb_dir: Path,
+    annotation_files: Iterable[OpenFile],
+) -> IndexingResult:
+    result = IndexingResult()
+    try:
+        for file in annotation_files:
+            result.append(index_single_annotation_only_file(ldb_dir, file))
+    except Exception:
+        print(result.summary(finished=False))
+        print()
+        raise
+    return result
+
+
+def index_single_annotation_only_file(
+    ldb_dir: Path,
+    annotation_file: OpenFile,
+) -> IndexedObjectResult:
+    current_timestamp = format_datetime(current_time())
+    item = AnnotationOnlyIndexingItem(
+        ldb_dir,
+        current_timestamp,
+        annotation_file,
+    )
+    if not item.data_object_dir.exists():
+        raise DataObjectNotFoundError(
+            f"Data object not found: 0x{item.data_object_hash} "
+            f"(annotation_file_path={annotation_file.path!r})",
+        )
+    to_write = []
+    new_annotation = not item.annotation_meta_file_path.is_file()
+    annotation_meta_bytes = json_dumps(item.annotation_meta).encode()
+    to_write.append(
+        (item.annotation_meta_file_path, annotation_meta_bytes, True),
+    )
+    if not item.annotation_dir.is_dir():
+        to_write.append(
+            (
+                item.annotation_dir / "ldb",
+                item.annotation_ldb_content_bytes,
+                False,
+            ),
+        )
+        to_write.append(
+            (
+                item.annotation_dir / "user",
+                item.annotation_content_bytes,
+                False,
+            ),
+        )
+    to_write.append(
+        (
+            item.data_object_dir / "current",
+            item.annotation_hash.encode(),
+            True,
+        ),
+    )
+    for file_path, data, overwrite_existing in to_write:
+        write_data_file(file_path, data, overwrite_existing)
+    return IndexedObjectResult(
+        found_data_object=False,
+        found_annotation=True,
+        new_data_object=False,
+        new_annotation=new_annotation,
+        data_object_hash=item.data_object_hash,
     )
 
 
@@ -268,95 +553,65 @@ def index_single_object(
     if annotation_file is None and strict_format:
         return None
 
-    hash_str = hashes.get(data_object_file.path)
-    if hash_str is None:
-        hash_str = hash_file(data_object_file)
-
-    data_object_dir = get_hash_path(
-        ldb_dir / InstanceDir.DATA_OBJECT_INFO,
-        hash_str,
-    )
-    new_data_object = not data_object_dir.is_dir()
-    data_object_meta_file_path = data_object_dir / "meta"
-
     current_timestamp = format_datetime(current_time())
-    if is_indexed_ephemeral:
-        meta_contents = load_data_file(data_object_meta_file_path)
-        meta_contents["last_indexed"] = current_timestamp
-    else:
-        meta_contents = construct_data_object_meta(
-            data_object_file,
-            load_data_file(data_object_meta_file_path)
-            if data_object_meta_file_path.exists()
-            else {},
-            current_timestamp,
-        )
+    item = PairIndexingItem(
+        ldb_dir,
+        current_timestamp,
+        data_object_file,
+        not is_indexed_ephemeral,
+        hashes,
+        annotation_file,
+    )
+    new_data_object = not item.data_object_dir.is_dir()
     to_write = [
         (
-            data_object_meta_file_path,
-            json_dumps(meta_contents).encode(),
+            item.data_object_meta_file_path,
+            json_dumps(item.data_object_meta).encode(),
             True,
         ),
     ]
 
-    found_annotation = annotation_file is not None
+    found_annotation = item.annotation_file is not None
     new_annotation = False
     if found_annotation:
         found_annotation = True
-        ldb_content, user_content = get_annotation_content(annotation_file)
-        ldb_content_bytes = json_dumps(ldb_content).encode()
-        user_content_bytes = json_dumps(user_content).encode()
-        annotation_hash = hash_data(ldb_content_bytes + user_content_bytes)
-
-        annotation_meta_dir_path = data_object_dir / "annotations"
-        annotation_meta_file_path = annotation_meta_dir_path / annotation_hash
-        new_annotation = not annotation_meta_file_path.is_file()
-
-        try:
-            version = len(list(annotation_meta_dir_path.iterdir())) + 1
-        except FileNotFoundError:
-            version = 1
-        annotation_meta = construct_annotation_meta(
-            annotation_file,
-            (
-                load_data_file(annotation_meta_file_path)
-                if annotation_meta_file_path.exists()
-                else {}
-            ),
-            current_timestamp,
-            version,
-        )
-        annotation_meta_bytes = json_dumps(annotation_meta).encode()
-        annotation_dir = get_hash_path(
-            ldb_dir / InstanceDir.ANNOTATIONS,
-            annotation_hash,
-        )
+        new_annotation = not item.annotation_meta_file_path.is_file()
+        annotation_meta_bytes = json_dumps(item.annotation_meta).encode()
         to_write.append(
-            (annotation_meta_file_path, annotation_meta_bytes, True),
+            (item.annotation_meta_file_path, annotation_meta_bytes, True),
         )
-        if not annotation_dir.is_dir():
+        if not item.annotation_dir.is_dir():
             to_write.append(
-                (annotation_dir / "ldb", ldb_content_bytes, False),
+                (
+                    item.annotation_dir / "ldb",
+                    item.annotation_ldb_content_bytes,
+                    False,
+                ),
             )
             to_write.append(
                 (
-                    annotation_dir / "user",
-                    user_content_bytes,
+                    item.annotation_dir / "user",
+                    item.annotation_content_bytes,
                     False,
                 ),
             )
         to_write.append(
-            (data_object_dir / "current", annotation_hash.encode(), True),
+            (
+                item.data_object_dir / "current",
+                item.annotation_hash.encode(),
+                True,
+            ),
         )
 
     for file_path, data, overwrite_existing in to_write:
         write_data_file(file_path, data, overwrite_existing)
 
     return IndexedObjectResult(
+        found_data_object=True,
         found_annotation=found_annotation,
         new_data_object=new_data_object,
         new_annotation=new_annotation,
-        data_object_hash=hash_str,
+        data_object_hash=item.data_object_hash,
     )
 
 
@@ -506,26 +761,26 @@ def is_hidden_fsspec_path(path: str) -> bool:
 
 def group_storage_files_by_type(
     storage_files: Iterable[OpenFile],
-) -> Tuple[List[OpenFile], Dict[str, OpenFile]]:
-    annotation_files_by_path = {}
+) -> Tuple[List[OpenFile], List[OpenFile]]:
     data_object_files = []
+    annotation_files = []
     seen = set()
     for storage_file in storage_files:
         if storage_file.path not in seen:
             seen.add(storage_file.path)
             if storage_file.fs.isfile(storage_file.path):
                 if storage_file.path.endswith(".json"):
-                    annotation_files_by_path[storage_file.path] = storage_file
+                    annotation_files.append(storage_file)
                 else:
                     data_object_files.append(storage_file)
-    return data_object_files, annotation_files_by_path
+    return data_object_files, annotation_files
 
 
 def construct_data_object_meta(
     file: OpenFile,
     prev_meta: Dict[str, Any],
     current_timestamp: str,
-) -> Dict[str, Union[str, Dict[str, Union[str, int]]]]:
+) -> DataObjectMeta:
     fs_info = os.stat(file.path)
 
     atime = timestamp_to_datetime(fs_info.st_atime)
@@ -574,28 +829,24 @@ def construct_data_object_meta(
 
 def get_annotation_content(
     annotation_file: OpenFile,
-) -> Tuple[Dict[str, None], Dict[str, int]]:
+) -> JSONDecoded:
     try:
         with annotation_file as open_annotation_file:
             annotation_str = open_annotation_file.read()
-        original_content: Dict[str, int] = json.loads(annotation_str)
+        original_content: JSONDecoded = json.loads(annotation_str)
     except Exception as exc:
         raise IndexingException(
             f"Unable to parse JSON annotation: {annotation_file.path!r}\n"
             f"{type(exc).__name__}: {exc}",
         ) from exc
-    ldb_content = {
-        "user_version": None,
-        "schema_version": None,
-    }
-    return ldb_content, original_content
+    return original_content
 
 
 def construct_annotation_meta(
-    annotation_file: OpenFile,
     prev_annotation_meta: AnnotationMeta,
     current_timestamp: str,
     version: int,
+    curr_mtime: Optional[float],
 ) -> AnnotationMeta:
     mtimes = []
     if prev_annotation_meta:
@@ -609,8 +860,6 @@ def construct_annotation_meta(
     else:
         first_indexed_time = current_timestamp
 
-    fs_info = annotation_file.fs.info(annotation_file.path)
-    curr_mtime = fs_info.get("created")
     if curr_mtime is not None:
         mtimes.append(timestamp_to_datetime(curr_mtime))
 

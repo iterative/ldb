@@ -10,7 +10,7 @@ from ldb.utils import current_time, load_data_file
 
 def test_commit_new_dataset(data_dir, ldb_instance, workspace_path):
     dir_to_add = os.fspath(data_dir / "fashion-mnist/original")
-    main(["index", "-f", "bare", dir_to_add])
+    main(["index", "-m", "bare", dir_to_add])
     main(["add", dir_to_add])
     ret = main(["commit", "create a new dataset"])
 
@@ -77,7 +77,7 @@ def test_commit_multiple_versions(data_dir, ldb_instance, workspace_path):
     ]
     for path_obj in paths:
         path = os.fspath(path_obj)
-        main(["index", "-f", "bare", path])
+        main(["index", "-m", "bare", path])
         main(["add", path])
         main(
             [
@@ -143,7 +143,7 @@ def test_commit_empty_workspace_dataset(
 
 def test_commit_no_changes(data_dir, ldb_instance, workspace_path):
     dir_to_add = os.fspath(data_dir / "fashion-mnist/original")
-    main(["index", "-f", "bare", dir_to_add])
+    main(["index", "-m", "bare", dir_to_add])
     main(["add", dir_to_add])
     main(["commit", "create a new dataset"])
     ret = main(["commit", "create another version"])

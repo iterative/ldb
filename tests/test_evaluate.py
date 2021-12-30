@@ -15,7 +15,7 @@ from .utils import is_data_object_meta_obj, stage_new_workspace
 
 def test_evaluate_storage_location(ldb_instance, data_dir):
     dir_to_eval = os.fspath(data_dir / "fashion-mnist/updates")
-    main(["index", "-f", "bare", dir_to_eval])
+    main(["index", "-m", "bare", dir_to_eval])
     result = list(
         evaluate(
             ldb_instance,
@@ -60,7 +60,7 @@ def test_evaluate_data_objects(
         file_query = "@"
 
     main(
-        ["index", "-f", "bare", os.fspath(data_dir / "fashion-mnist/updates")],
+        ["index", "-m", "bare", os.fspath(data_dir / "fashion-mnist/updates")],
     )
     result = evaluate(
         ldb_instance,
@@ -116,7 +116,7 @@ def test_evaluate_data_objects(
 
 def test_evaluate_datasets(ldb_instance, workspace_path, data_dir):
     dir_to_add = data_dir / "fashion-mnist/updates"
-    main(["index", "-f", "bare", os.fspath(dir_to_add)])
+    main(["index", "-m", "bare", os.fspath(dir_to_add)])
     main(["stage", "ds:a"])
     main(
         [
@@ -165,7 +165,7 @@ def test_evaluate_root_dataset(ldb_instance, data_dir):
     main(
         [
             "index",
-            "-f",
+            "-m",
             "bare",
             os.fspath(data_dir / "fashion-mnist/original/has_both/train"),
             os.fspath(data_dir / "fashion-mnist/updates"),
@@ -233,7 +233,7 @@ def test_evaluate_another_workspace(
     stage_new_workspace(other_workspace_path)
 
     main(
-        ["index", "-f", "bare", os.fspath(data_dir / "fashion-mnist/updates")],
+        ["index", "-m", "bare", os.fspath(data_dir / "fashion-mnist/updates")],
     )
     with chdir(other_workspace_path):
         main(["add", f"{DATASET_PREFIX}{ROOT}"])

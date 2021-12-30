@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Callable, Dict, Generator, List, Optional, Sequence
 
 from appdirs import site_config_dir, user_config_dir
-from tomlkit import document, dumps, parse  # type: ignore[attr-defined]
+from tomlkit import document, dumps, parse
 from tomlkit.exceptions import NonExistentKey
 from tomlkit.toml_document import TOMLDocument
 
@@ -34,7 +34,7 @@ GLOBAL_CONFIG_TYPES = (
 def load_from_path(path: Path) -> TOMLDocument:
     with path.open() as file:
         config_str = file.read()
-    return parse(config_str)  # type: ignore[no-any-return]
+    return parse(config_str)
 
 
 def save_to_path(config: TOMLDocument, path: Path) -> None:
