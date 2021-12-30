@@ -26,7 +26,7 @@ from fsspec.core import OpenFile
 from fsspec.implementations.local import make_path_posix
 from funcy.objects import cached_property
 
-from ldb.data_formats import FORMATS, Format
+from ldb.data_formats import INDEX_FORMATS, Format
 from ldb.dataset import get_collection_dir_keys
 from ldb.exceptions import (
     DataObjectNotFoundError,
@@ -109,7 +109,7 @@ def index(
     read_any_cloud_location: bool = False,
     fmt: str = Format.AUTO,
 ) -> IndexingResult:
-    fmt = FORMATS[fmt]
+    fmt = INDEX_FORMATS[fmt]
     paths = [os.path.abspath(p) for p in paths]
     files = get_storage_files_for_paths(paths, default_format=True)
     if not files:

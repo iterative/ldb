@@ -6,9 +6,7 @@ class Format:
     INFER = "tensorflow-inferred"
 
 
-FORMATS = {
-    "auto": Format.AUTO,
-    Format.AUTO: Format.AUTO,
+INSTANTIATE_FORMATS = {
     "strict": Format.STRICT,
     Format.STRICT: Format.STRICT,
     "bare": Format.BARE,
@@ -17,4 +15,9 @@ FORMATS = {
     Format.INFER: Format.INFER,
     "annot": Format.ANNOT,
     Format.ANNOT: Format.ANNOT,
+}
+INDEX_FORMATS = {
+    "auto": Format.AUTO,
+    Format.AUTO: Format.AUTO,
+    **INSTANTIATE_FORMATS,
 }

@@ -3,8 +3,6 @@ from typing import Iterable
 
 import shtab
 
-from ldb.data_formats import FORMATS
-
 
 def choice_str(choices: Iterable[str]) -> str:
     choice_strings = ",".join(str(c) for c in choices)
@@ -32,12 +30,19 @@ def add_data_object_arguments(parser: argparse.ArgumentParser) -> None:
     ).complete = shtab.FILE
 
 
-def add_data_format_arguments(parser: argparse.ArgumentParser) -> None:
+def add_data_format_arguments(
+    parser: argparse.ArgumentParser,
+    default: str,
+    formats: Iterable[str],
+) -> None:
     parser.add_argument(
         "-m",
         "--format",
-        default="auto",
+        default=default,
         metavar="<format>",
-        choices=FORMATS,
-        help=("Data format to use. " f"Options: {choice_str(FORMATS)}"),
+        choices=formats,
+        help=(
+            f"Data format to use. (default: {default}) "
+            f"Options: {choice_str(formats)}"
+        ),
     )

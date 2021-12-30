@@ -9,7 +9,7 @@ from typing import Mapping, Optional, Tuple
 import fsspec
 from funcy.objects import cached_property
 
-from ldb.data_formats import FORMATS, Format
+from ldb.data_formats import INSTANTIATE_FORMATS, Format
 from ldb.path import InstanceDir, WorkspacePath
 from ldb.typing import JSONDecoded, JSONObject
 from ldb.utils import get_hash_path, json_dumps, load_data_file
@@ -22,7 +22,7 @@ def instantiate(
     fmt: str = Format.BARE,
     force: bool = False,
 ) -> Tuple[int, int]:
-    fmt = FORMATS[fmt]
+    fmt = INSTANTIATE_FORMATS[fmt]
     collection_obj = collection_dir_to_object(
         workspace_path / WorkspacePath.COLLECTION,
     )

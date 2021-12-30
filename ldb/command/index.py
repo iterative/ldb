@@ -8,6 +8,7 @@ from ldb import config
 from ldb.cli_utils import add_data_format_arguments
 from ldb.config import ConfigType
 from ldb.core import get_ldb_instance
+from ldb.data_formats import INDEX_FORMATS, Format
 from ldb.index import index
 
 
@@ -39,7 +40,11 @@ def add_parser(
         parents=parents,
         help="Index a storage location",
     )
-    add_data_format_arguments(parser)
+    add_data_format_arguments(
+        parser,
+        default=Format.AUTO,
+        formats=INDEX_FORMATS,
+    )
     parser.add_argument(  # type: ignore[attr-defined]
         "paths",
         metavar="path",
