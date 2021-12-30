@@ -5,9 +5,10 @@ from typing import Iterable
 import shtab
 
 from ldb import config
+from ldb.cli_utils import add_data_format_arguments
 from ldb.config import ConfigType
 from ldb.core import get_ldb_instance
-from ldb.index import FORMATS, index
+from ldb.index import index
 
 
 def index_command(options: Namespace) -> None:
@@ -29,11 +30,6 @@ def index_command(options: Namespace) -> None:
     print(result.summary())
 
 
-def choice_str(choices: Iterable[str]) -> str:
-    choice_strings = ",".join(str(c) for c in choices)
-    return f"{{{choice_strings}}}"
-
-
 def add_parser(
     subparsers: argparse._SubParsersAction,
     parents: Iterable[argparse.ArgumentParser],
@@ -43,17 +39,7 @@ def add_parser(
         parents=parents,
         help="Index a storage location",
     )
-    parser.add_argument(
-        "-f",
-        "--format",
-        default="auto",
-        metavar="<format>",
-        choices=FORMATS,
-        help=(
-            "Format of the given storage location. "
-            f"Options: {choice_str(FORMATS)}"
-        ),
-    )
+    add_data_format_arguments(parser)
     parser.add_argument(  # type: ignore[attr-defined]
         "paths",
         metavar="path",

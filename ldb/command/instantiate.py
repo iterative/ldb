@@ -3,6 +3,7 @@ from argparse import Namespace
 from pathlib import Path
 from typing import Iterable
 
+from ldb.cli_utils import add_data_format_arguments
 from ldb.core import get_ldb_instance
 from ldb.instantiate import instantiate
 from ldb.utils import format_dataset_identifier
@@ -18,6 +19,7 @@ def instantiate_command(options: Namespace) -> None:
     num_data_objects, num_annotations = instantiate(
         ldb_dir,
         workspace_path,
+        fmt=options.format,
         force=options.force,
     )
     print(
@@ -36,6 +38,7 @@ def add_parser(
         parents=parents,
         help="Instantiate the current workspace dataset",
     )
+    add_data_format_arguments(parser)
     parser.add_argument(
         "-f",
         "--force",

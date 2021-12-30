@@ -16,7 +16,7 @@ from .utils import (
 
 def test_index_first_time(ldb_instance, data_dir):
     path = os.fspath(data_dir / "fashion-mnist" / "original")
-    ret = main(["index", "-f", "bare", path])
+    ret = main(["index", "-m", "bare", path])
     (
         data_object_meta_paths,
         annotation_meta_paths,
@@ -42,8 +42,8 @@ def test_index_first_time(ldb_instance, data_dir):
 def test_index_twice(ldb_instance, data_dir):
     path1 = os.fspath(data_dir / "fashion-mnist" / "original")
     path2 = os.fspath(data_dir / "fashion-mnist" / "updates")
-    ret1 = main(["index", "-f", "bare", path1])
-    ret2 = main(["index", "-f", "bare", path2])
+    ret1 = main(["index", "-m", "bare", path1])
+    ret2 = main(["index", "-m", "bare", path2])
     (
         data_object_meta_paths,
         annotation_meta_paths,
@@ -59,11 +59,11 @@ def test_index_twice(ldb_instance, data_dir):
 
 def test_index_same_location_twice(ldb_instance, data_dir):
     path = os.fspath(data_dir / "fashion-mnist" / "original")
-    ret1 = main(["index", "-f", "bare", path])
+    ret1 = main(["index", "-m", "bare", path])
     paths1 = get_indexed_data_paths(ldb_instance)
     data_object_meta1 = load_data_file(paths1[0][0])
 
-    ret2 = main(["index", "-f", "bare", path])
+    ret2 = main(["index", "-m", "bare", path])
     paths2 = get_indexed_data_paths(ldb_instance)
     data_object_meta2 = load_data_file(paths1[0][0])
     assert ret1 == 0
@@ -82,7 +82,7 @@ def test_index_annotation_file(ldb_instance, data_dir):
     path = os.fspath(
         data_dir / "fashion-mnist/original/has_both/train/00002.json",
     )
-    ret = main(["index", "-f", "bare", path])
+    ret = main(["index", "-m", "bare", path])
     (
         data_object_meta_paths,
         annotation_meta_paths,
@@ -99,7 +99,7 @@ def test_index_annotation_file_without_data_object(ldb_instance, data_dir):
     path = os.fspath(
         data_dir / "fashion-mnist/original/annotations_only/01011.json",
     )
-    ret = main(["index", "-f", "bare", path])
+    ret = main(["index", "-m", "bare", path])
     (
         data_object_meta_paths,
         annotation_meta_paths,
@@ -116,7 +116,7 @@ def test_index_data_object_file(ldb_instance, data_dir):
     path = os.fspath(
         data_dir / "fashion-mnist/original/has_both/train/00002.png",
     )
-    ret = main(["index", "-f", "bare", path])
+    ret = main(["index", "-m", "bare", path])
     (
         data_object_meta_paths,
         annotation_meta_paths,
@@ -131,7 +131,7 @@ def test_index_data_object_file(ldb_instance, data_dir):
 
 def test_index_annotation_file_glob(ldb_instance, data_dir):
     path = os.fspath(data_dir / "fashion-mnist/original/*/t*/000[0-1]*.json")
-    ret = main(["index", "-f", "bare", path])
+    ret = main(["index", "-m", "bare", path])
     (
         data_object_meta_paths,
         annotation_meta_paths,
@@ -146,7 +146,7 @@ def test_index_annotation_file_glob(ldb_instance, data_dir):
 
 def test_index_glob_dir_path(ldb_instance, data_dir):
     path = os.fspath(data_dir / "fashion-mnist/original/*/t*/")
-    ret = main(["index", "-f", "bare", path])
+    ret = main(["index", "-m", "bare", path])
     (
         data_object_meta_paths,
         annotation_meta_paths,
@@ -179,7 +179,7 @@ def test_index_hidden_paths(ldb_instance, data_dir, tmp_path):
                 (src_path / src).with_suffix(ext),
                 dest_path.with_suffix(ext),
             )
-    ret = main(["index", "-f", "bare", os.fspath(storage_path)])
+    ret = main(["index", "-m", "bare", os.fspath(storage_path)])
     (
         data_object_meta_paths,
         annotation_meta_paths,
@@ -204,7 +204,7 @@ def test_index_ephemeral_location(ldb_instance, data_dir, tmp_path):
         ),
     )
 
-    ret = main(["index", "-f", "bare", storage_path])
+    ret = main(["index", "-m", "bare", storage_path])
 
     read_add_index_base = list(read_add_path.glob("ldb-autoimport/*/*"))[0]
     num_read_add_annotation_files = len(
@@ -240,7 +240,7 @@ def test_index_ephemeral_location(ldb_instance, data_dir, tmp_path):
 def test_index_relative_path(ldb_instance, data_dir):
     path = os.fspath(data_dir / "fashion-mnist" / "original")
     with chdir(path):
-        ret = main(["index", "-f", "bare", "."])
+        ret = main(["index", "-m", "bare", "."])
 
     (
         data_object_meta_paths,
@@ -265,9 +265,9 @@ def test_index_relative_path(ldb_instance, data_dir):
 
 
 def test_index_annotation_only(ldb_instance, data_dir):
-    main(["index", "-f", "bare", os.fspath(data_dir / "data-object-only")])
+    main(["index", "-m", "bare", os.fspath(data_dir / "data-object-only")])
     ret = main(
-        ["index", "-f", "annot", os.fspath(data_dir / "annotation-only")],
+        ["index", "-m", "annot", os.fspath(data_dir / "annotation-only")],
     )
     (
         data_object_meta_paths,

@@ -1,6 +1,14 @@
 import argparse
+from typing import Iterable
 
 import shtab
+
+from ldb.data_formats import FORMATS
+
+
+def choice_str(choices: Iterable[str]) -> str:
+    choice_strings = ",".join(str(c) for c in choices)
+    return f"{{{choice_strings}}}"
 
 
 def add_data_object_arguments(parser: argparse.ArgumentParser) -> None:
@@ -22,3 +30,14 @@ def add_data_object_arguments(parser: argparse.ArgumentParser) -> None:
         nargs="*",
         help="Storage location, data object identifier, or dataset",
     ).complete = shtab.FILE
+
+
+def add_data_format_arguments(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "-m",
+        "--format",
+        default="auto",
+        metavar="<format>",
+        choices=FORMATS,
+        help=("Data format to use. " f"Options: {choice_str(FORMATS)}"),
+    )

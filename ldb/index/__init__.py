@@ -26,6 +26,7 @@ from fsspec.core import OpenFile
 from fsspec.implementations.local import make_path_posix
 from funcy.objects import cached_property
 
+from ldb.data_formats import FORMATS, Format
 from ldb.dataset import get_collection_dir_keys
 from ldb.exceptions import (
     DataObjectNotFoundError,
@@ -54,28 +55,6 @@ from ldb.utils import (
 
 AnnotationMeta = Dict[str, Union[str, int, None]]
 DataObjectMeta = Dict[str, Union[str, Dict[str, Union[str, int]]]]
-
-
-class Format:
-    AUTO = "auto-detect"
-    STRICT = "strict-pairs"
-    BARE = "bare-pairs"
-    ANNOT = "annotation-only"
-    INFER = "tensorflow-inferred"
-
-
-FORMATS = {
-    "auto": Format.AUTO,
-    Format.AUTO: Format.AUTO,
-    "strict": Format.STRICT,
-    Format.STRICT: Format.STRICT,
-    "bare": Format.BARE,
-    Format.BARE: Format.BARE,
-    "infer": Format.INFER,
-    Format.INFER: Format.INFER,
-    "annot": Format.ANNOT,
-    Format.ANNOT: Format.ANNOT,
-}
 
 
 class IndexedObjectResult(NamedTuple):
@@ -311,6 +290,10 @@ class AnnotationFileIndexingItem(IndexingItem):
             curr_mtime,
         )
 
+    @cached_property
+    def annotation_content(self) -> JSONDecoded:
+        return get_annotation_content(self.annotation_file)
+
 
 @dataclass
 class DataObjectFileIndexingItem(IndexingItem):
@@ -356,18 +339,6 @@ class PairIndexingItem(AnnotationFileIndexingItem, DataObjectFileIndexingItem):
     def data_object_meta_file_path(self) -> Path:
         return self.data_object_dir / "meta"
 
-    @cached_property
-    def annotation_content(self) -> JSONDecoded:
-        return get_annotation_content(self.annotation_file)
-
-    @cached_property
-    def annotation_ldb_content_bytes(self) -> bytes:
-        return json_dumps(self.annotation_ldb_content).encode()
-
-    @cached_property
-    def annotation_content_bytes(self) -> bytes:
-        return json_dumps(self.annotation_content).encode()
-
 
 @dataclass
 class AnnotationOnlyIndexingItem(AnnotationFileIndexingItem):
@@ -394,13 +365,6 @@ class AnnotationOnlyIndexingItem(AnnotationFileIndexingItem):
         )
         meta_contents["last_indexed"] = self.current_timestamp
         return meta_contents
-
-    @cached_property
-    def annotation_ldb_content(self) -> JSONObject:
-        return {
-            "user_version": None,
-            "schema_version": None,
-        }
 
     @cached_property
     def annotation_content(self) -> JSONObject:  # type: ignore[override]
