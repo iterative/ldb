@@ -1,6 +1,8 @@
 import os
 import shutil
 
+from ldb.add import get_current_annotation_hashes
+from ldb.dataset import get_annotations
 from ldb.main import main
 from ldb.path import Filename
 from ldb.storage import add_storage, create_storage_location
@@ -289,3 +291,42 @@ def test_index_annotation_only(ldb_instance, data_dir):
     assert non_data_object_meta == []
     assert non_annotation_meta == []
     assert non_annotation == []
+
+
+def test_index_inferred(ldb_instance, data_dir):
+    ret = main(
+        ["index", "-m", "infer", os.fspath(data_dir / "inferred/multilevel")],
+    )
+    (
+        data_object_meta_paths,
+        annotation_meta_paths,
+        annotation_paths,
+    ) = get_indexed_data_paths(ldb_instance)
+    non_data_object_meta = [
+        p for p in data_object_meta_paths if not is_data_object_meta(p)
+    ]
+    non_annotation_meta = [
+        p for p in annotation_meta_paths if not is_annotation_meta(p)
+    ]
+    non_annotation = [p for p in annotation_paths if not is_annotation(p)]
+
+    annot_hashes = get_current_annotation_hashes(
+        ldb_instance,
+        [
+            "31ed21a2633c6802e756dd06220b0b82",
+            "def3cbcb30f3254a2a220e51ddf45375",
+        ],
+    )
+    annotations = get_annotations(ldb_instance, annot_hashes)
+    expected_annotations = [
+        {"label": {"blue": {"2": "a"}}},
+        {"label": {"red": "3"}},
+    ]
+    assert ret == 0
+    assert len(data_object_meta_paths) == 23
+    assert len(annotation_meta_paths) == 23
+    assert len(annotation_paths) == 22
+    assert non_data_object_meta == []
+    assert non_annotation_meta == []
+    assert non_annotation == []
+    assert annotations == expected_annotations
