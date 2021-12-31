@@ -270,10 +270,8 @@ class InferredIndexer(PairIndexer):
             len_dir_path = len(dir_path)
             for file in file_seq:
                 raw_label = (
-                    file.fs._parent(  # pylint: disable=protected-access
-                        file.path[len_dir_path:],
-                    )
-                )  # pylint: disable=protected-access)
+                    file.path[len_dir_path:].rsplit("/", 1)[0].strip("/")
+                )
                 label_parts = raw_label.lstrip("/").split("/")
                 label = label_parts[-1]
                 for p in label_parts[-2::-1]:
