@@ -20,6 +20,7 @@ from typing import (
 from ldb.exceptions import DatasetNotFoundError, LDBException
 from ldb.path import InstanceDir
 from ldb.query.search import BoolSearchFunc
+from ldb.typing import JSONDecoded
 from ldb.utils import (
     format_dataset_identifier,
     format_datetime,
@@ -251,7 +252,7 @@ def get_dataset_version_hash(
 def get_annotations(
     ldb_dir: Path,
     annotation_hashes: Iterable[str],
-) -> List[Optional[str]]:
+) -> List[Optional[JSONDecoded]]:
     annotations = []
     for annotation_hash in annotation_hashes:
         if annotation_hash:
