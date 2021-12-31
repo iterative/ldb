@@ -36,7 +36,7 @@ def index(
     fmt: str = Format.AUTO,
 ) -> IndexingResult:
     fmt = INDEX_FORMATS[fmt]
-    paths = [os.path.abspath(p) for p in paths]
+    paths = [os.path.abspath(p).replace("\\", "/") for p in paths]
 
     dir_paths = []
     if fmt == Format.INFER:
