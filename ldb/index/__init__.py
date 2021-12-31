@@ -1,3 +1,4 @@
+# pylint: disable=too-many-lines
 import getpass
 import json
 import os
@@ -11,6 +12,7 @@ from typing import (
     Any,
     Dict,
     Iterable,
+    Iterator,
     List,
     Mapping,
     NamedTuple,
@@ -57,6 +59,7 @@ ENDING_DOUBLE_STAR_RE = r"(?:/+\*\*)+/*$"
 
 AnnotationMeta = Dict[str, Union[str, int, None]]
 DataObjectMeta = Dict[str, Union[str, Dict[str, Union[str, int]]]]
+DataToWrite = Tuple[Path, bytes, bool]
 
 
 class IndexedObjectResult(NamedTuple):
@@ -105,7 +108,7 @@ def autodetect_format(
     return Format.STRICT
 
 
-def expand_dir_paths(paths):
+def expand_dir_paths(paths: Iterable[str]) -> List[str]:
     fs = fsspec.filesystem("file")
     for path in paths:
         path, num = re.subn(ENDING_DOUBLE_STAR_RE, "", path)
@@ -194,25 +197,22 @@ def index(
 
 
 class Indexer:
-    def __init__(
-        self,
-        ldb_dir: Path,
-    ) -> None:
+    def __init__(self, ldb_dir: Path) -> None:
         self.ldb_dir = ldb_dir
         self.result = IndexingResult()
-        self.hashes = {}
+        self.hashes: Dict[str, str] = {}
 
-    def index(self):
+    def index(self) -> None:
         try:
             self._index()
         except Exception:
             print(self.result.summary(finished=False), "\n", sep="")
             raise
 
-    def _index(self):
+    def _index(self) -> None:
         raise NotImplementedError
 
-    def index_single(self):
+    def process_files(self) -> Any:
         raise NotImplementedError
 
 
@@ -230,12 +230,10 @@ class PairIndexer(Indexer):
         self.annotation_files = annotation_files
         self.read_any_cloud_location = read_any_cloud_location
         self.strict_format = strict_format
-        self.old_to_new_files = {}
-        self.old_to_new_annot_files = {}
+        self.old_to_new_files: Dict[OpenFile, OpenFile] = {}
+        self.old_to_new_annot_files: Dict[OpenFile, OpenFile] = {}
 
-    def _index(
-        self,
-    ) -> None:
+    def _index(self) -> None:
         (
             files,
             indexed_ephemeral_bools,
@@ -247,7 +245,9 @@ class PairIndexer(Indexer):
             annotation_files_by_path,
         )
 
-    def process_files(self):
+    def process_files(
+        self,
+    ) -> Tuple[List[OpenFile], Iterator[bool], Dict[str, OpenFile]]:
         storage_locations = get_storage_locations(self.ldb_dir)
         local_files, cloud_files = separate_local_and_cloud_files(self.files)
         if not self.read_any_cloud_location:
@@ -323,29 +323,27 @@ class PairIndexer(Indexer):
             )
             if annotation_file is None and self.strict_format:
                 continue
-            obj_result = self.index_single(
+            obj_result = self.index_single_pair(
                 data_object_file,
                 is_indexed_ephemeral,
                 annotation_file,
             )
-            if obj_result is not None:
-                self.result.append(obj_result)
+            self.result.append(obj_result)
 
-    def index_single(
+    def index_single_pair(
         self,
         data_object_file: OpenFile,
         is_indexed_ephemeral: bool,
-        annotation_file,
-    ) -> Optional[IndexedObjectResult]:
-        item = PairIndexingItem(
+        annotation_file: OpenFile,
+    ) -> IndexedObjectResult:
+        return PairIndexingItem(
             self.ldb_dir,
             current_time(),
             data_object_file,
             not is_indexed_ephemeral,
             self.hashes,
             annotation_file,
-        )
-        return item.index_data()
+        ).index_data()
 
 
 class InferredIndexer(PairIndexer):
@@ -359,20 +357,22 @@ class InferredIndexer(PairIndexer):
     ) -> None:
         super().__init__(
             ldb_dir,
-            sorted(files, key=lambda f: f.path),
+            sorted(files, key=lambda f: f.path),  # type: ignore[no-any-return]
             [],
             read_any_cloud_location,
             strict_format,
         )
         self.dir_path_to_files = dir_path_to_files
 
-    def infer_annotations(self):
-        annotations = {}
+    def infer_annotations(self) -> Dict[OpenFile, JSONObject]:
+        annotations: Dict[OpenFile, JSONObject] = {}
         for dir_path, file_seq in self.dir_path_to_files.items():
             len_dir_path = len(dir_path)
             for file in file_seq:
-                raw_label = file.fs._parent(
-                    file.path[len_dir_path:],
+                raw_label = (
+                    file.fs._parent(  # pylint: disable=protected-access
+                        file.path[len_dir_path:],
+                    )
                 )  # pylint: disable=protected-access)
                 label_parts = raw_label.lstrip("/").split("/")
                 label = label_parts[-1]
@@ -381,27 +381,25 @@ class InferredIndexer(PairIndexer):
                 annotations[file] = {"label": label}
         return annotations
 
-    def _index(
-        self,
-    ) -> None:
+    def _index(self) -> None:
         annotations = self.infer_annotations()
         (
             files,
             indexed_ephemeral_bools,
-            annotation_files_by_path,
+            _,
         ) = self.process_files()
 
         annotations_by_data_object_path = {
             (self.old_to_new_files.get(f) or f).path: annot
             for f, annot in annotations.items()
         }
-        self.index_files(
+        self.index_inferred_files(
             files,
             indexed_ephemeral_bools,
             annotations_by_data_object_path,
         )
 
-    def index_files(
+    def index_inferred_files(
         self,
         data_object_files: List[OpenFile],
         indexed_ephemeral_bools: Iterable[bool],
@@ -426,13 +424,13 @@ class InferredIndexer(PairIndexer):
 class IndexingItem(ABC):
     ldb_dir: Path
     curr_time: datetime
-    _to_write: List[Tuple[Path, bytes, bool]] = field(
+    _to_write: List[DataToWrite] = field(
         init=False,
         default_factory=list,
     )
 
     @cached_property
-    def current_timestamp(self):
+    def current_timestamp(self) -> str:
         return format_datetime(self.curr_time)
 
     @cached_property
@@ -485,7 +483,7 @@ class IndexingItem(ABC):
         }
 
     @cached_property
-    def annotation_meta(self) -> JSONDecoded:
+    def annotation_meta(self) -> AnnotationMeta:
         raise NotImplementedError
 
     @cached_property
@@ -530,7 +528,7 @@ class IndexingItem(ABC):
             data_object_hash=self.data_object_hash,
         )
 
-    def data_object_to_write(self) -> List:
+    def data_object_to_write(self) -> List[DataToWrite]:
         return [
             (
                 self.data_object_meta_file_path,
@@ -539,7 +537,7 @@ class IndexingItem(ABC):
             ),
         ]
 
-    def annotation_to_write(self) -> List:
+    def annotation_to_write(self) -> List[DataToWrite]:
         annotation_meta_bytes = json_dumps(self.annotation_meta).encode()
         to_write = [
             (self.annotation_meta_file_path, annotation_meta_bytes, True),
@@ -568,7 +566,7 @@ class IndexingItem(ABC):
         )
         return to_write
 
-    def enqueue_data(self, data) -> None:
+    def enqueue_data(self, data: Iterable[DataToWrite]) -> None:
         self._to_write.extend(data)
 
     def write_data(self) -> None:
@@ -585,7 +583,9 @@ class AnnotationFileIndexingItem(IndexingItem):
         fs_info = self.annotation_file.fs.info(self.annotation_file.path)
         curr_mtime_float = fs_info.get("created")
         if curr_mtime_float is not None:
-            curr_mtime = timestamp_to_datetime(curr_mtime_float)
+            curr_mtime: Optional[datetime] = timestamp_to_datetime(
+                curr_mtime_float,
+            )
         else:
             curr_mtime = None
         prev_annotation = (
@@ -786,7 +786,7 @@ def copy_to_read_add_storage(
     read_add_location: StorageLocation,
     hashes: Mapping[str, str],
     strict_format: bool,
-) -> Tuple[List[OpenFile], Dict[str, OpenFile]]:
+) -> Tuple[Dict[OpenFile, OpenFile], Dict[OpenFile, OpenFile]]:
     fs = fsspec.filesystem(read_add_location.protocol)
     base_dir = fs.sep.join(
         [

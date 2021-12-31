@@ -176,6 +176,7 @@ disable = [
     'raw-checker-failed',
     'suppressed-message',
     'too-few-public-methods',
+    'too-many-public-methods',
     'useless-suppression',
     'use-symbolic-message-instead',
 ]
