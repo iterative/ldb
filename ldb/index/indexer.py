@@ -24,7 +24,11 @@ from funcy.objects import cached_property
 
 from ldb.data_formats import INDEX_FORMATS, Format
 from ldb.dataset import get_collection_dir_keys
-from ldb.exceptions import IndexingException, LDBException
+from ldb.exceptions import (
+    DataObjectNotFoundError,
+    IndexingException,
+    LDBException,
+)
 from ldb.index.utils import (
     construct_annotation_meta,
     construct_data_object_meta,
@@ -153,7 +157,7 @@ class InferredPreprocessor(Preprocessor):
         return files, annotation_files
 
 
-class Indexer:
+class Indexer(ABC):
     def __init__(
         self,
         ldb_dir: Path,
@@ -176,6 +180,17 @@ class Indexer:
 
     def process_files(self) -> Any:
         raise NotImplementedError
+
+
+class AnnotationOnlyIndexer(Indexer):
+    def _index(self) -> None:
+        for annotation_file in self.preprocessor.annotation_files:
+            item = AnnotationOnlyIndexingItem(
+                self.ldb_dir,
+                current_time(),
+                annotation_file,
+            )
+            self.result.append(item.index_data())
 
 
 class PairIndexer(Indexer):
@@ -208,8 +223,9 @@ class PairIndexer(Indexer):
         self,
     ) -> Tuple[List[OpenFile], Iterator[bool], Dict[str, OpenFile]]:
         storage_locations = get_storage_locations(self.ldb_dir)
-        files, annotation_files = self.preprocessor.files_by_type
-        local_files, cloud_files = separate_local_and_cloud_files(files)
+        local_files, cloud_files = separate_local_and_cloud_files(
+            self.preprocessor.data_object_files,
+        )
         if not self.read_any_cloud_location:
             validate_locations_in_storage(cloud_files, storage_locations)
         (
@@ -232,7 +248,9 @@ class PairIndexer(Indexer):
             ephemeral_files,
         )
         files = cloud_files + local_storage_files
-        annotation_files_by_path = {f.path: f for f in annotation_files}
+        annotation_files_by_path = {
+            f.path: f for f in self.preprocessor.annotation_files
+        }
         if ephemeral_files:
             read_add_location = next(
                 (loc for loc in storage_locations if loc.read_and_add),
@@ -666,3 +684,22 @@ class AnnotationOnlyIndexingItem(AnnotationFileIndexingItem):
     @cached_property
     def annotation_content(self) -> JSONObject:  # type: ignore[override]
         return self.annotation_file_contents["annotation"]  # type: ignore[no-any-return] # noqa: E501
+
+    def index_data(self) -> IndexedObjectResult:
+        if not self.data_object_dir.exists():
+            raise DataObjectNotFoundError(
+                f"Data object not found: 0x{self.data_object_hash} "
+                f"(annotation_file_path={self.annotation_file.path!r})",
+            )
+
+        new_annotation = not self.annotation_meta_file_path.is_file()
+        self.enqueue_data(self.annotation_to_write())
+
+        self.write_data()
+        return IndexedObjectResult(
+            found_data_object=False,
+            found_annotation=True,
+            new_data_object=False,
+            new_annotation=new_annotation,
+            data_object_hash=self.data_object_hash,
+        )
