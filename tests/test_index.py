@@ -1,14 +1,21 @@
 import os
 import shutil
+from typing import NamedTuple
+
+import pytest
 
 from ldb.add import get_current_annotation_hashes
+from ldb.data_formats import Format
 from ldb.dataset import get_annotations
+from ldb.index import index
+from ldb.index.base import IndexingResult
 from ldb.main import main
 from ldb.path import Filename
 from ldb.storage import add_storage, create_storage_location
 from ldb.utils import chdir, load_data_file
 
 from .utils import (
+    DATA_DIR,
     get_indexed_data_paths,
     is_annotation,
     is_annotation_meta,
@@ -16,7 +23,55 @@ from .utils import (
 )
 
 
-def test_index_first_time(ldb_instance, data_dir):
+class IndexingNums(NamedTuple):
+    num_found_data_objects: int
+    num_found_annotations: int
+    num_new_data_objects: int
+    num_new_annotations: int
+    len_data_object_hashes: int
+
+    @classmethod
+    def from_result(cls, result: IndexingResult) -> "IndexingNums":
+        return cls(
+            result.num_found_data_objects,
+            result.num_found_annotations,
+            result.num_new_data_objects,
+            result.num_new_annotations,
+            len(result.data_object_hashes),
+        )
+
+
+@pytest.mark.parametrize(
+    "params",
+    [
+        [(Format.AUTO, "fashion-mnist/original", (23, 23, 23, 23, 23))],
+        [(Format.STRICT, "fashion-mnist/original", (23, 23, 23, 23, 23))],
+        [(Format.BARE, "fashion-mnist/original", (32, 23, 32, 23, 32))],
+        [(Format.INFER, "inferred/multilevel", (23, 23, 23, 23, 23))],
+        [
+            (Format.BARE, "data-object-only/original", (32, 0, 32, 0, 32)),
+            (Format.ANNOT, "annotation-only/original", (0, 23, 0, 23, 23)),
+        ],
+        [
+            (Format.BARE, "data-object-only/original", (32, 0, 32, 0, 32)),
+            (Format.AUTO, "annotation-only/original", (0, 23, 0, 23, 23)),
+        ],
+    ],
+)
+def test_index_func_single_path(params, ldb_instance):
+    results = []
+    expected_results = []
+    for fmt, path, expected in params:
+        results.append(
+            IndexingNums.from_result(
+                index(ldb_instance, [DATA_DIR / path], False, fmt),
+            ),
+        )
+        expected_results.append(IndexingNums(*expected))
+    assert results == expected_results
+
+
+def test_index_bare(ldb_instance, data_dir):
     path = os.fspath(data_dir / "fashion-mnist" / "original")
     ret = main(["index", "-m", "bare", path])
     (
@@ -259,6 +314,31 @@ def test_index_relative_path(ldb_instance, data_dir):
 
     assert ret == 0
     assert len(data_object_meta_paths) == 32
+    assert len(annotation_meta_paths) == 23
+    assert len(annotation_paths) == 10
+    assert non_data_object_meta == []
+    assert non_annotation_meta == []
+    assert non_annotation == []
+
+
+def test_index_strict(ldb_instance, data_dir):
+    path = os.fspath(data_dir / "fashion-mnist" / "original")
+    ret = main(["index", "-m", "strict", path])
+    (
+        data_object_meta_paths,
+        annotation_meta_paths,
+        annotation_paths,
+    ) = get_indexed_data_paths(ldb_instance)
+    non_data_object_meta = [
+        p for p in data_object_meta_paths if not is_data_object_meta(p)
+    ]
+    non_annotation_meta = [
+        p for p in annotation_meta_paths if not is_annotation_meta(p)
+    ]
+    non_annotation = [p for p in annotation_paths if not is_annotation(p)]
+
+    assert ret == 0
+    assert len(data_object_meta_paths) == 23
     assert len(annotation_meta_paths) == 23
     assert len(annotation_paths) == 10
     assert non_data_object_meta == []
