@@ -4,7 +4,7 @@ from typing import Sequence
 from fsspec.core import OpenFile
 
 from ldb.data_formats import INDEX_FORMATS, Format
-from ldb.index.indexer import (
+from ldb.index.base import (
     AnnotationOnlyIndexer,
     Indexer,
     IndexingResult,
