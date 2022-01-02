@@ -4,13 +4,8 @@ from typing import Sequence
 from fsspec.core import OpenFile
 
 from ldb.data_formats import INDEX_FORMATS, Format
-from ldb.index.base import (
-    AnnotationOnlyIndexer,
-    Indexer,
-    IndexingResult,
-    PairIndexer,
-    Preprocessor,
-)
+from ldb.index.annotation_only import AnnotationOnlyIndexer
+from ldb.index.base import Indexer, IndexingResult, PairIndexer, Preprocessor
 from ldb.index.inferred import InferredIndexer, InferredPreprocessor
 
 
