@@ -8,11 +8,10 @@ from ldb.index.base import (
     AnnotationOnlyIndexer,
     Indexer,
     IndexingResult,
-    InferredIndexer,
-    InferredPreprocessor,
     PairIndexer,
     Preprocessor,
 )
+from ldb.index.inferred import InferredIndexer, InferredPreprocessor
 
 
 def index(
