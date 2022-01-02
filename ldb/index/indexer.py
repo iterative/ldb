@@ -27,6 +27,7 @@ from fsspec.core import OpenFile
 from fsspec.implementations.local import make_path_posix
 from funcy.objects import cached_property
 
+from ldb.data_formats import INDEX_FORMATS, Format
 from ldb.dataset import get_collection_dir_keys
 from ldb.exceptions import (
     IndexingException,
@@ -96,9 +97,71 @@ class IndexingResult:
         )
 
 
+class Preprocessor:
+    def __init__(self, fmt: str, paths: List[str]) -> None:
+        self.fmt = INDEX_FORMATS[fmt]
+        self.paths = [os.path.abspath(p) for p in paths]
+
+    def get_storage_files(self):
+        return get_storage_files_for_paths(
+            self.paths,
+            default_format=self.fmt in (Format.STRICT, Format.BARE),
+        )
+
+    @cached_property
+    def files_by_type(self) -> Tuple[List[OpenFile], List[OpenFile]]:
+        files = self.get_storage_files()
+        # if not files:
+        #    raise LDBException(
+        #        "No files found matching the given paths.",
+        #    )
+        return group_storage_files_by_type(files)
+
+    @cached_property
+    def data_object_files(self):
+        return self.files_by_type[0]
+
+    @cached_property
+    def annotation_files(self):
+        return self.files_by_type[1]
+
+
+class InferredPreprocessor(Preprocessor):
+    @cached_property
+    def dir_path_to_files(self) -> Dict[str, List[OpenFile]]:
+        dir_paths = expand_dir_paths(self.paths)
+        file_seqs = [
+            fsspec.open_files(p.rstrip("/") + "/**") for p in dir_paths
+        ]
+        return {d: f for d, f in zip(dir_paths, file_seqs) if f}
+
+    def get_storage_files(self) -> List[OpenFile]:
+        return list(chain(*self.dir_path_to_files.values()))
+
+    @cached_property
+    def files_by_type(self) -> Tuple[List[OpenFile], List[OpenFile]]:
+        files, annotation_files = super().files_by_type
+        if annotation_files:
+            first_path = annotation_files[0].path
+            raise IndexingException(
+                f"No annotation files should be present for {Format.INFER} "
+                "format.\n"
+                f"Found {len(annotation_files)} JSON files.\n"
+                f"First path: {first_path}",
+            )
+        return files, annotation_files
+
+
 class Indexer:
-    def __init__(self, ldb_dir: Path) -> None:
+    def __init__(
+        self,
+        ldb_dir: Path,
+        preprocessor: Preprocessor,
+        # fmt: str,
+        # paths: Sequence[str],
+    ) -> None:
         self.ldb_dir = ldb_dir
+        self.preprocessor = preprocessor
         self.result = IndexingResult()
         self.hashes: Dict[str, str] = {}
 
@@ -120,14 +183,11 @@ class PairIndexer(Indexer):
     def __init__(
         self,
         ldb_dir: Path,
-        files: List[OpenFile],
-        annotation_files: List[OpenFile],
+        preprocessor: Preprocessor,
         read_any_cloud_location: bool,
         strict_format: bool,
     ) -> None:
-        super().__init__(ldb_dir)
-        self.files = files
-        self.annotation_files = annotation_files
+        super().__init__(ldb_dir, preprocessor)
         self.read_any_cloud_location = read_any_cloud_location
         self.strict_format = strict_format
         self.old_to_new_files: Dict[OpenFile, OpenFile] = {}
@@ -149,7 +209,8 @@ class PairIndexer(Indexer):
         self,
     ) -> Tuple[List[OpenFile], Iterator[bool], Dict[str, OpenFile]]:
         storage_locations = get_storage_locations(self.ldb_dir)
-        local_files, cloud_files = separate_local_and_cloud_files(self.files)
+        files, annotation_files = self.preprocessor.files_by_type
+        local_files, cloud_files = separate_local_and_cloud_files(files)
         if not self.read_any_cloud_location:
             validate_locations_in_storage(cloud_files, storage_locations)
         (
@@ -172,7 +233,7 @@ class PairIndexer(Indexer):
             ephemeral_files,
         )
         files = cloud_files + local_storage_files
-        annotation_files_by_path = {f.path: f for f in self.annotation_files}
+        annotation_files_by_path = {f.path: f for f in annotation_files}
         if ephemeral_files:
             read_add_location = next(
                 (loc for loc in storage_locations if loc.read_and_add),
@@ -247,26 +308,9 @@ class PairIndexer(Indexer):
 
 
 class InferredIndexer(PairIndexer):
-    def __init__(
-        self,
-        ldb_dir: Path,
-        files: List[OpenFile],
-        read_any_cloud_location: bool,
-        strict_format: bool,
-        dir_path_to_files: Mapping[str, Sequence[OpenFile]],
-    ) -> None:
-        super().__init__(
-            ldb_dir,
-            sorted(files, key=lambda f: f.path),  # type: ignore[no-any-return]
-            [],
-            read_any_cloud_location,
-            strict_format,
-        )
-        self.dir_path_to_files = dir_path_to_files
-
     def infer_annotations(self) -> Dict[OpenFile, JSONObject]:
         annotations: Dict[OpenFile, JSONObject] = {}
-        for dir_path, file_seq in self.dir_path_to_files.items():
+        for dir_path, file_seq in self.preprocessor.dir_path_to_files.items():
             len_dir_path = len(dir_path)
             for file in file_seq:
                 raw_label = (
@@ -608,6 +652,112 @@ class AnnotationOnlyIndexingItem(AnnotationFileIndexingItem):
     @cached_property
     def annotation_content(self) -> JSONObject:  # type: ignore[override]
         return self.annotation_file_contents["annotation"]  # type: ignore[no-any-return] # noqa: E501
+
+
+def get_storage_files_for_paths(
+    paths: List[str],
+    default_format: bool = False,
+) -> List[OpenFile]:
+    seen = set()
+    storage_files = []
+    for path in paths:
+        for file in get_storage_files(path, default_format=default_format):
+            if file.path not in seen:
+                storage_files.append(file)
+                seen.add(file.path)
+    return storage_files
+
+
+def get_storage_files(
+    path: str,
+    default_format: bool = False,
+) -> List[OpenFile]:
+    """
+    Get storage files for indexing that match the glob, `path`.
+
+    Because every file path under `path` is returned, any final "/**" does not
+    change the result. First, `path` is expanded with any final "/**" removed
+    and any matching files are included in the result. Corresponding data
+    object file paths are added for matched annotation file paths and vice
+    versa. Then everything under matched directories will be added to the
+    result.
+
+    The current implementation may result in some directory paths and some
+    duplicate paths being included.
+    """
+    if is_hidden_fsspec_path(path):
+        return []
+    fs = fsspec.filesystem("file")
+    # "path/**", "path/**/**" or "path/**/" are treated the same as just "path"
+    # so we strip off any "/**" or "/**/" at the end
+    path = re.sub(ENDING_DOUBLE_STAR_RE, "", path)
+    # find corresponding data object for annotation match and vice versa
+    # for any files the expanded `path` glob matches
+    file_match_globs = []
+    for mpath in fs.expand_path(path):
+        if not is_hidden_fsspec_path(mpath) and fs.isfile(mpath):
+            file_match_globs.append(mpath)
+            if default_format:
+                # TODO: Check all extension levels (i.e. for abc.tar.gz use
+                # .tar.gz and .gz)
+                p_without_ext, ext = os.path.splitext(path)
+                if ext == ".json":
+                    file_match_globs.append(p_without_ext)
+                    file_match_globs.append(p_without_ext + ".*")
+                else:
+                    file_match_globs.append(p_without_ext + ".json")
+    files = (
+        list(fsspec.open_files(file_match_globs)) if file_match_globs else []
+    )
+    # capture everything under any directories the `path` glob matches
+    for file in fsspec.open_files(path + "/**"):
+        if not is_hidden_fsspec_path(file.path):
+            files.append(file)
+    return files
+
+
+def is_hidden_fsspec_path(path: str) -> bool:
+    return re.search(r"^\.|/\.", path) is not None
+
+
+def group_storage_files_by_type(
+    storage_files: Iterable[OpenFile],
+) -> Tuple[List[OpenFile], List[OpenFile]]:
+    data_object_files = []
+    annotation_files = []
+    seen = set()
+    for storage_file in storage_files:
+        if storage_file.path not in seen:
+            seen.add(storage_file.path)
+            if storage_file.fs.isfile(storage_file.path):
+                if storage_file.path.endswith(".json"):
+                    annotation_files.append(storage_file)
+                else:
+                    data_object_files.append(storage_file)
+    return data_object_files, annotation_files
+
+
+def expand_dir_paths(paths: Iterable[str]) -> List[str]:
+    fs = fsspec.filesystem("file")
+    for path in paths:
+        path, num = re.subn(ENDING_DOUBLE_STAR_RE, "", path)
+        if num:
+            raise IndexingException(
+                f"Paths passed with the {Format.INFER} format should only "
+                "match directories, so globs with a final /** should not be "
+                "used",
+            )
+
+    paths = sorted({p for p in fs.expand_path(paths) if fs.isdir(p)})
+    for i in range(len(paths) - 1):
+        if paths[i + 1].startswith(paths[i]):
+            raise IndexingException(
+                f"Paths passed with the {Format.INFER} format should match "
+                "non-overlapping directories. Found overlapping directories:\n"
+                f"{paths[i]!r}\n"
+                f"{paths[i + 1]!r}",
+            )
+    return paths
 
 
 def copy_to_read_add_storage(
