@@ -1,18 +1,10 @@
-import os
-import re
-from itertools import chain
 from pathlib import Path
-from typing import Dict, Iterable, List, Sequence, Tuple, Union
+from typing import Iterable, Sequence
 
-import fsspec
 from fsspec.core import OpenFile
 
 from ldb.data_formats import INDEX_FORMATS, Format
-from ldb.exceptions import (
-    DataObjectNotFoundError,
-    IndexingException,
-    LDBException,
-)
+from ldb.exceptions import DataObjectNotFoundError
 from ldb.index.indexer import (
     AnnotationOnlyIndexingItem,
     IndexedObjectResult,
@@ -21,16 +13,8 @@ from ldb.index.indexer import (
     InferredPreprocessor,
     PairIndexer,
     Preprocessor,
-    get_storage_files_for_paths,
-    group_storage_files_by_type,
 )
 from ldb.utils import current_time, json_dumps, write_data_file
-
-ENDING_DOUBLE_STAR_RE = r"(?:/+\*\*)+/*$"
-
-AnnotationMeta = Dict[str, Union[str, int, None]]
-DataObjectMeta = Dict[str, Union[str, Dict[str, Union[str, int]]]]
-DataToWrite = Tuple[Path, bytes, bool]
 
 
 def index(
