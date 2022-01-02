@@ -26,7 +26,8 @@ from ldb.dataset import (
     get_collection_from_dataset_identifier,
 )
 from ldb.exceptions import DataObjectNotFoundError, LDBException
-from ldb.index import get_storage_files_for_paths, index
+from ldb.index import index
+from ldb.index.utils import get_storage_files_for_paths
 from ldb.path import InstanceDir, WorkspacePath
 from ldb.utils import (
     DATASET_PREFIX,
