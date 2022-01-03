@@ -4,6 +4,7 @@ class Format:
     BARE = "bare-pairs"
     ANNOT = "annotation-only"
     INFER = "tensorflow-inferred"
+    LABEL_STUDIO = "label-studio"
 
 
 INSTANTIATE_FORMATS = {
@@ -15,6 +16,7 @@ INSTANTIATE_FORMATS = {
     Format.INFER: Format.INFER,
     "annot": Format.ANNOT,
     Format.ANNOT: Format.ANNOT,
+    Format.LABEL_STUDIO: Format.LABEL_STUDIO,
 }
 INDEX_FORMATS = {
     "auto": Format.AUTO,

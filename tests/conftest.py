@@ -1,3 +1,4 @@
+import json
 import os
 from pathlib import Path
 from typing import Generator, NoReturn
@@ -152,3 +153,25 @@ def staged_ds_fashion(workspace_path: Path) -> str:
     main(["index", "-m", "bare", os.fspath(DATA_DIR / "fashion-mnist")])
     main(["add", f"{DATASET_PREFIX}{ROOT}"])
     return ds_identifier
+
+
+@pytest.fixture
+def label_studio_json_path(tmp_path: Path) -> Path:
+    parent = DATA_DIR / "flat-data-object-only"
+    with open(
+        DATA_DIR / "label-studio/json-format.json",
+        encoding="utf-8",
+    ) as f:
+        annot_str = f.read()
+    annot = json.loads(annot_str)
+    for task in annot:
+        task["data"]["image"] = os.fspath(
+            parent / task["data"]["image"].rsplit("/", 1)[1],
+        )
+
+    json_out = json.dumps(annot, indent=2)
+    dest = tmp_path / "data/json-format.json"
+    dest.parent.mkdir(parents=True)
+    with open(dest, "x", encoding="utf-8") as f:
+        f.write(json_out)
+    return dest

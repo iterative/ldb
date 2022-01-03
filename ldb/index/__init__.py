@@ -7,6 +7,7 @@ from ldb.data_formats import INDEX_FORMATS, Format
 from ldb.index.annotation_only import AnnotationOnlyIndexer
 from ldb.index.base import Indexer, IndexingResult, PairIndexer, Preprocessor
 from ldb.index.inferred import InferredIndexer, InferredPreprocessor
+from ldb.index.label_studio import LabelStudioIndexer, LabelStudioPreprocessor
 
 
 def index(
@@ -39,6 +40,14 @@ def index(
     elif fmt == Format.INFER:
         preprocessor = InferredPreprocessor(fmt, paths)
         indexer = InferredIndexer(
+            ldb_dir,
+            preprocessor,
+            read_any_cloud_location,
+            fmt == Format.STRICT,
+        )
+    elif fmt == Format.LABEL_STUDIO:
+        preprocessor = LabelStudioPreprocessor(fmt, paths)
+        indexer = LabelStudioIndexer(
             ldb_dir,
             preprocessor,
             read_any_cloud_location,
