@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Iterable, List
+from typing import Iterable, List, Sequence
 
 import fsspec
 from fsspec.core import OpenFile
@@ -14,6 +14,15 @@ from ldb.utils import current_time
 
 
 class LabelStudioPreprocessor(Preprocessor):
+    def __init__(
+        self,
+        fmt: str,
+        paths: Sequence[str],
+        url_key: str = "image",
+    ) -> None:
+        super().__init__(fmt, paths)
+        self.url_key = url_key
+
     @cached_property
     def annotations(self) -> List[JSONObject]:
         result = []
@@ -31,7 +40,9 @@ class LabelStudioPreprocessor(Preprocessor):
     @cached_property
     def data_object_files(self) -> List[OpenFile]:
         return list(
-            fsspec.open_files([a["data"]["image"] for a in self.annotations]),
+            fsspec.open_files(
+                [a["data"][self.url_key] for a in self.annotations],
+            ),
         )
 
 
