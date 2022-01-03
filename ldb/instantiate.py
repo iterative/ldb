@@ -59,6 +59,12 @@ def instantiate(
             collection_obj,
             tmp_dir,
         )
+    elif fmt == Format.LABEL_STUDIO:
+        num_data_objects, num_annotations = copy_label_studio(
+            ldb_dir,
+            collection_obj,
+            tmp_dir,
+        )
     else:
         raise ValueError(f"Not a valid indexing format: {fmt}")
 
@@ -180,6 +186,36 @@ class InferInstItem(PairInstItem):
         )
 
 
+@dataclass
+class LabelStudioInstItem(PairInstItem):
+    _annotation_content: List[JSONObject]
+
+    def __init__(
+        self,
+        ldb_dir: Path,
+        tmp_dir: Path,
+        annotation_content: List[JSONObject],
+    ):
+        super().__init__(
+            ldb_dir,
+            tmp_dir,
+            "",
+            "",
+        )
+        self._annotation_content = annotation_content
+
+    @cached_property
+    def annotation_content(self) -> JSONDecoded:
+        return self._annotation_content
+
+    @cached_property
+    def base_dest(self) -> str:
+        return os.path.join(
+            self.dest_dir,
+            "annotations",
+        )
+
+
 def get_annotation(ldb_dir: Path, annotation_hash: str) -> JSONDecoded:
     user_annotation_file_path = (
         get_hash_path(
@@ -275,4 +311,39 @@ def copy_infer(
             annotation_hash,
         ).copy_data_object()
         num_annotations += 1
+    return 0, num_annotations
+
+
+def copy_label_studio(
+    ldb_dir: Path,
+    collection_obj: Mapping[str, Optional[str]],
+    tmp_dir: Path,
+    url_key: str = "image",
+) -> Tuple[int, int]:
+    num_annotations = 0
+    annotations: List[JSONObject] = []
+    for data_object_hash, annotation_hash in collection_obj.items():
+        if not annotation_hash:
+            raise LDBException(
+                "For label-studio instantiate format, "
+                "all data objects must have an annotation. "
+                f"Missing annotation for data object: 0x{data_object_hash}",
+            )
+        annot = get_annotation(ldb_dir, annotation_hash)
+        try:
+            annot["data"][url_key]  # type: ignore[call-overload, index]
+        except Exception as exc:
+            raise LDBException(
+                "For label-studio instantiate format, "
+                f'annotations must have the key "data.{url_key}." '
+                "Malformatted annotation for data object: "
+                f"0x{data_object_hash}",
+            ) from exc
+        annotations.append(annot)  # type: ignore[arg-type]
+        num_annotations += 1
+    LabelStudioInstItem(
+        ldb_dir,
+        tmp_dir,
+        annotations,
+    ).copy_annotation()
     return 0, num_annotations
