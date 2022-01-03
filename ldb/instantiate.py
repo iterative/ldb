@@ -4,15 +4,21 @@ import shutil
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Mapping, Optional, Tuple
+from typing import List, Mapping, Optional, Tuple, cast
 
 import fsspec
 from funcy.objects import cached_property
 
 from ldb.data_formats import INSTANTIATE_FORMATS, Format
+from ldb.exceptions import LDBException
 from ldb.path import InstanceDir, WorkspacePath
 from ldb.typing import JSONDecoded, JSONObject
-from ldb.utils import get_hash_path, json_dumps, load_data_file
+from ldb.utils import (
+    get_hash_path,
+    json_dumps,
+    load_data_file,
+    write_data_file,
+)
 from ldb.workspace import collection_dir_to_object, ensure_empty_workspace
 
 
@@ -43,6 +49,12 @@ def instantiate(
         )
     elif fmt == Format.ANNOT:
         num_data_objects, num_annotations = copy_annot(
+            ldb_dir,
+            collection_obj,
+            tmp_dir,
+        )
+    elif fmt == Format.INFER:
+        num_data_objects, num_annotations = copy_infer(
             ldb_dir,
             collection_obj,
             tmp_dir,
@@ -86,14 +98,20 @@ class InstItem:
     def ext(self) -> str:
         return self._prefix_ext[1]
 
-    @property
-    def data_object_dest(self) -> Path:
-        return self.dest_dir / (
-            self.prefix + self.data_object_hash + self.ext.lower()
+    @cached_property
+    def base_dest(self) -> str:
+        return os.path.join(
+            self.dest_dir,
+            self.prefix + self.data_object_hash,
         )
+
+    @cached_property
+    def data_object_dest(self) -> str:
+        return self.base_dest + self.ext.lower()
 
     def copy_data_object(self) -> None:
         fs = fsspec.filesystem(self.data_object_meta["fs"]["protocol"])
+        os.makedirs(os.path.split(self.data_object_dest)[0], exist_ok=True)
         fs.get_file(self.data_object_meta["fs"]["path"], self.data_object_dest)
 
 
@@ -101,22 +119,30 @@ class InstItem:
 class PairInstItem(InstItem):
     annotation_hash: str
 
-    def annotation_content(self) -> str:
-        annotation = get_annotation(self.ldb_dir, self.annotation_hash)
-        return serialize_annotation(annotation)
+    @cached_property
+    def annotation_content(self) -> JSONDecoded:
+        return get_annotation(self.ldb_dir, self.annotation_hash)
 
-    @property
-    def annotation_dest(self) -> Path:
-        return self.dest_dir / (self.prefix + self.data_object_hash + ".json")
+    @cached_property
+    def annotation_content_bytes(self) -> bytes:
+        return serialize_annotation(self.annotation_content).encode()
+
+    @cached_property
+    def annotation_dest(self) -> str:
+        return self.base_dest + ".json"
 
     def copy_annotation(self) -> None:
-        with open(self.annotation_dest, "x", encoding="utf-8") as f:
-            f.write(self.annotation_content())
+        os.makedirs(os.path.split(self.annotation_dest)[0], exist_ok=True)
+        write_data_file(
+            Path(self.annotation_dest),
+            self.annotation_content_bytes,
+        )
 
 
 @dataclass
 class AnnotationOnlyInstItem(PairInstItem):
-    def annotation_content(self) -> str:
+    @cached_property
+    def annotation_content(self) -> JSONDecoded:
         annotation: JSONObject = get_annotation(  # type: ignore[assignment]
             self.ldb_dir,
             self.annotation_hash,
@@ -125,7 +151,33 @@ class AnnotationOnlyInstItem(PairInstItem):
             "ldb_meta": {"data_object_id": self.data_object_hash},
             "annotation": annotation,
         }
-        return serialize_annotation(annotation)
+        return annotation
+
+
+@dataclass
+class InferInstItem(PairInstItem):
+    annotation_hash: str
+
+    @cached_property
+    def base_dest(self) -> str:
+        parts: List[str] = []
+        try:
+            label = self.annotation_content["label"]  # type: ignore[index, call-overload] # noqa: E501
+        except Exception as exc:
+            raise LDBException(
+                "Annotations for tensorflow-inferred format should contain "
+                '"label" key',
+            ) from exc
+        key: str
+        while isinstance(label, dict):
+            key, label = next(iter(label.items()))
+            parts.append(key)
+        parts.append(label)
+        return os.path.join(
+            self.dest_dir,
+            *parts,
+            self.prefix + self.data_object_hash,
+        )
 
 
 def get_annotation(ldb_dir: Path, annotation_hash: str) -> JSONDecoded:
@@ -196,4 +248,31 @@ def copy_annot(
                 annotation_hash,
             ).copy_annotation()
             num_annotations += 1
+    return 0, num_annotations
+
+
+def copy_infer(
+    ldb_dir: Path,
+    collection_obj: Mapping[str, Optional[str]],
+    tmp_dir: Path,
+) -> Tuple[int, int]:
+    num_annotations = 0
+    for data_object_hash, annotation_hash in collection_obj.items():
+        if not annotation_hash:
+            raise LDBException(
+                "For tensorflow-inferred instantiate format, "
+                "all data objects must have an annotation. "
+                f"Missing annotation for data object: 0x{data_object_hash}",
+            )
+    for data_object_hash, annotation_hash in cast(
+        Mapping[str, str],
+        collection_obj,
+    ).items():
+        InferInstItem(
+            ldb_dir,
+            tmp_dir,
+            data_object_hash,
+            annotation_hash,
+        ).copy_data_object()
+        num_annotations += 1
     return 0, num_annotations
