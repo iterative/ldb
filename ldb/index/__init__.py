@@ -18,6 +18,7 @@ def index(
 ) -> IndexingResult:
     indexer: Indexer
     fmt = INDEX_FORMATS.get(fmt, fmt)
+    print(f"Data format: {fmt}")
     if fmt in (Format.AUTO, Format.STRICT, Format.BARE, Format.ANNOT):
         preprocessor = Preprocessor(paths)
         if fmt == Format.AUTO:
@@ -25,6 +26,7 @@ def index(
                 preprocessor.data_object_files,
                 preprocessor.annotation_files,
             )
+            print(f"Auto-detected data format: {fmt}")
         if fmt in (Format.STRICT, Format.BARE):
             indexer = PairIndexer(
                 ldb_dir,
@@ -55,6 +57,7 @@ def index(
         )
     else:
         raise ValueError(f"Not a valid indexing format: {fmt}")
+    print("\nIndexing paths...")
     indexer.index()
     return indexer.result
 
