@@ -14,7 +14,6 @@ from ldb.index import index
 
 def index_command(options: Namespace) -> None:
     ldb_dir = get_ldb_instance()
-    print("Indexing paths...")
     result = index(
         ldb_dir,
         options.paths,
