@@ -21,7 +21,6 @@ from typing import (
 from fsspec.core import OpenFile
 from funcy.objects import cached_property
 
-from ldb.data_formats import INDEX_FORMATS, Format
 from ldb.dataset import get_collection_dir_keys
 from ldb.exceptions import LDBException
 from ldb.index.utils import (
@@ -97,14 +96,13 @@ class IndexingResult:
 
 
 class Preprocessor:
-    def __init__(self, fmt: str, paths: Sequence[str]) -> None:
-        self.fmt = INDEX_FORMATS[fmt]
+    def __init__(self, paths: Sequence[str]) -> None:
         self.paths = [os.path.abspath(p) for p in paths]
 
     def get_storage_files(self) -> List[OpenFile]:
         return get_storage_files_for_paths(
             self.paths,
-            default_format=self.fmt in (Format.STRICT, Format.BARE),
+            default_format=True,
         )
 
     @cached_property
