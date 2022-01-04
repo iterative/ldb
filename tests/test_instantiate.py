@@ -1,3 +1,4 @@
+import json
 import os
 from pathlib import Path
 from typing import List, Tuple
@@ -43,3 +44,15 @@ def test_instantiate_infer(workspace_path):
     main(["add", f"{DATASET_PREFIX}{ROOT}"])
     main(["instantiate", "-m", "infer"])
     assert get_workspace_counts(workspace_path) == (23, 0)
+
+
+def test_instantiate_label_studio(workspace_path, label_studio_json_path):
+    main(["stage", "ds:my-dataset"])
+    main(
+        ["index", "-m", "label-studio", os.fspath(label_studio_json_path)],
+    )
+    main(["add", f"{DATASET_PREFIX}{ROOT}"])
+    main(["instantiate", "-m", "label-studio"])
+    result = json.loads((workspace_path / "annotations.json").read_text())
+    assert get_workspace_counts(workspace_path) == (0, 1)
+    assert len(result) == 23
