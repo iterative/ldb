@@ -17,9 +17,9 @@ def index(
     fmt: str = Format.AUTO,
 ) -> IndexingResult:
     indexer: Indexer
-    fmt = INDEX_FORMATS[fmt]
+    fmt = INDEX_FORMATS.get(fmt, fmt)
     if fmt in (Format.AUTO, Format.STRICT, Format.BARE, Format.ANNOT):
-        preprocessor = Preprocessor(fmt, paths)
+        preprocessor = Preprocessor(paths)
         if fmt == Format.AUTO:
             fmt = autodetect_format(
                 preprocessor.data_object_files,
@@ -38,7 +38,7 @@ def index(
                 preprocessor,
             )
     elif fmt == Format.INFER:
-        preprocessor = InferredPreprocessor(fmt, paths)
+        preprocessor = InferredPreprocessor(paths)
         indexer = InferredIndexer(
             ldb_dir,
             preprocessor,
@@ -46,7 +46,7 @@ def index(
             fmt == Format.STRICT,
         )
     elif fmt == Format.LABEL_STUDIO:
-        preprocessor = LabelStudioPreprocessor(fmt, paths)
+        preprocessor = LabelStudioPreprocessor(paths)
         indexer = LabelStudioIndexer(
             ldb_dir,
             preprocessor,

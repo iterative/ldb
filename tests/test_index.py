@@ -71,6 +71,21 @@ def test_index_func_single_path(params, ldb_instance):
     assert results == expected_results
 
 
+def test_index_func_single_path_label_studio(
+    label_studio_json_path,
+    ldb_instance,
+):
+    result = IndexingNums.from_result(
+        index(
+            ldb_instance,
+            [DATA_DIR / label_studio_json_path],
+            False,
+            Format.LABEL_STUDIO,
+        ),
+    )
+    assert result == IndexingNums(23, 23, 23, 23, 23)
+
+
 def test_index_bare(ldb_instance, data_dir):
     path = os.fspath(data_dir / "fashion-mnist" / "original")
     ret = main(["index", "-m", "bare", path])

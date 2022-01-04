@@ -16,11 +16,10 @@ from ldb.utils import current_time
 class LabelStudioPreprocessor(Preprocessor):
     def __init__(
         self,
-        fmt: str,
         paths: Sequence[str],
         url_key: str = "image",
     ) -> None:
-        super().__init__(fmt, paths)
+        super().__init__(paths)
         self.url_key = url_key
 
     @cached_property
