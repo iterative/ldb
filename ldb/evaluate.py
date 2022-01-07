@@ -2,7 +2,7 @@ from pathlib import Path
 from typing import Iterable, Iterator, List, Optional, Sequence, Tuple, Union
 
 from ldb.add import process_args_for_delete, process_args_for_ls
-from ldb.dataset import get_annotations, get_data_object_meta
+from ldb.dataset import get_annotations, get_data_object_metas
 from ldb.func_utils import apply_optional
 from ldb.query.search import get_search_func
 from ldb.typing import JSONDecoded
@@ -30,7 +30,7 @@ def evaluate(
             ),
         )
         search_results: List[Iterable[JSONDecoded]] = [
-            file_search(get_data_object_meta(ldb_dir, data_object_hashes)),
+            file_search(get_data_object_metas(ldb_dir, data_object_hashes)),
         ]
     else:
         data_object_hashes, annotation_hashes, _ = process_args_for_ls(
@@ -44,7 +44,7 @@ def evaluate(
             if file_search is not None:
                 search_results.append(
                     file_search(
-                        get_data_object_meta(ldb_dir, data_object_hashes),
+                        get_data_object_metas(ldb_dir, data_object_hashes),
                     ),
                 )
             if search is not None:

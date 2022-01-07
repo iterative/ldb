@@ -6,10 +6,7 @@ from typing import Iterable
 from ldb.add import delete, process_args_for_delete, process_args_for_ls
 from ldb.cli_utils import add_data_object_arguments
 from ldb.core import get_ldb_instance
-from ldb.dataset import (
-    apply_file_query_to_data_objects,
-    apply_query_to_data_objects,
-)
+from ldb.dataset import apply_queries
 from ldb.exceptions import LDBException
 from ldb.func_utils import apply_optional
 from ldb.query.search import get_bool_search_func
@@ -36,18 +33,13 @@ def delete_command(options: Namespace) -> None:
             ldb_dir,
             paths,
         )
-        data_object_hashes = apply_query_to_data_objects(
+        data_object_hashes = apply_queries(
             ldb_dir,
             search,
-            data_object_hashes,
-            annotation_hashes,
-        )
-    if file_search is not None:
-        data_object_hashes = apply_file_query_to_data_objects(
-            ldb_dir,
             file_search,
             data_object_hashes,
-        )
+            annotation_hashes,
+        ).keys()
     delete(
         Path("."),
         data_object_hashes,
