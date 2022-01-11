@@ -2,12 +2,13 @@ import os
 import re
 import shutil
 from pathlib import Path
-from typing import List, Optional, Sequence
+from typing import Iterable, List, Sequence, Tuple
 
 from ldb import path
 from ldb.core import add_default_read_add_storage
 from ldb.ls import DatasetListing, ls, ls_collection
 from ldb.main import main
+from ldb.op_type import OpType
 from ldb.path import WorkspacePath
 from ldb.utils import DATASET_PREFIX, ROOT, chdir
 from ldb.workspace import collection_dir_to_object
@@ -81,10 +82,10 @@ def is_hash(s: str) -> bool:
 def sorted_ls(
     ldb_dir: Path,
     paths: Sequence[str],
-    query: Optional[str] = None,
+    query_args: Iterable[Tuple[str, str]] = (),
 ) -> List[DatasetListing]:
     return sorted(
-        ls(ldb_dir, paths, query),
+        ls(ldb_dir, paths, query_args),
         key=lambda d: (
             d.data_object_hash,
             d.annotation_hash,
@@ -329,7 +330,12 @@ def test_ls_root_dataset_query(ldb_instance, data_dir):
     listings = sorted_ls(
         ldb_instance,
         [f"{DATASET_PREFIX}{ROOT}"],
-        "@ == `null` || label == inference.label || label == `3`",
+        [
+            (
+                OpType.ANNOTATION_QUERY,
+                "@ == `null` || label == inference.label || label == `3`",
+            ),
+        ],
     )
     expected = [
         DatasetListing(

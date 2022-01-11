@@ -1,7 +1,23 @@
 import argparse
-from typing import Iterable
+from argparse import ArgumentParser, Namespace
+from typing import Any, Iterable, Optional, Sequence, Union
 
 import shtab
+
+from ldb.op_type import OpType
+
+
+class AppendConstValuesAction(argparse.Action):
+    def __call__(
+        self,
+        parser: ArgumentParser,
+        namespace: Namespace,
+        values: Union[str, Sequence[Any], None],
+        option_string: Optional[str] = None,
+    ) -> None:
+        items = getattr(namespace, self.dest, None) or []
+        items.append((self.const, values))
+        setattr(namespace, self.dest, items)
 
 
 def choice_str(choices: Iterable[str]) -> str:
@@ -13,13 +29,19 @@ def add_data_object_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--query",
         metavar="<query>",
-        dest="annotation_query",
+        const=OpType.ANNOTATION_QUERY,
+        default=[],
+        dest="query_args",
+        action=AppendConstValuesAction,
         help="JMESPath query applied to annotations",
     )
     parser.add_argument(
         "--file",
         metavar="<query>",
-        dest="file_query",
+        const=OpType.FILE_QUERY,
+        default=[],
+        dest="query_args",
+        action=AppendConstValuesAction,
         help="JMESPath query applied to file attributes",
     )
     parser.add_argument(  # type: ignore[attr-defined]
