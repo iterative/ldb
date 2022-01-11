@@ -6,7 +6,7 @@ KT = TypeVar("KT")
 VT = TypeVar("VT")
 
 
-class Cache(ABC, Mapping[KT, VT]):
+class MappingCache(ABC, Mapping[KT, VT]):
     def __init__(self) -> None:
         self._cache: Dict[KT, VT] = {}
 
@@ -28,7 +28,7 @@ class Cache(ABC, Mapping[KT, VT]):
         return len(self._cache)
 
 
-class LDBCache(Cache[KT, VT]):
+class LDBMappingCache(MappingCache[KT, VT]):
     def __init__(self, ldb_dir: Path) -> None:
         super().__init__()
         self.ldb_dir = ldb_dir

@@ -20,7 +20,7 @@ from typing import (
 
 from funcy.objects import cached_property
 
-from ldb.collections import LDBCache
+from ldb.collections import LDBMappingCache
 from ldb.exceptions import DatasetNotFoundError, LDBException
 from ldb.op_type import OpType
 from ldb.path import InstanceDir
@@ -307,12 +307,12 @@ def get_data_object_metas(
     return meta_objects
 
 
-class AnnotationCache(LDBCache[str, JSONDecoded]):
+class AnnotationCache(LDBMappingCache[str, JSONDecoded]):
     def get_new(self, key: str) -> JSONDecoded:
         return get_annotation(self.ldb_dir, key)
 
 
-class DataObjectMetaCache(LDBCache[str, JSONDecoded]):
+class DataObjectMetaCache(LDBMappingCache[str, JSONDecoded]):
     def get_new(self, key: str) -> JSONDecoded:
         return get_data_object_meta(self.ldb_dir, key)
 
@@ -326,7 +326,7 @@ class Query(CollectionOperation):
     def __init__(
         self,
         ldb_dir: Path,
-        cache: LDBCache[Any, Any],
+        cache: LDBMappingCache[Any, Any],
         search: BoolSearchFunc,
     ) -> None:
         self.ldb_dir = ldb_dir
