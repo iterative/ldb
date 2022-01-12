@@ -5,6 +5,7 @@ from collections import defaultdict
 from dataclasses import asdict, dataclass, fields
 from datetime import datetime
 from glob import iglob
+from itertools import tee
 from pathlib import Path
 from typing import (
     Any,
@@ -318,7 +319,10 @@ class DataObjectMetaCache(LDBMappingCache[str, JSONDecoded]):
 
 
 class CollectionOperation(ABC):
-    def apply(self, collection: Dict[str, str]) -> Dict[str, str]:
+    def apply(
+        self,
+        collection: Iterable[Tuple[str, str]],
+    ) -> Iterator[Tuple[str, str]]:
         raise NotImplementedError
 
 
@@ -335,27 +339,31 @@ class Query(CollectionOperation):
 
 
 class AnnotationQuery(Query):
-    def apply(self, collection: Dict[str, str]) -> Dict[str, str]:
-        return {
-            data_object_hash: annotation_hash
-            for (data_object_hash, annotation_hash), keep in zip(
-                collection.items(),
-                self.search(self.cache[a] for a in collection.values()),
-            )
-            if keep
-        }
+    def apply(
+        self,
+        collection: Iterable[Tuple[str, str]],
+    ) -> Iterator[Tuple[str, str]]:
+        collection1, collection2 = tee(collection)
+        for (data_object_hash, annotation_hash), keep in zip(
+            collection1,
+            self.search(self.cache[a] for _, a in collection2),
+        ):
+            if keep:
+                yield data_object_hash, annotation_hash
 
 
 class FileQuery(Query):
-    def apply(self, collection: Dict[str, str]) -> Dict[str, str]:
-        return {
-            data_object_hash: annotation_hash
-            for (data_object_hash, annotation_hash), keep in zip(
-                collection.items(),
-                self.search(self.cache[d] for d in collection.keys()),
-            )
-            if keep
-        }
+    def apply(
+        self,
+        collection: Iterable[Tuple[str, str]],
+    ) -> Iterator[Tuple[str, str]]:
+        collection1, collection2 = tee(collection)
+        for (data_object_hash, annotation_hash), keep in zip(
+            collection1,
+            self.search(self.cache[d] for d, _ in collection2),
+        ):
+            if keep:
+                yield data_object_hash, annotation_hash
 
 
 class PipelineData:
@@ -424,7 +432,10 @@ class Pipeline:
     ) -> "Pipeline":
         return cls(PipelineBuilder(ldb_dir, data=data).build(op_defs))
 
-    def run(self, collection: Dict[str, str]) -> Dict[str, str]:
+    def run(
+        self,
+        collection: Iterable[Tuple[str, str]],
+    ) -> Iterable[Tuple[str, str]]:
         for op in self.ops:
             collection = op.apply(collection)
         return collection
@@ -437,10 +448,7 @@ def apply_queries(
     collection_ops: Iterable[Tuple[str, str]],
 ) -> Dict[str, str]:
     """
-    Filter the given collection by the search functions.
-
-    If not `None`, `search` is applied to annotations and `file_search`
-    to file attributes.
+    Filter the given collection by the operations in `collection_ops`.
     """
-    collection = dict(zip(data_object_hashes, annotation_hashes))
-    return Pipeline.from_defs(ldb_dir, collection_ops).run(collection)
+    collection = zip(data_object_hashes, annotation_hashes)
+    return dict(Pipeline.from_defs(ldb_dir, collection_ops).run(collection))
