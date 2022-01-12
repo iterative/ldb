@@ -29,7 +29,7 @@ def instantiate(
     force: bool = False,
 ) -> Tuple[int, int]:
     fmt = INSTANTIATE_FORMATS[fmt]
-    collection_obj = collection_dir_to_object(
+    collection = collection_dir_to_object(
         workspace_path / WorkspacePath.COLLECTION,
     )
 
@@ -43,26 +43,26 @@ def instantiate(
     if fmt in (Format.STRICT, Format.BARE):
         num_data_objects, num_annotations = copy_pairs(
             ldb_dir,
-            collection_obj,
+            collection,
             tmp_dir,
             fmt == Format.STRICT,
         )
     elif fmt == Format.ANNOT:
         num_data_objects, num_annotations = copy_annot(
             ldb_dir,
-            collection_obj,
+            collection,
             tmp_dir,
         )
     elif fmt == Format.INFER:
         num_data_objects, num_annotations = copy_infer(
             ldb_dir,
-            collection_obj,
+            collection,
             tmp_dir,
         )
     elif fmt == Format.LABEL_STUDIO:
         num_data_objects, num_annotations = copy_label_studio(
             ldb_dir,
-            collection_obj,
+            collection,
             tmp_dir,
         )
     else:
@@ -229,14 +229,14 @@ def get_prefix_ext(path: str) -> Tuple[str, str]:
 
 def copy_pairs(
     ldb_dir: Path,
-    collection_obj: Mapping[str, Optional[str]],
+    collection: Mapping[str, Optional[str]],
     tmp_dir: Path,
     strict: bool = False,
 ) -> Tuple[int, int]:
     items = []
     num_annotations = 0
     # annotations are small and stored in ldb; copy them first
-    for data_object_hash, annotation_hash in collection_obj.items():
+    for data_object_hash, annotation_hash in collection.items():
         if annotation_hash is None:
             if strict:
                 continue
@@ -258,11 +258,11 @@ def copy_pairs(
 
 def copy_annot(
     ldb_dir: Path,
-    collection_obj: Mapping[str, Optional[str]],
+    collection: Mapping[str, Optional[str]],
     tmp_dir: Path,
 ) -> Tuple[int, int]:
     num_annotations = 0
-    for data_object_hash, annotation_hash in collection_obj.items():
+    for data_object_hash, annotation_hash in collection.items():
         if annotation_hash:
             AnnotationOnlyInstItem(
                 ldb_dir,
@@ -276,11 +276,11 @@ def copy_annot(
 
 def copy_infer(
     ldb_dir: Path,
-    collection_obj: Mapping[str, Optional[str]],
+    collection: Mapping[str, Optional[str]],
     tmp_dir: Path,
 ) -> Tuple[int, int]:
     num_annotations = 0
-    for data_object_hash, annotation_hash in collection_obj.items():
+    for data_object_hash, annotation_hash in collection.items():
         if not annotation_hash:
             raise LDBException(
                 "For tensorflow-inferred instantiate format, "
@@ -289,7 +289,7 @@ def copy_infer(
             )
     for data_object_hash, annotation_hash in cast(
         Mapping[str, str],
-        collection_obj,
+        collection,
     ).items():
         InferInstItem(
             ldb_dir,
@@ -303,13 +303,13 @@ def copy_infer(
 
 def copy_label_studio(
     ldb_dir: Path,
-    collection_obj: Mapping[str, Optional[str]],
+    collection: Mapping[str, Optional[str]],
     tmp_dir: Path,
     url_key: str = "image",
 ) -> Tuple[int, int]:
     num_annotations = 0
     annotations: List[JSONObject] = []
-    for data_object_hash, annotation_hash in collection_obj.items():
+    for data_object_hash, annotation_hash in collection.items():
         if not annotation_hash:
             raise LDBException(
                 "For label-studio instantiate format, "
