@@ -40,33 +40,12 @@ def instantiate(
     tmp_dir_base.mkdir(exist_ok=True)
     tmp_dir = Path(tempfile.mkdtemp(dir=tmp_dir_base))
 
-    if fmt in (Format.STRICT, Format.BARE):
-        num_data_objects, num_annotations = copy_pairs(
-            ldb_dir,
-            collection,
-            tmp_dir,
-            fmt == Format.STRICT,
-        )
-    elif fmt == Format.ANNOT:
-        num_data_objects, num_annotations = copy_annot(
-            ldb_dir,
-            collection,
-            tmp_dir,
-        )
-    elif fmt == Format.INFER:
-        num_data_objects, num_annotations = copy_infer(
-            ldb_dir,
-            collection,
-            tmp_dir,
-        )
-    elif fmt == Format.LABEL_STUDIO:
-        num_data_objects, num_annotations = copy_label_studio(
-            ldb_dir,
-            collection,
-            tmp_dir,
-        )
-    else:
-        raise ValueError(f"Not a valid indexing format: {fmt}")
+    num_data_objects, num_annotations = instantiate_collection(
+        ldb_dir,
+        collection,
+        tmp_dir,
+        fmt,
+    )
 
     # check again to make sure nothing was added while writing to the
     # temporary location
@@ -76,6 +55,41 @@ def instantiate(
 
     tmp_dir.rmdir()
     return num_data_objects, num_annotations
+
+
+def instantiate_collection(
+    ldb_dir: Path,
+    collection: Mapping[str, Optional[str]],
+    tmp_dir: Path,
+    fmt: str,
+) -> Tuple[int, int]:
+    fmt = INSTANTIATE_FORMATS[fmt]
+    if fmt in (Format.STRICT, Format.BARE):
+        return copy_pairs(
+            ldb_dir,
+            collection,
+            tmp_dir,
+            fmt == Format.STRICT,
+        )
+    if fmt == Format.ANNOT:
+        return copy_annot(
+            ldb_dir,
+            collection,
+            tmp_dir,
+        )
+    if fmt == Format.INFER:
+        return copy_infer(
+            ldb_dir,
+            collection,
+            tmp_dir,
+        )
+    if fmt == Format.LABEL_STUDIO:
+        return copy_label_studio(
+            ldb_dir,
+            collection,
+            tmp_dir,
+        )
+    raise ValueError(f"Not a valid indexing format: {fmt}")
 
 
 @dataclass
