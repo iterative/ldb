@@ -9,6 +9,7 @@ from itertools import tee
 from pathlib import Path
 from typing import (
     Any,
+    Callable,
     DefaultDict,
     Dict,
     Iterable,
@@ -23,6 +24,7 @@ from funcy.objects import cached_property
 
 from ldb.collections import LDBMappingCache
 from ldb.exceptions import DatasetNotFoundError, LDBException
+from ldb.iter_utils import take
 from ldb.op_type import OpType
 from ldb.path import InstanceDir
 from ldb.query.search import BoolSearchFunc, get_bool_search_func
@@ -34,6 +36,11 @@ from ldb.utils import (
     load_data_file,
     parse_datetime,
 )
+
+CollectionFunc = Callable[
+    [Iterable[Tuple[str, str]]],
+    Iterator[Tuple[str, str]],
+]
 
 
 @dataclass
@@ -326,6 +333,17 @@ class CollectionOperation(ABC):
         raise NotImplementedError
 
 
+class LimitCollection(CollectionOperation):
+    def __init__(self, n: int) -> None:
+        self.n = n
+
+    def apply(
+        self,
+        collection: Iterable[Tuple[str, str]],
+    ) -> Iterator[Tuple[str, str]]:
+        return take(collection, n=self.n)
+
+
 class Query(CollectionOperation):
     def __init__(
         self,
@@ -394,33 +412,38 @@ class PipelineBuilder:
     def build(
         self,
         op_defs: Iterable[Tuple[str, str]],
-    ) -> List[CollectionOperation]:
+    ) -> List[CollectionFunc]:
         ops = []
         for op_type, arg in op_defs:
+            op: CollectionFunc
             if op_type == OpType.ANNOTATION_QUERY:
-                op: CollectionOperation = self.annotation_query(arg)
+                op = self.annotation_query(arg)
             elif op_type == OpType.FILE_QUERY:
                 op = self.file_query(arg)
+            elif op_type == OpType.LIMIT:
+                op = LimitCollection(int(arg)).apply
+            else:
+                raise ValueError(f"Unknown op type: {op_type}")
             ops.append(op)
         return ops
 
-    def annotation_query(self, search: str) -> AnnotationQuery:
+    def annotation_query(self, search: str) -> CollectionFunc:
         return AnnotationQuery(
             self.ldb_dir,
             self.data.annotations,
             get_bool_search_func(search),
-        )
+        ).apply
 
-    def file_query(self, search: str) -> FileQuery:
+    def file_query(self, search: str) -> CollectionFunc:
         return FileQuery(
             self.ldb_dir,
             self.data.data_object_metas,
             get_bool_search_func(search),
-        )
+        ).apply
 
 
 class Pipeline:
-    def __init__(self, ops: Iterable[CollectionOperation]) -> None:
+    def __init__(self, ops: Iterable[CollectionFunc]) -> None:
         self.ops = ops
 
     @classmethod
@@ -437,7 +460,7 @@ class Pipeline:
         collection: Iterable[Tuple[str, str]],
     ) -> Iterable[Tuple[str, str]]:
         for op in self.ops:
-            collection = op.apply(collection)
+            collection = op(collection)
         return collection
 
 

@@ -1,6 +1,8 @@
 import os
 import shutil
 
+import pytest
+
 from ldb.core import add_default_read_add_storage
 from ldb.main import main
 from ldb.utils import DATASET_PREFIX, ROOT
@@ -53,19 +55,36 @@ def test_del_root_dataset(workspace_path, staged_ds_fashion):
     assert num_empty_files(object_file_paths) == 0
 
 
-def test_del_root_dataset_query(workspace_path, staged_ds_fashion):
+@pytest.mark.parametrize(
+    "before,after,n_obj,n_annot",
+    [
+        ([], [], 15, 6),
+        (["--limit", "12"], [], 26, 17),
+        ([], ["--limit", "12"], 20, 11),
+    ],
+)
+def test_del_root_dataset_query(
+    before,
+    after,
+    n_obj,
+    n_annot,
+    workspace_path,
+    staged_ds_fashion,
+):
     ret = main(
         [
             "del",
             f"{DATASET_PREFIX}{ROOT}",
+            *before,
             "--query",
             "label != `null` && label > `1` && label < `8`",
+            *after,
         ],
     )
     object_file_paths = get_staged_object_file_paths(workspace_path)
     assert ret == 0
-    assert len(object_file_paths) == 15
-    assert num_empty_files(object_file_paths) == 6
+    assert len(object_file_paths) == n_obj
+    assert num_empty_files(object_file_paths) == n_annot
 
 
 def test_del_workspace_dataset_query(workspace_path, staged_ds_fashion):

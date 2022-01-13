@@ -161,7 +161,11 @@ def test_evaluate_datasets(ldb_instance, workspace_path, data_dir):
     assert result == expected
 
 
-def test_evaluate_root_dataset(ldb_instance, data_dir):
+@pytest.mark.parametrize(
+    "limit",
+    [0, 4],
+)
+def test_evaluate_root_dataset(limit, ldb_instance, data_dir):
     main(
         [
             "index",
@@ -176,6 +180,7 @@ def test_evaluate_root_dataset(ldb_instance, data_dir):
             ldb_instance,
             [f"{DATASET_PREFIX}{ROOT}"],
             "[label, inference.label]",
+            limit=limit,
         ),
     )
     expected = [
@@ -193,6 +198,8 @@ def test_evaluate_root_dataset(ldb_instance, data_dir):
         ("def3cbcb30f3254a2a220e51ddf45375", [3, None]),
         ("e299594dc1f79f8e69c6d79a42699822", [0, 1]),
     ]
+    if limit:
+        expected = expected[:limit]
     assert result == expected
 
 

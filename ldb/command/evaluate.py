@@ -9,12 +9,15 @@ from ldb.evaluate import evaluate, process_query_args
 
 
 def evaluate_command(options: Namespace) -> None:
-    annotation_query, file_query = process_query_args(options.query_args)
+    annotation_query, file_query, limit = process_query_args(
+        options.query_args,
+    )
     for data_object_hash, *results in evaluate(
         get_ldb_instance(),
         options.paths,
         annotation_query,
         file_query,
+        limit=limit,
     ):
         if not options.json_only:
             print(f"0x{data_object_hash}")

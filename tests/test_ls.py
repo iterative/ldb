@@ -4,6 +4,8 @@ import shutil
 from pathlib import Path
 from typing import Iterable, List, Sequence, Tuple
 
+import pytest
+
 from ldb import path
 from ldb.core import add_default_read_add_storage
 from ldb.ls import DatasetListing, ls, ls_collection
@@ -323,7 +325,15 @@ def test_ls_root_dataset(ldb_instance, data_dir):
     assert listings == UPDATES_DIR_LISTINGS
 
 
-def test_ls_root_dataset_query(ldb_instance, data_dir):
+@pytest.mark.parametrize(
+    "before,after,num",
+    [
+        ([], [], 6),
+        ([(OpType.LIMIT, "5")], [], 4),
+        ([], [(OpType.LIMIT, "5")], 5),
+    ],
+)
+def test_ls_root_dataset_query(before, after, num, ldb_instance, data_dir):
     main(
         ["index", "-m", "bare", os.fspath(data_dir / "fashion-mnist/updates")],
     )
@@ -331,10 +341,12 @@ def test_ls_root_dataset_query(ldb_instance, data_dir):
         ldb_instance,
         [f"{DATASET_PREFIX}{ROOT}"],
         [
+            *before,
             (
                 OpType.ANNOTATION_QUERY,
                 "@ == `null` || label == inference.label || label == `3`",
             ),
+            *after,
         ],
     )
     expected = [
@@ -399,7 +411,7 @@ def test_ls_root_dataset_query(ldb_instance, data_dir):
             annotation_version=0,
         ),
     ]
-    assert listings == expected
+    assert listings == expected[:num]
 
 
 def test_ls_current_workspace(workspace_path, data_dir, ldb_instance):

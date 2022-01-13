@@ -44,6 +44,15 @@ def add_data_object_arguments(parser: argparse.ArgumentParser) -> None:
         action=AppendConstValuesAction,
         help="JMESPath query applied to file attributes",
     )
+    parser.add_argument(
+        "--limit",
+        metavar="<num>",
+        const=OpType.LIMIT,
+        default=[],
+        dest="query_args",
+        action=AppendConstValuesAction,
+        help="Take the first num items",
+    )
     parser.add_argument(  # type: ignore[attr-defined]
         "paths",
         metavar="<path>",
