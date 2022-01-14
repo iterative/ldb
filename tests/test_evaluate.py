@@ -14,6 +14,25 @@ from ldb.utils import DATASET_PREFIX, ROOT, chdir
 from .utils import is_data_object_meta_obj, stage_new_workspace
 
 
+@pytest.mark.parametrize(
+    "args",
+    [
+        (),
+        ("--limit", "10"),
+        ("--query", "label"),
+        ("--file", "fs.path"),
+        ("--query", "label", "--file", "fs.path"),
+        ("--limit", "4", "--query", "label", "--file", "fs.path"),
+        ("--query", "label", "--limit", "4", "--file", "fs.path"),
+    ],
+)
+def test_cli_eval_root_dataset(args, ldb_instance, data_dir):
+    dir_to_eval = os.fspath(data_dir / "fashion-mnist/updates")
+    main(["index", "-m", "bare", dir_to_eval])
+    ret = main(["eval", f"{DATASET_PREFIX}{ROOT}", *args])
+    assert ret == 0
+
+
 def test_evaluate_storage_location(ldb_instance, data_dir):
     dir_to_eval = os.fspath(data_dir / "fashion-mnist/updates")
     main(["index", "-m", "bare", dir_to_eval])
