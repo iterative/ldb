@@ -1,5 +1,4 @@
-import argparse
-from argparse import ArgumentParser, Namespace
+from argparse import Action, ArgumentParser, Namespace
 from typing import Any, Iterable, Optional, Sequence, Union
 
 import shtab
@@ -7,7 +6,7 @@ import shtab
 from ldb.op_type import OpType
 
 
-class AppendConstValuesAction(argparse.Action):
+class AppendConstValuesAction(Action):
     def __call__(
         self,
         parser: ArgumentParser,
@@ -25,13 +24,24 @@ def choice_str(choices: Iterable[str]) -> str:
     return f"{{{choice_strings}}}"
 
 
-def add_data_object_arguments(parser: argparse.ArgumentParser) -> None:
+def add_data_obj_args_for_ls(parser: ArgumentParser, dest: str) -> None:
+    add_base_data_object_options(parser, dest)
+    add_extra_data_object_options(parser, dest)
+    add_data_object_paths(parser)
+
+
+def add_data_obj_args_for_evaluate(parser: ArgumentParser, dest: str) -> None:
+    add_base_data_object_options(parser, dest)
+    add_data_object_paths(parser)
+
+
+def add_base_data_object_options(parser: ArgumentParser, dest: str) -> None:
     parser.add_argument(
         "--query",
         metavar="<query>",
         const=OpType.ANNOTATION_QUERY,
         default=[],
-        dest="query_args",
+        dest=dest,
         action=AppendConstValuesAction,
         help="JMESPath query applied to annotations",
     )
@@ -40,7 +50,7 @@ def add_data_object_arguments(parser: argparse.ArgumentParser) -> None:
         metavar="<query>",
         const=OpType.FILE_QUERY,
         default=[],
-        dest="query_args",
+        dest=dest,
         action=AppendConstValuesAction,
         help="JMESPath query applied to file attributes",
     )
@@ -49,19 +59,25 @@ def add_data_object_arguments(parser: argparse.ArgumentParser) -> None:
         metavar="<num>",
         const=OpType.LIMIT,
         default=[],
-        dest="query_args",
+        dest=dest,
         action=AppendConstValuesAction,
         help="Take the first num items",
     )
+
+
+def add_extra_data_object_options(parser: ArgumentParser, dest: str) -> None:
     parser.add_argument(
         "--sample",
         metavar="<probability>",
         const=OpType.SAMPLE,
         default=[],
-        dest="query_args",
+        dest=dest,
         action=AppendConstValuesAction,
         help="Each item will have the given probability of being selected",
     )
+
+
+def add_data_object_paths(parser: ArgumentParser) -> None:
     parser.add_argument(  # type: ignore[attr-defined]
         "paths",
         metavar="<path>",
@@ -71,7 +87,7 @@ def add_data_object_arguments(parser: argparse.ArgumentParser) -> None:
 
 
 def add_data_format_arguments(
-    parser: argparse.ArgumentParser,
+    parser: ArgumentParser,
     default: str,
     formats: Iterable[str],
 ) -> None:

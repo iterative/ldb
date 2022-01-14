@@ -2,7 +2,7 @@ import argparse
 from argparse import Namespace
 from typing import Iterable
 
-from ldb.cli_utils import add_data_object_arguments
+from ldb.cli_utils import add_data_obj_args_for_ls
 from ldb.core import get_ldb_instance
 from ldb.ls import ls, print_dataset_listings
 
@@ -40,5 +40,5 @@ def add_parser(
         default=False,
         help="Show the number of objects instead of listing them out",
     )
-    add_data_object_arguments(parser)
+    add_data_obj_args_for_ls(parser, dest="query_args")
     parser.set_defaults(func=ls_command)

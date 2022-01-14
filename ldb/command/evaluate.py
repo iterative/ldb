@@ -3,7 +3,7 @@ import json
 from argparse import Namespace
 from typing import Iterable
 
-from ldb.cli_utils import add_data_object_arguments
+from ldb.cli_utils import add_data_obj_args_for_evaluate
 from ldb.core import get_ldb_instance
 from ldb.evaluate import evaluate
 
@@ -38,5 +38,5 @@ def add_parser(
         default=False,
         help="Show JSON output only instead of showing object hashes",
     )
-    add_data_object_arguments(parser)
+    add_data_obj_args_for_evaluate(parser, dest="query_args")
     parser.set_defaults(func=evaluate_command)
