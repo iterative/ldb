@@ -7,6 +7,7 @@ import pytest
 from ldb.core import add_default_read_add_storage
 from ldb.evaluate import evaluate
 from ldb.main import main
+from ldb.op_type import OpType
 from ldb.typing import JSONDecoded
 from ldb.utils import DATASET_PREFIX, ROOT, chdir
 
@@ -20,7 +21,7 @@ def test_evaluate_storage_location(ldb_instance, data_dir):
         evaluate(
             ldb_instance,
             [dir_to_eval],
-            "[label, inference.label]",
+            [(OpType.ANNOTATION_QUERY, "[label, inference.label]")],
         ),
     )
     expected = [
@@ -52,13 +53,13 @@ def test_evaluate_data_objects(
     do_annotation_query,
     do_file_query,
 ):
-    annotation_query = None
-    file_query = None
+    query_args = []
     if do_annotation_query:
-        annotation_query = "[label, inference.label]"
+        query_args.append(
+            (OpType.ANNOTATION_QUERY, "[label, inference.label]"),
+        )
     if do_file_query:
-        file_query = "@"
-
+        query_args.append((OpType.FILE_QUERY, "@"))
     main(
         ["index", "-m", "bare", os.fspath(data_dir / "fashion-mnist/updates")],
     )
@@ -70,8 +71,7 @@ def test_evaluate_data_objects(
             "0xdef3cbcb30f3254a2a220e51ddf45375",
             "0x47149106168f7d88fcea9e168608f129",
         ],
-        annotation_query,
-        file_query,
+        query_args,
     )
     result_columns = list(zip(*result))
     file_meta_result: Sequence[Dict[str, Any]] = ()
@@ -145,7 +145,7 @@ def test_evaluate_datasets(ldb_instance, workspace_path, data_dir):
         evaluate(
             ldb_instance,
             ["ds:a", "ds:b"],
-            "[label, inference.label]",
+            [(OpType.ANNOTATION_QUERY, "[label, inference.label]")],
         ),
     )
     expected = [
@@ -175,12 +175,14 @@ def test_evaluate_root_dataset(limit, ldb_instance, data_dir):
             os.fspath(data_dir / "fashion-mnist/updates"),
         ],
     )
+    query_args = [(OpType.ANNOTATION_QUERY, "[label, inference.label]")]
+    if limit:
+        query_args.append((OpType.LIMIT, limit))
     result = list(
         evaluate(
             ldb_instance,
             [f"{DATASET_PREFIX}{ROOT}"],
-            "[label, inference.label]",
-            limit=limit,
+            query_args,
         ),
     )
     expected = [
@@ -218,7 +220,7 @@ def test_evaluate_current_workspace(workspace_path, data_dir, ldb_instance):
         evaluate(
             ldb_instance,
             ["."],
-            "[label, inference.label]",
+            [(OpType.ANNOTATION_QUERY, "[label, inference.label]")],
         ),
     )
     expected = [
@@ -249,7 +251,7 @@ def test_evaluate_another_workspace(
             evaluate(
                 ldb_instance,
                 [os.fspath(other_workspace_path)],
-                "[label, inference.label]",
+                [(OpType.ANNOTATION_QUERY, "[label, inference.label]")],
             ),
         )
     expected = [

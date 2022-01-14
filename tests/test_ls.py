@@ -464,7 +464,7 @@ def test_ls_collection_with_workspace_dataset(
         ws_collection = collection_dir_to_object(
             workspace_path / WorkspacePath.COLLECTION,
         )
-        ds_listings = ls_collection(ldb_instance, ws_collection)
+        ds_listings = ls_collection(ldb_instance, ws_collection.items())
     annot_versions = [d.annotation_version for d in ds_listings]
     # fsspec's LocalFileSystem._strip_protocol does some normalization during
     # indexing, so we cast everything to Path objects for comparison

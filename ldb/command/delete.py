@@ -30,12 +30,13 @@ def delete_command(options: Namespace) -> None:
             ldb_dir,
             paths,
         )
-        data_object_hashes = apply_queries(
+        collection = apply_queries(
             ldb_dir,
             data_object_hashes,
             annotation_hashes,
             query_args,
-        ).keys()
+        )
+        data_object_hashes = (d for d, _ in collection)
     delete(
         Path("."),
         data_object_hashes,

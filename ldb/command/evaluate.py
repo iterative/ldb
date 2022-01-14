@@ -5,19 +5,14 @@ from typing import Iterable
 
 from ldb.cli_utils import add_data_object_arguments
 from ldb.core import get_ldb_instance
-from ldb.evaluate import evaluate, process_query_args
+from ldb.evaluate import evaluate
 
 
 def evaluate_command(options: Namespace) -> None:
-    annotation_query, file_query, limit = process_query_args(
-        options.query_args,
-    )
     for data_object_hash, *results in evaluate(
         get_ldb_instance(),
         options.paths,
-        annotation_query,
-        file_query,
-        limit=limit,
+        options.query_args,
     ):
         if not options.json_only:
             print(f"0x{data_object_hash}")

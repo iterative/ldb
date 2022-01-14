@@ -53,6 +53,15 @@ def add_data_object_arguments(parser: argparse.ArgumentParser) -> None:
         action=AppendConstValuesAction,
         help="Take the first num items",
     )
+    parser.add_argument(
+        "--sample",
+        metavar="<probability>",
+        const=OpType.SAMPLE,
+        default=[],
+        dest="query_args",
+        action=AppendConstValuesAction,
+        help="Each item will have the given probability of being selected",
+    )
     parser.add_argument(  # type: ignore[attr-defined]
         "paths",
         metavar="<path>",

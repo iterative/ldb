@@ -1,5 +1,6 @@
 import json
 import os
+import random
 from abc import ABC
 from collections import defaultdict
 from dataclasses import asdict, dataclass, fields
@@ -333,7 +334,7 @@ class CollectionOperation(ABC):
         raise NotImplementedError
 
 
-class LimitCollection(CollectionOperation):
+class Limit(CollectionOperation):
     def __init__(self, n: int) -> None:
         self.n = n
 
@@ -342,6 +343,19 @@ class LimitCollection(CollectionOperation):
         collection: Iterable[Tuple[str, str]],
     ) -> Iterator[Tuple[str, str]]:
         return take(collection, n=self.n)
+
+
+class Sample(CollectionOperation):
+    def __init__(self, p: float) -> None:
+        self.p = p
+
+    def apply(
+        self,
+        collection: Iterable[Tuple[str, str]],
+    ) -> Iterator[Tuple[str, str]]:
+        for c in collection:
+            if random.random() <= self.p:
+                yield c
 
 
 class Query(CollectionOperation):
@@ -421,7 +435,9 @@ class PipelineBuilder:
             elif op_type == OpType.FILE_QUERY:
                 op = self.file_query(arg)
             elif op_type == OpType.LIMIT:
-                op = LimitCollection(int(arg)).apply
+                op = Limit(int(arg)).apply
+            elif op_type == OpType.SAMPLE:
+                op = Sample(float(arg)).apply
             else:
                 raise ValueError(f"Unknown op type: {op_type}")
             ops.append(op)
@@ -458,9 +474,11 @@ class Pipeline:
     def run(
         self,
         collection: Iterable[Tuple[str, str]],
-    ) -> Iterable[Tuple[str, str]]:
+    ) -> Iterator[Tuple[str, str]]:
         for op in self.ops:
             collection = op(collection)
+        else:
+            collection = iter(collection)
         return collection
 
 
@@ -469,9 +487,9 @@ def apply_queries(
     data_object_hashes: Iterable[str],
     annotation_hashes: Iterable[str],
     collection_ops: Iterable[Tuple[str, str]],
-) -> Dict[str, str]:
+) -> Iterator[Tuple[str, str]]:
     """
     Filter the given collection by the operations in `collection_ops`.
     """
     collection = zip(data_object_hashes, annotation_hashes)
-    return dict(Pipeline.from_defs(ldb_dir, collection_ops).run(collection))
+    return Pipeline.from_defs(ldb_dir, collection_ops).run(collection)

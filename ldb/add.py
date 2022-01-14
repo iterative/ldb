@@ -8,10 +8,10 @@ from typing import (
     Iterable,
     Iterator,
     List,
-    Mapping,
     NamedTuple,
     Sequence,
     Set,
+    Tuple,
 )
 
 import fsspec
@@ -208,28 +208,30 @@ ADD_FUNCTIONS: Dict[ArgType, Callable[[Path, Sequence[str]], AddInput]] = {
 
 def add(
     workspace_path: Path,
-    collection: Mapping[str, str],
+    collection: Iterable[Tuple[str, str]],
 ) -> None:
     workspace_path = Path(os.path.normpath(workspace_path))
     ds_name = load_workspace_dataset(workspace_path).dataset_name
     collection_dir_path = workspace_path / WorkspacePath.COLLECTION
     collection_dir_path.mkdir(exist_ok=True)
 
+    num_data_objects = 0
     to_write = []
-    for data_object_hash, annotation_hash in collection.items():
+    for data_object_hash, annotation_hash in collection:
         to_write.append(
             (
                 get_hash_path(collection_dir_path, data_object_hash),
                 annotation_hash,
             ),
         )
+        num_data_objects += 1
 
     for collection_member_path, annotation_hash in to_write:
         collection_member_path.parent.mkdir(exist_ok=True)
         with collection_member_path.open("w") as file:
             file.write(annotation_hash)
     ds_ident = format_dataset_identifier(ds_name)
-    print(f"Added {len(collection)} data objects to {ds_ident}")
+    print(f"Added {num_data_objects} data objects to {ds_ident}")
 
 
 def process_args_for_delete(

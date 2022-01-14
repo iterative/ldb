@@ -177,6 +177,7 @@ disable = [
     'suppressed-message',
     'too-few-public-methods',
     'too-many-public-methods',
+    'useless-else-on-loop',
     'useless-suppression',
     'use-symbolic-message-instead',
 ]
