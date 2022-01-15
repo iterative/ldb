@@ -7,12 +7,29 @@ from ldb.core import add_default_read_add_storage
 from ldb.main import main
 from ldb.utils import DATASET_PREFIX, ROOT
 
+from .data import QUERY_DATA
 from .utils import (
     DATA_DIR,
     get_staged_object_file_paths,
     num_empty_files,
     stage_new_workspace,
 )
+
+
+@pytest.mark.parametrize("args,data_objs,annots", QUERY_DATA)
+def test_del_root_dataset(
+    args,
+    data_objs,
+    annots,
+    fashion_mnist_session,
+    global_workspace_path,
+):
+    main(["add", f"{DATASET_PREFIX}{ROOT}"])
+    ret = main(["del", f"{DATASET_PREFIX}{ROOT}", *args])
+    object_file_paths = get_staged_object_file_paths(global_workspace_path)
+    assert ret == 0
+    assert len(object_file_paths) == 32 - data_objs
+    assert num_empty_files(object_file_paths) == 23 - annots
 
 
 def test_del_storage_location(workspace_path, staged_ds_fashion):
@@ -45,14 +62,6 @@ def test_del_datasets(workspace_path, ds_a, ds_b, staged_ds_fashion):
     assert ret == 0
     assert len(object_file_paths) == 25
     assert num_empty_files(object_file_paths) == 20
-
-
-def test_del_root_dataset(workspace_path, staged_ds_fashion):
-    ret = main(["del", f"{DATASET_PREFIX}{ROOT}"])
-    object_file_paths = get_staged_object_file_paths(workspace_path)
-    assert ret == 0
-    assert len(object_file_paths) == 0
-    assert num_empty_files(object_file_paths) == 0
 
 
 @pytest.mark.parametrize(

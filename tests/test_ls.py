@@ -15,6 +15,7 @@ from ldb.path import WorkspacePath
 from ldb.utils import DATASET_PREFIX, ROOT, chdir
 from ldb.workspace import collection_dir_to_object
 
+from .data import QUERY_DATA
 from .utils import DATA_DIR, stage_new_workspace
 
 UPDATES_DIR = path.join(DATA_DIR.as_posix(), "fashion-mnist", "updates")
@@ -95,6 +96,25 @@ def sorted_ls(
             d.data_object_path,
         ),
     )
+
+
+@pytest.mark.parametrize("args,data_objs,annots", QUERY_DATA)
+def test_cli_ls_root_dataset(
+    args,
+    data_objs,
+    annots,
+    fashion_mnist_session,
+    capsys,
+):
+    base_args = ["list", f"{DATASET_PREFIX}{ROOT}", "-s"]
+    ret1 = main([*base_args, *args])
+    captured1 = capsys.readouterr()
+    ret2 = main([*base_args, *args, "--query=@ != `null`"])
+    captured2 = capsys.readouterr()
+    assert ret1 == 0
+    assert ret2 == 0
+    assert captured1.out.strip() == str(data_objs)
+    assert captured2.out.strip() == str(annots)
 
 
 def test_ls_storage_locations(ldb_instance, workspace_path, data_dir):
