@@ -24,13 +24,7 @@ def choice_str(choices: Iterable[str]) -> str:
     return f"{{{choice_strings}}}"
 
 
-def add_data_obj_args_for_ls(parser: ArgumentParser, dest: str) -> None:
-    add_base_data_object_options(parser, dest)
-    add_extra_data_object_options(parser, dest)
-    add_data_object_paths(parser)
-
-
-def add_data_obj_args_for_evaluate(parser: ArgumentParser, dest: str) -> None:
+def add_data_obj_params(parser: ArgumentParser, dest: str) -> None:
     add_base_data_object_options(parser, dest)
     add_data_object_paths(parser)
 
@@ -63,9 +57,6 @@ def add_base_data_object_options(parser: ArgumentParser, dest: str) -> None:
         action=AppendConstValuesAction,
         help="Take the first num items",
     )
-
-
-def add_extra_data_object_options(parser: ArgumentParser, dest: str) -> None:
     parser.add_argument(
         "--sample",
         metavar="<probability>",

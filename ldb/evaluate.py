@@ -64,24 +64,19 @@ def evaluate(
 def process_query_args(
     query_args: Iterable[Tuple[str, str]],
 ) -> Tuple[Optional[str], Optional[str], List[Tuple[str, str]]]:
-    annotation_query_args = []
-    file_query_args = []
-    other_query_args = []
-    for op_type, arg in query_args:
-        if op_type == OpType.ANNOTATION_QUERY:
-            annotation_query_args.append(arg)
-        elif op_type == OpType.FILE_QUERY:
-            file_query_args.append(arg)
-        elif op_type == OpType.LIMIT:
-            other_query_args.append((op_type, arg))
+    query_args = list(query_args)
+    search_args = {}
+    possible_search_op_types = {OpType.ANNOTATION_QUERY, OpType.FILE_QUERY}
+    while query_args and possible_search_op_types:
+        op_type, arg = query_args[-1]
+        if op_type in possible_search_op_types:
+            query_args.pop()
+            search_args[op_type] = arg
+            possible_search_op_types.remove(op_type)
         else:
-            raise ValueError(
-                f"Invalid op type for evaluate command: {op_type}",
-            )
-    if len(annotation_query_args) > 1:
-        raise ValueError("--query may only be used once")
-    if len(file_query_args) > 1:
-        raise ValueError("--file may only be used once")
-    annot_query = annotation_query_args[0] if annotation_query_args else None
-    file_query = file_query_args[0] if file_query_args else None
-    return annot_query, file_query, other_query_args
+            break
+    return (
+        search_args.get(OpType.ANNOTATION_QUERY),
+        search_args.get(OpType.FILE_QUERY),
+        query_args,
+    )

@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Iterable
 
 from ldb.add import add, process_args_for_add
-from ldb.cli_utils import add_data_obj_args_for_ls
+from ldb.cli_utils import add_data_obj_params
 from ldb.core import get_ldb_instance
 from ldb.dataset import apply_queries
 from ldb.exceptions import LDBException
@@ -51,5 +51,5 @@ def add_parser(
         parents=parents,
         help="Add a data objects under a certain path",
     )
-    add_data_obj_args_for_ls(parser, dest="query_args")
+    add_data_obj_params(parser, dest="query_args")
     parser.set_defaults(func=add_command)
