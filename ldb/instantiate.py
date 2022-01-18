@@ -293,7 +293,6 @@ def copy_infer(
     collection: Mapping[str, Optional[str]],
     dest_dir: Path,
 ) -> Tuple[int, int]:
-    num_annotations = 0
     for data_object_hash, annotation_hash in collection.items():
         if not annotation_hash:
             raise LDBException(
@@ -301,6 +300,7 @@ def copy_infer(
                 "all data objects must have an annotation. "
                 f"Missing annotation for data object: 0x{data_object_hash}",
             )
+    num_data_objects = 0
     for data_object_hash, annotation_hash in cast(
         Mapping[str, str],
         collection,
@@ -311,8 +311,8 @@ def copy_infer(
             data_object_hash,
             annotation_hash,
         ).copy_data_object()
-        num_annotations += 1
-    return 0, num_annotations
+        num_data_objects += 1
+    return num_data_objects, 0
 
 
 def copy_label_studio(
