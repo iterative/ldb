@@ -293,7 +293,6 @@ def copy_infer(
     collection: Mapping[str, Optional[str]],
     dest_dir: Path,
 ) -> Tuple[int, int]:
-    num_annotations = 0
     for data_object_hash, annotation_hash in collection.items():
         if not annotation_hash:
             raise LDBException(
