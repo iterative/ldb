@@ -6,27 +6,21 @@ from typing import Iterable
 from ldb.add import delete, process_args_for_delete, process_args_for_ls
 from ldb.cli_utils import add_data_object_arguments
 from ldb.core import get_ldb_instance
-from ldb.dataset import (
-    apply_file_query_to_data_objects,
-    apply_query_to_data_objects,
-)
+from ldb.dataset import apply_queries
 from ldb.exceptions import LDBException
-from ldb.func_utils import apply_optional
-from ldb.query.search import get_bool_search_func
 
 
 def delete_command(options: Namespace) -> None:
-    if (
-        options.annotation_query is None
-        and options.file_query is None
-        and not options.paths
-    ):
-        raise LDBException("Must provide either a query or at least one path")
-    ldb_dir = get_ldb_instance()
-    search = apply_optional(get_bool_search_func, options.annotation_query)
-    file_search = apply_optional(get_bool_search_func, options.file_query)
     paths = options.paths
-    if search is None:
+    query_args = options.query_args
+    if not paths:
+        if not query_args:
+            raise LDBException(
+                "Must provide either a query or at least one path",
+            )
+    ldb_dir = get_ldb_instance()
+    ldb_dir = get_ldb_instance()
+    if not query_args:
         data_object_hashes: Iterable[str] = process_args_for_delete(
             ldb_dir,
             paths,
@@ -36,18 +30,12 @@ def delete_command(options: Namespace) -> None:
             ldb_dir,
             paths,
         )
-        data_object_hashes = apply_query_to_data_objects(
+        data_object_hashes = apply_queries(
             ldb_dir,
-            search,
             data_object_hashes,
             annotation_hashes,
-        )
-    if file_search is not None:
-        data_object_hashes = apply_file_query_to_data_objects(
-            ldb_dir,
-            file_search,
-            data_object_hashes,
-        )
+            query_args,
+        ).keys()
     delete(
         Path("."),
         data_object_hashes,

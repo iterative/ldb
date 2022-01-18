@@ -1,5 +1,6 @@
 import json
 import os
+from abc import ABC
 from collections import defaultdict
 from dataclasses import asdict, dataclass, fields
 from datetime import datetime
@@ -17,10 +18,14 @@ from typing import (
     Union,
 )
 
+from funcy.objects import cached_property
+
+from ldb.collections import LDBMappingCache
 from ldb.exceptions import DatasetNotFoundError, LDBException
+from ldb.op_type import OpType
 from ldb.path import InstanceDir
-from ldb.query.search import BoolSearchFunc
-from ldb.typing import JSONDecoded
+from ldb.query.search import BoolSearchFunc, get_bool_search_func
+from ldb.typing import JSONDecoded, JSONObject
 from ldb.utils import (
     format_dataset_identifier,
     format_datetime,
@@ -249,23 +254,29 @@ def get_dataset_version_hash(
         ) from exc
 
 
+def get_annotation(ldb_dir: Path, annotation_hash: str) -> JSONDecoded:
+    if not annotation_hash:
+        return None
+    user_annotation_file_path = (
+        get_hash_path(
+            ldb_dir / InstanceDir.ANNOTATIONS,
+            annotation_hash,
+        )
+        / "user"
+    )
+    with open(user_annotation_file_path, encoding="utf-8") as f:
+        data = f.read()
+    return json.loads(data)  # type: ignore[no-any-return]
+
+
 def get_annotations(
     ldb_dir: Path,
     annotation_hashes: Iterable[str],
-) -> List[Optional[JSONDecoded]]:
+) -> List[JSONDecoded]:
     annotations = []
     for annotation_hash in annotation_hashes:
         if annotation_hash:
-            user_annotation_file_path = (
-                get_hash_path(
-                    ldb_dir / InstanceDir.ANNOTATIONS,
-                    annotation_hash,
-                )
-                / "user"
-            )
-            annotations.append(
-                json.loads(user_annotation_file_path.read_text()),
-            )
+            annotations.append(get_annotation(ldb_dir, annotation_hash))
         else:
             annotations.append(None)
     return annotations
@@ -273,109 +284,157 @@ def get_annotations(
 
 def get_data_object_meta(
     ldb_dir: Path,
+    data_object_hash: str,
+) -> JSONObject:
+    meta_file_path = (
+        get_hash_path(
+            ldb_dir / InstanceDir.DATA_OBJECT_INFO,
+            data_object_hash,
+        )
+        / "meta"
+    )
+    meta: JSONObject = json.loads(meta_file_path.read_text())
+    return meta
+
+
+def get_data_object_metas(
+    ldb_dir: Path,
     data_object_hashes: Iterable[str],
-) -> List[str]:
+) -> List[JSONObject]:
     meta_objects = []
     for data_object_hash in data_object_hashes:
-        meta_file_path = (
-            get_hash_path(
-                ldb_dir / InstanceDir.DATA_OBJECT_INFO,
-                data_object_hash,
-            )
-            / "meta"
-        )
-        meta_objects.append(json.loads(meta_file_path.read_text()))
+        meta_objects.append(get_data_object_meta(ldb_dir, data_object_hash))
     return meta_objects
 
 
-def apply_query(
-    ldb_dir: Path,
-    search: BoolSearchFunc,
-    data_object_hashes: Iterable[str],
-    annotation_hashes: Iterable[str],
-) -> Dict[str, str]:
-    """
-    Return a collection where the annotations pass the given search function.
+class AnnotationCache(LDBMappingCache[str, JSONDecoded]):
+    def get_new(self, key: str) -> JSONDecoded:
+        return get_annotation(self.ldb_dir, key)
 
-    `data_object_hashes` and `annotation_hashes` should contain
-    corresponding items of a collection. Only items where the given
-    search function returns `True` are kept in the resulting collection.
-    """
-    return {
-        data_object_hash: annotation_hash
-        for data_object_hash, annotation_hash, keep in zip(
-            data_object_hashes,
-            annotation_hashes,
-            search(get_annotations(ldb_dir, annotation_hashes)),
+
+class DataObjectMetaCache(LDBMappingCache[str, JSONDecoded]):
+    def get_new(self, key: str) -> JSONDecoded:
+        return get_data_object_meta(self.ldb_dir, key)
+
+
+class CollectionOperation(ABC):
+    def apply(self, collection: Dict[str, str]) -> Dict[str, str]:
+        raise NotImplementedError
+
+
+class Query(CollectionOperation):
+    def __init__(
+        self,
+        ldb_dir: Path,
+        cache: LDBMappingCache[Any, Any],
+        search: BoolSearchFunc,
+    ) -> None:
+        self.ldb_dir = ldb_dir
+        self.cache = cache
+        self.search = search
+
+
+class AnnotationQuery(Query):
+    def apply(self, collection: Dict[str, str]) -> Dict[str, str]:
+        return {
+            data_object_hash: annotation_hash
+            for (data_object_hash, annotation_hash), keep in zip(
+                collection.items(),
+                self.search(self.cache[a] for a in collection.values()),
+            )
+            if keep
+        }
+
+
+class FileQuery(Query):
+    def apply(self, collection: Dict[str, str]) -> Dict[str, str]:
+        return {
+            data_object_hash: annotation_hash
+            for (data_object_hash, annotation_hash), keep in zip(
+                collection.items(),
+                self.search(self.cache[d] for d in collection.keys()),
+            )
+            if keep
+        }
+
+
+class PipelineData:
+    def __init__(self, ldb_dir: Path) -> None:
+        self.ldb_dir = ldb_dir
+
+    @cached_property
+    def data_object_metas(self) -> DataObjectMetaCache:
+        return DataObjectMetaCache(self.ldb_dir)
+
+    @cached_property
+    def annotations(self) -> AnnotationCache:
+        return AnnotationCache(self.ldb_dir)
+
+
+class PipelineBuilder:
+    def __init__(
+        self,
+        ldb_dir: Path,
+        data: Optional[PipelineData] = None,
+    ) -> None:
+        self.ldb_dir = ldb_dir
+        if data is None:
+            self.data = PipelineData(ldb_dir)
+        else:
+            self.data = data
+
+    def build(
+        self,
+        op_defs: Iterable[Tuple[str, str]],
+    ) -> List[CollectionOperation]:
+        ops = []
+        for op_type, arg in op_defs:
+            if op_type == OpType.ANNOTATION_QUERY:
+                op: CollectionOperation = self.annotation_query(arg)
+            elif op_type == OpType.FILE_QUERY:
+                op = self.file_query(arg)
+            ops.append(op)
+        return ops
+
+    def annotation_query(self, search: str) -> AnnotationQuery:
+        return AnnotationQuery(
+            self.ldb_dir,
+            self.data.annotations,
+            get_bool_search_func(search),
         )
-        if keep
-    }
 
-
-def apply_query_to_data_objects(
-    ldb_dir: Path,
-    search: BoolSearchFunc,
-    data_object_hashes: Iterable[str],
-    annotation_hashes: Iterable[str],
-) -> List[str]:
-    """
-    Return data objects whose annotations pass the given search function.
-
-    This is similar to calling `list(result.keys())` on the result of
-    `apply_query`.
-    """
-    return [
-        data_object_hash
-        for data_object_hash, keep in zip(
-            data_object_hashes,
-            search(get_annotations(ldb_dir, annotation_hashes)),
+    def file_query(self, search: str) -> FileQuery:
+        return FileQuery(
+            self.ldb_dir,
+            self.data.data_object_metas,
+            get_bool_search_func(search),
         )
-        if keep
-    ]
 
 
-def apply_file_query_to_data_objects(
-    ldb_dir: Path,
-    search: BoolSearchFunc,
-    data_object_hashes: Iterable[str],
-) -> List[str]:
-    """
-    Return data objects that pass the given search function.
-    """
-    return [
-        data_object_hash
-        for data_object_hash, keep in zip(
-            data_object_hashes,
-            search(get_data_object_meta(ldb_dir, data_object_hashes)),
-        )
-        if keep
-    ]
+class Pipeline:
+    def __init__(self, ops: Iterable[CollectionOperation]) -> None:
+        self.ops = ops
 
+    @classmethod
+    def from_defs(
+        cls,
+        ldb_dir: Path,
+        op_defs: Iterable[Tuple[str, str]],
+        data: Optional[PipelineData] = None,
+    ) -> "Pipeline":
+        return cls(PipelineBuilder(ldb_dir, data=data).build(op_defs))
 
-def apply_file_query(
-    ldb_dir: Path,
-    search: BoolSearchFunc,
-    collection: Dict[str, str],
-) -> Dict[str, str]:
-    """
-    Filter `collection` by data objects that pass the given search function.
-    """
-    return {
-        data_object_hash: annotation_hash
-        for (data_object_hash, annotation_hash), keep in zip(
-            collection.items(),
-            search(get_data_object_meta(ldb_dir, collection.keys())),
-        )
-        if keep
-    }
+    def run(self, collection: Dict[str, str]) -> Dict[str, str]:
+        for op in self.ops:
+            collection = op.apply(collection)
+        return collection
 
 
 def apply_queries(
     ldb_dir: Path,
-    search: Optional[BoolSearchFunc],
-    file_search: Optional[BoolSearchFunc],
     data_object_hashes: Iterable[str],
     annotation_hashes: Iterable[str],
+    collection_ops: Iterable[Tuple[str, str]],
 ) -> Dict[str, str]:
     """
     Filter the given collection by the search functions.
@@ -383,19 +442,5 @@ def apply_queries(
     If not `None`, `search` is applied to annotations and `file_search`
     to file attributes.
     """
-    if search is None:
-        collection = dict(zip(data_object_hashes, annotation_hashes))
-    else:
-        collection = apply_query(
-            ldb_dir,
-            search,
-            data_object_hashes,
-            annotation_hashes,
-        )
-    if file_search is not None:
-        collection = apply_file_query(
-            ldb_dir,
-            file_search,
-            collection,
-        )
-    return collection
+    collection = dict(zip(data_object_hashes, annotation_hashes))
+    return Pipeline.from_defs(ldb_dir, collection_ops).run(collection)

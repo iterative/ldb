@@ -12,8 +12,7 @@ def ls_command(options: Namespace) -> None:
     ds_listings = ls(
         ldb_dir,
         options.paths,
-        options.annotation_query,
-        options.file_query,
+        options.query_args,
     )
     if options.summary:
         print(len(ds_listings))

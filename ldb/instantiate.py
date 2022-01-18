@@ -1,4 +1,3 @@
-import json
 import os
 import shutil
 import tempfile
@@ -10,6 +9,7 @@ import fsspec
 from funcy.objects import cached_property
 
 from ldb.data_formats import INSTANTIATE_FORMATS, Format
+from ldb.dataset import get_annotation
 from ldb.exceptions import LDBException
 from ldb.path import InstanceDir, WorkspacePath
 from ldb.typing import JSONDecoded, JSONObject
@@ -214,19 +214,6 @@ class LabelStudioInstItem(PairInstItem):
             self.dest_dir,
             "annotations",
         )
-
-
-def get_annotation(ldb_dir: Path, annotation_hash: str) -> JSONDecoded:
-    user_annotation_file_path = (
-        get_hash_path(
-            ldb_dir / InstanceDir.ANNOTATIONS,
-            annotation_hash,
-        )
-        / "user"
-    )
-    with open(user_annotation_file_path, encoding="utf-8") as f:
-        data = f.read()
-    return json.loads(data)  # type: ignore[no-any-return]
 
 
 def serialize_annotation(annotation: JSONDecoded) -> str:
