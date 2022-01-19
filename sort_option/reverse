@@ -1,0 +1,6 @@
+#!/usr/bin/env python3
+import json
+import sys
+
+for data_object_hash, *_ in reversed(json.loads(sys.stdin.read())):
+    print(data_object_hash, flush=True)

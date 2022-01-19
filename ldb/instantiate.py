@@ -3,7 +3,7 @@ import shutil
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List, Mapping, Optional, Tuple, cast
+from typing import List, Mapping, NamedTuple, Optional, Tuple, Union, cast
 
 import fsspec
 from funcy.objects import cached_property
@@ -22,12 +22,19 @@ from ldb.utils import (
 from ldb.workspace import collection_dir_to_object, ensure_empty_workspace
 
 
+class InstantiateResult(NamedTuple):
+    data_object_paths: List[str]
+    annotation_paths: List[str]
+    num_data_objects: int
+    num_annotations: int
+
+
 def instantiate(
     ldb_dir: Path,
     workspace_path: Path,
     fmt: str = Format.BARE,
     force: bool = False,
-) -> Tuple[int, int]:
+) -> InstantiateResult:
     fmt = INSTANTIATE_FORMATS[fmt]
     collection = collection_dir_to_object(
         workspace_path / WorkspacePath.COLLECTION,
@@ -40,7 +47,7 @@ def instantiate(
     tmp_dir_base.mkdir(exist_ok=True)
     tmp_dir = Path(tempfile.mkdtemp(dir=tmp_dir_base))
 
-    num_data_objects, num_annotations = instantiate_collection(
+    result = instantiate_collection(
         ldb_dir,
         collection,
         tmp_dir,
@@ -54,15 +61,15 @@ def instantiate(
         shutil.move(os.fspath(path), os.fspath(workspace_path))
 
     tmp_dir.rmdir()
-    return num_data_objects, num_annotations
+    return result
 
 
 def instantiate_collection(
     ldb_dir: Path,
     collection: Mapping[str, Optional[str]],
-    dest_dir: Path,
+    dest_dir: Union[str, Path],
     fmt: str,
-) -> Tuple[int, int]:
+) -> InstantiateResult:
     fmt = INSTANTIATE_FORMATS[fmt]
     if fmt in (Format.STRICT, Format.BARE):
         return copy_pairs(
@@ -95,7 +102,7 @@ def instantiate_collection(
 @dataclass
 class InstItem:
     ldb_dir: Path
-    dest_dir: Path
+    dest_dir: Union[str, Path]
     data_object_hash: str
 
     @cached_property
@@ -129,10 +136,12 @@ class InstItem:
     def data_object_dest(self) -> str:
         return self.base_dest + self.ext.lower()
 
-    def copy_data_object(self) -> None:
+    def copy_data_object(self) -> str:
         fs = fsspec.filesystem(self.data_object_meta["fs"]["protocol"])
         os.makedirs(os.path.split(self.data_object_dest)[0], exist_ok=True)
-        fs.get_file(self.data_object_meta["fs"]["path"], self.data_object_dest)
+        dest = self.data_object_dest
+        fs.get_file(self.data_object_meta["fs"]["path"], dest)
+        return dest
 
 
 @dataclass
@@ -151,12 +160,14 @@ class PairInstItem(InstItem):
     def annotation_dest(self) -> str:
         return self.base_dest + ".json"
 
-    def copy_annotation(self) -> None:
-        os.makedirs(os.path.split(self.annotation_dest)[0], exist_ok=True)
+    def copy_annotation(self) -> str:
+        dest = self.annotation_dest
+        os.makedirs(os.path.split(dest)[0], exist_ok=True)
         write_data_file(
-            Path(self.annotation_dest),
+            Path(dest),
             self.annotation_content_bytes,
         )
+        return dest
 
 
 @dataclass
@@ -207,7 +218,7 @@ class LabelStudioInstItem(PairInstItem):
     def __init__(
         self,
         ldb_dir: Path,
-        dest_dir: Path,
+        dest_dir: Union[str, Path],
         annotation_content: List[JSONObject],
     ):
         super().__init__(
@@ -244,10 +255,12 @@ def get_prefix_ext(path: str) -> Tuple[str, str]:
 def copy_pairs(
     ldb_dir: Path,
     collection: Mapping[str, Optional[str]],
-    dest_dir: Path,
+    dest_dir: Union[str, Path],
     strict: bool = False,
-) -> Tuple[int, int]:
+) -> InstantiateResult:
     items = []
+    data_obj_paths = []
+    annot_paths = []
     num_annotations = 0
     # annotations are small and stored in ldb; copy them first
     for data_object_hash, annotation_hash in collection.items():
@@ -262,37 +275,49 @@ def copy_pairs(
             annotation_hash,
         )
         if annotation_hash:
-            item.copy_annotation()
+            annot_paths.append(item.copy_annotation())
             num_annotations += 1
+        else:
+            annot_paths.append("")
         items.append(item)
     for item in items:
-        item.copy_data_object()
-    return len(items), num_annotations
+        data_obj_paths.append(item.copy_data_object())
+    return InstantiateResult(
+        data_obj_paths,
+        annot_paths,
+        len(data_obj_paths),
+        num_annotations,
+    )
 
 
 def copy_annot(
     ldb_dir: Path,
     collection: Mapping[str, Optional[str]],
-    dest_dir: Path,
-) -> Tuple[int, int]:
-    num_annotations = 0
+    dest_dir: Union[str, Path],
+) -> InstantiateResult:
+    annot_paths = []
     for data_object_hash, annotation_hash in collection.items():
         if annotation_hash:
-            AnnotationOnlyInstItem(
+            path = AnnotationOnlyInstItem(
                 ldb_dir,
                 dest_dir,
                 data_object_hash,
                 annotation_hash,
             ).copy_annotation()
-            num_annotations += 1
-    return 0, num_annotations
+            annot_paths.append(path)
+    return InstantiateResult(
+        [],
+        annot_paths,
+        0,
+        len(annot_paths),
+    )
 
 
 def copy_infer(
     ldb_dir: Path,
     collection: Mapping[str, Optional[str]],
-    dest_dir: Path,
-) -> Tuple[int, int]:
+    dest_dir: Union[str, Path],
+) -> InstantiateResult:
     for data_object_hash, annotation_hash in collection.items():
         if not annotation_hash:
             raise LDBException(
@@ -300,28 +325,33 @@ def copy_infer(
                 "all data objects must have an annotation. "
                 f"Missing annotation for data object: 0x{data_object_hash}",
             )
-    num_data_objects = 0
+    data_obj_paths = []
     for data_object_hash, annotation_hash in cast(
         Mapping[str, str],
         collection,
     ).items():
-        InferInstItem(
+        path = InferInstItem(
             ldb_dir,
             dest_dir,
             data_object_hash,
             annotation_hash,
         ).copy_data_object()
-        num_data_objects += 1
-    return num_data_objects, 0
+        data_obj_paths.append(path)
+    return InstantiateResult(
+        data_obj_paths,
+        [],
+        len(data_obj_paths),
+        0,
+    )
 
 
 def copy_label_studio(
     ldb_dir: Path,
     collection: Mapping[str, Optional[str]],
-    dest_dir: Path,
+    dest_dir: Union[str, Path],
     url_key: str = "image",
-) -> Tuple[int, int]:
-    num_annotations = 0
+) -> InstantiateResult:
+    annot_paths = []
     annotations: List[JSONObject] = []
     for data_object_hash, annotation_hash in collection.items():
         if not annotation_hash:
@@ -341,10 +371,15 @@ def copy_label_studio(
                 f"0x{data_object_hash}",
             ) from exc
         annotations.append(annot)  # type: ignore[arg-type]
-        num_annotations += 1
-    LabelStudioInstItem(
+    path = LabelStudioInstItem(
         ldb_dir,
         dest_dir,
         annotations,
     ).copy_annotation()
-    return 0, num_annotations
+    annot_paths.append(path)
+    return InstantiateResult(
+        [],
+        annot_paths,
+        0,
+        len(annotations),
+    )

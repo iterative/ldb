@@ -17,7 +17,7 @@ def instantiate_command(options: Namespace) -> None:
     workspace_ds = load_workspace_dataset(workspace_path)
     ds_ident = format_dataset_identifier(workspace_ds.dataset_name)
     print(f"Instantiating working dataset {ds_ident}...\n")
-    num_data_objects, num_annotations = instantiate(
+    result = instantiate(
         ldb_dir,
         workspace_path,
         fmt=options.format,
@@ -25,8 +25,8 @@ def instantiate_command(options: Namespace) -> None:
     )
     print(
         "Copied dataset to workspace.\n"
-        f"  Data objects: {num_data_objects:9d}\n"
-        f"  Annotations:  {num_annotations:9d}",
+        f"  Data objects: {result.num_data_objects:9d}\n"
+        f"  Annotations:  {result.num_annotations:9d}",
     )
 
 

@@ -3,3 +3,4 @@ class OpType:
     FILE_QUERY = "file_query"
     LIMIT = "limit"
     SAMPLE = "sample"
+    SORT = "sort"

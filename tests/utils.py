@@ -8,6 +8,7 @@ from ldb.utils import current_time, load_data_file
 from ldb.workspace import WorkspaceDataset
 
 DATA_DIR = Path(__file__).parent.parent / "data"
+SORT_DIR = Path(__file__).parent.parent / "sort_option"
 DATA_OBJECT_KEYS = (
     "alternate_paths",
     "first_indexed",

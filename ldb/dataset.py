@@ -38,6 +38,7 @@ from ldb.utils import (
     parse_datetime,
 )
 
+OpDef = Tuple[str, Union[str, int, float, List[str]]]
 CollectionFunc = Callable[
     [Iterable[Tuple[str, str]]],
     Iterator[Tuple[str, str]],
@@ -358,6 +359,22 @@ class Sample(CollectionOperation):
                 yield c
 
 
+class Sort(CollectionOperation):
+    def __init__(self, ldb_dir: Path, proc_args: List[str]) -> None:
+        self.ldb_dir = ldb_dir
+        self.proc_args = proc_args
+
+    def apply(
+        self,
+        collection: Iterable[Tuple[str, str]],
+    ) -> Iterator[Tuple[str, str]]:
+        from ldb.sort import (  # pylint: disable=import-outside-toplevel
+            sort_collection,
+        )
+
+        return sort_collection(self.ldb_dir, collection, self.proc_args)
+
+
 class Query(CollectionOperation):
     def __init__(
         self,
@@ -425,19 +442,26 @@ class PipelineBuilder:
 
     def build(
         self,
-        op_defs: Iterable[Tuple[str, str]],
+        op_defs: Iterable[OpDef],
     ) -> List[CollectionFunc]:
         ops = []
         for op_type, arg in op_defs:
             op: CollectionFunc
             if op_type == OpType.ANNOTATION_QUERY:
+                assert isinstance(arg, str)
                 op = self.annotation_query(arg)
             elif op_type == OpType.FILE_QUERY:
+                assert isinstance(arg, str)
                 op = self.file_query(arg)
             elif op_type == OpType.LIMIT:
-                op = Limit(int(arg)).apply
+                assert isinstance(arg, int)
+                op = Limit(arg).apply
             elif op_type == OpType.SAMPLE:
-                op = Sample(float(arg)).apply
+                assert isinstance(arg, float)
+                op = Sample(arg).apply
+            elif op_type == OpType.SORT:
+                assert isinstance(arg, list)
+                op = Sort(self.ldb_dir, arg).apply
             else:
                 raise ValueError(f"Unknown op type: {op_type}")
             ops.append(op)
@@ -466,7 +490,7 @@ class Pipeline:
     def from_defs(
         cls,
         ldb_dir: Path,
-        op_defs: Iterable[Tuple[str, str]],
+        op_defs: Iterable[OpDef],
         data: Optional[PipelineData] = None,
     ) -> "Pipeline":
         return cls(PipelineBuilder(ldb_dir, data=data).build(op_defs))
@@ -477,19 +501,17 @@ class Pipeline:
     ) -> Iterator[Tuple[str, str]]:
         for op in self.ops:
             collection = op(collection)
-        else:
-            collection = iter(collection)
-        return collection
+        return iter(collection)
 
 
 def apply_queries(
     ldb_dir: Path,
     data_object_hashes: Iterable[str],
     annotation_hashes: Iterable[str],
-    collection_ops: Iterable[Tuple[str, str]],
+    op_defs: Iterable[OpDef],
 ) -> Iterator[Tuple[str, str]]:
     """
     Filter the given collection by the operations in `collection_ops`.
     """
     collection = zip(data_object_hashes, annotation_hashes)
-    return Pipeline.from_defs(ldb_dir, collection_ops).run(collection)
+    return Pipeline.from_defs(ldb_dir, op_defs).run(collection)
