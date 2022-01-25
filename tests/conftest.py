@@ -45,6 +45,11 @@ def monkeypatch_session() -> Generator[MonkeyPatch, None, None]:
     mpatch.undo()
 
 
+@pytest.fixture(scope="session")
+def tmp_path_session(tmp_path_factory: TempPathFactory) -> Path:
+    return tmp_path_factory.mktemp("tmp_path_session", numbered=False)
+
+
 @pytest.fixture(scope="session", autouse=True)
 def clean_environment(
     monkeypatch_session: MonkeyPatch,
@@ -68,27 +73,51 @@ def clean_environment(
     )
 
 
-@pytest.fixture
-def global_base(monkeypatch: MonkeyPatch, tmp_path: Path) -> Path:
+def make_global_base(mp: MonkeyPatch, path: Path) -> Path:
     def get_tmp_global_base_parent() -> Path:
         home = Path.home()
-        return tmp_path / home.relative_to(home.anchor)
+        return path / home.relative_to(home.anchor)
 
-    monkeypatch.setattr(
+    mp.setattr(
         "ldb.config._get_global_base_parent",
         get_tmp_global_base_parent,
     )
     return get_global_base()
 
 
+@pytest.fixture(scope="session")
+def global_base_session(
+    monkeypatch_session: MonkeyPatch,
+    tmp_path_session: Path,
+) -> Path:
+    return make_global_base(monkeypatch_session, tmp_path_session)
+
+
 @pytest.fixture
-def ldb_instance(tmp_path: Path, global_base: Path, data_dir: Path) -> Path:
-    instance_dir = tmp_path / "ldb_instance"
+def global_base(monkeypatch: MonkeyPatch, tmp_path: Path) -> Path:
+    return make_global_base(monkeypatch, tmp_path)
+
+
+def make_ldb_instance(path: Path) -> Path:
+    instance_dir = path / "ldb_instance"
     init(instance_dir)
     set_default_instance(instance_dir, overwrite_existing=True)
-    storage_location = create_storage_location(path=os.fspath(data_dir))
+    storage_location = create_storage_location(path=os.fspath(DATA_DIR))
     add_storage(instance_dir / Filename.STORAGE, storage_location)
     return instance_dir
+
+
+@pytest.fixture
+def ldb_instance(tmp_path: Path, global_base: Path) -> Path:
+    return make_ldb_instance(tmp_path)
+
+
+@pytest.fixture(scope="session")
+def ldb_instance_session(
+    tmp_path_session: Path,
+    global_base_session: Path,
+) -> Path:
+    return make_ldb_instance(tmp_path_session)
 
 
 @pytest.fixture
@@ -96,12 +125,21 @@ def data_dir() -> Path:
     return DATA_DIR
 
 
-@pytest.fixture
-def workspace_path(tmp_path: Path, ldb_instance: Path) -> Path:
-    path = tmp_path / "workspace"
+def make_workspace_path(path: Path, name: str = "workspace") -> Path:
+    path = path / name
     stage_new_workspace(path)
     os.chdir(path)
     return path
+
+
+@pytest.fixture
+def workspace_path(tmp_path: Path, ldb_instance: Path) -> Path:
+    return make_workspace_path(tmp_path)
+
+
+@pytest.fixture
+def global_workspace_path(tmp_path: Path, ldb_instance_session: Path) -> Path:
+    return make_workspace_path(tmp_path)
 
 
 @pytest.fixture
@@ -175,3 +213,13 @@ def label_studio_json_path(tmp_path: Path) -> Path:
     with open(dest, "x", encoding="utf-8") as f:
         f.write(json_out)
     return dest
+
+
+@pytest.fixture(scope="session")
+def fashion_mnist_session(ldb_instance_session: Path) -> Path:
+    for path_obj in (
+        DATA_DIR / "fashion-mnist/original",
+        DATA_DIR / "fashion-mnist/updates",
+    ):
+        main(["index", "-m", "bare", os.fspath(path_obj)])
+    return ldb_instance_session

@@ -177,6 +177,7 @@ disable = [
     'suppressed-message',
     'too-few-public-methods',
     'too-many-public-methods',
+    'useless-else-on-loop',
     'useless-suppression',
     'use-symbolic-message-instead',
 ]
@@ -348,7 +349,7 @@ ignore-comments = 'yes'
 ignore-docstrings = 'yes'
 
 # Imports are removed from the similarity computation
-ignore-imports = 'no'
+ignore-imports = 'yes'
 
 # Signatures are removed from the similarity computation
 ignore-signatures = 'no'
@@ -437,7 +438,7 @@ good-names = [
 
 # Good variable names regexes, separated by a comma. If names match any regex,
 # they will always be accepted
-good-names-rgxs = ['[a-z]\d?']
+good-names-rgxs = ['[A-Za-z]\d?']
 
 # Include a hint for the correct naming format with invalid-name.
 include-naming-hint = 'no'

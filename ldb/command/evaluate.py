@@ -3,18 +3,16 @@ import json
 from argparse import Namespace
 from typing import Iterable
 
-from ldb.cli_utils import add_data_object_arguments
+from ldb.cli_utils import add_data_obj_args_for_evaluate
 from ldb.core import get_ldb_instance
-from ldb.evaluate import evaluate, process_query_args
+from ldb.evaluate import evaluate
 
 
 def evaluate_command(options: Namespace) -> None:
-    annotation_query, file_query = process_query_args(options.query_args)
     for data_object_hash, *results in evaluate(
         get_ldb_instance(),
         options.paths,
-        annotation_query,
-        file_query,
+        options.query_args,
     ):
         if not options.json_only:
             print(f"0x{data_object_hash}")
@@ -40,5 +38,5 @@ def add_parser(
         default=False,
         help="Show JSON output only instead of showing object hashes",
     )
-    add_data_object_arguments(parser)
+    add_data_obj_args_for_evaluate(parser, dest="query_args")
     parser.set_defaults(func=evaluate_command)

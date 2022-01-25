@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable, List, Mapping, Optional, Sequence, Tuple
+from typing import Iterable, List, Optional, Sequence, Tuple
 
 from ldb.add import process_args_for_ls
 from ldb.dataset import apply_queries
@@ -58,10 +58,10 @@ def print_dataset_listings(
 
 def ls_collection(
     ldb_dir: Path,
-    collection: Mapping[str, Optional[str]],
+    collection: Iterable[Tuple[str, Optional[str]]],
 ) -> List[DatasetListing]:
     result = []
-    for data_object_hash, annotation_hash in collection.items():
+    for data_object_hash, annotation_hash in collection:
         data_object_dir = get_hash_path(
             ldb_dir / InstanceDir.DATA_OBJECT_INFO,
             data_object_hash,

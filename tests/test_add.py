@@ -7,12 +7,28 @@ from ldb.core import add_default_read_add_storage
 from ldb.main import main
 from ldb.utils import DATASET_PREFIX, ROOT
 
+from .data import QUERY_DATA
 from .utils import (
     DATA_DIR,
     get_staged_object_file_paths,
     num_empty_files,
     stage_new_workspace,
 )
+
+
+@pytest.mark.parametrize("args,data_objs,annots", QUERY_DATA)
+def test_add_root_dataset(
+    args,
+    data_objs,
+    annots,
+    fashion_mnist_session,
+    global_workspace_path,
+):
+    ret = main(["add", f"{DATASET_PREFIX}{ROOT}", *args])
+    object_file_paths = get_staged_object_file_paths(global_workspace_path)
+    assert ret == 0
+    assert len(object_file_paths) == data_objs
+    assert num_empty_files(object_file_paths) == annots
 
 
 @pytest.mark.parametrize(
@@ -56,46 +72,6 @@ def test_add_datasets(workspace_path, ds_a, ds_b):
     assert ret == 0
     assert len(object_file_paths) == 7
     assert num_empty_files(object_file_paths) == 3
-
-
-@pytest.mark.parametrize(
-    "add_args,expected",
-    [
-        ([], (32, 23)),
-        (["--file", "@"], (32, 23)),
-        (["--query", "@"], (23, 23)),
-        (["--file", "fs.size > `400`"], (26, 20)),
-        (
-            [
-                "--query",
-                "inference.label != `null` || inference.label == label",
-            ],
-            (13, 4),
-        ),
-        (
-            [
-                "--file",
-                "fs.size > `400`",
-                "--query",
-                "inference.label != `null` || inference.label == label",
-            ],
-            (9, 3),
-        ),
-    ],
-)
-def test_add_root_dataset(workspace_path, add_args, expected):
-    for path_obj in (
-        DATA_DIR / "fashion-mnist/original",
-        DATA_DIR / "fashion-mnist/updates",
-    ):
-        main(["index", "-m", "bare", os.fspath(path_obj)])
-    ret = main(["add", f"{DATASET_PREFIX}{ROOT}", *add_args])
-    object_file_paths = get_staged_object_file_paths(workspace_path)
-    assert ret == 0
-    assert (
-        len(object_file_paths),
-        num_empty_files(object_file_paths),
-    ) == expected
 
 
 def test_add_root_dataset_query(workspace_path, index_original):

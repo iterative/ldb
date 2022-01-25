@@ -1,13 +1,16 @@
 import json
 import os
+import random
 from abc import ABC
 from collections import defaultdict
 from dataclasses import asdict, dataclass, fields
 from datetime import datetime
 from glob import iglob
+from itertools import tee
 from pathlib import Path
 from typing import (
     Any,
+    Callable,
     DefaultDict,
     Dict,
     Iterable,
@@ -22,6 +25,7 @@ from funcy.objects import cached_property
 
 from ldb.collections import LDBMappingCache
 from ldb.exceptions import DatasetNotFoundError, LDBException
+from ldb.iter_utils import take
 from ldb.op_type import OpType
 from ldb.path import InstanceDir
 from ldb.query.search import BoolSearchFunc, get_bool_search_func
@@ -33,6 +37,11 @@ from ldb.utils import (
     load_data_file,
     parse_datetime,
 )
+
+CollectionFunc = Callable[
+    [Iterable[Tuple[str, str]]],
+    Iterator[Tuple[str, str]],
+]
 
 
 @dataclass
@@ -318,8 +327,35 @@ class DataObjectMetaCache(LDBMappingCache[str, JSONDecoded]):
 
 
 class CollectionOperation(ABC):
-    def apply(self, collection: Dict[str, str]) -> Dict[str, str]:
+    def apply(
+        self,
+        collection: Iterable[Tuple[str, str]],
+    ) -> Iterator[Tuple[str, str]]:
         raise NotImplementedError
+
+
+class Limit(CollectionOperation):
+    def __init__(self, n: int) -> None:
+        self.n = n
+
+    def apply(
+        self,
+        collection: Iterable[Tuple[str, str]],
+    ) -> Iterator[Tuple[str, str]]:
+        return take(collection, n=self.n)
+
+
+class Sample(CollectionOperation):
+    def __init__(self, p: float) -> None:
+        self.p = p
+
+    def apply(
+        self,
+        collection: Iterable[Tuple[str, str]],
+    ) -> Iterator[Tuple[str, str]]:
+        for c in collection:
+            if random.random() <= self.p:
+                yield c
 
 
 class Query(CollectionOperation):
@@ -335,27 +371,31 @@ class Query(CollectionOperation):
 
 
 class AnnotationQuery(Query):
-    def apply(self, collection: Dict[str, str]) -> Dict[str, str]:
-        return {
-            data_object_hash: annotation_hash
-            for (data_object_hash, annotation_hash), keep in zip(
-                collection.items(),
-                self.search(self.cache[a] for a in collection.values()),
-            )
-            if keep
-        }
+    def apply(
+        self,
+        collection: Iterable[Tuple[str, str]],
+    ) -> Iterator[Tuple[str, str]]:
+        collection1, collection2 = tee(collection)
+        for (data_object_hash, annotation_hash), keep in zip(
+            collection1,
+            self.search(self.cache[a] for _, a in collection2),
+        ):
+            if keep:
+                yield data_object_hash, annotation_hash
 
 
 class FileQuery(Query):
-    def apply(self, collection: Dict[str, str]) -> Dict[str, str]:
-        return {
-            data_object_hash: annotation_hash
-            for (data_object_hash, annotation_hash), keep in zip(
-                collection.items(),
-                self.search(self.cache[d] for d in collection.keys()),
-            )
-            if keep
-        }
+    def apply(
+        self,
+        collection: Iterable[Tuple[str, str]],
+    ) -> Iterator[Tuple[str, str]]:
+        collection1, collection2 = tee(collection)
+        for (data_object_hash, annotation_hash), keep in zip(
+            collection1,
+            self.search(self.cache[d] for d, _ in collection2),
+        ):
+            if keep:
+                yield data_object_hash, annotation_hash
 
 
 class PipelineData:
@@ -386,33 +426,40 @@ class PipelineBuilder:
     def build(
         self,
         op_defs: Iterable[Tuple[str, str]],
-    ) -> List[CollectionOperation]:
+    ) -> List[CollectionFunc]:
         ops = []
         for op_type, arg in op_defs:
+            op: CollectionFunc
             if op_type == OpType.ANNOTATION_QUERY:
-                op: CollectionOperation = self.annotation_query(arg)
+                op = self.annotation_query(arg)
             elif op_type == OpType.FILE_QUERY:
                 op = self.file_query(arg)
+            elif op_type == OpType.LIMIT:
+                op = Limit(int(arg)).apply
+            elif op_type == OpType.SAMPLE:
+                op = Sample(float(arg)).apply
+            else:
+                raise ValueError(f"Unknown op type: {op_type}")
             ops.append(op)
         return ops
 
-    def annotation_query(self, search: str) -> AnnotationQuery:
+    def annotation_query(self, search: str) -> CollectionFunc:
         return AnnotationQuery(
             self.ldb_dir,
             self.data.annotations,
             get_bool_search_func(search),
-        )
+        ).apply
 
-    def file_query(self, search: str) -> FileQuery:
+    def file_query(self, search: str) -> CollectionFunc:
         return FileQuery(
             self.ldb_dir,
             self.data.data_object_metas,
             get_bool_search_func(search),
-        )
+        ).apply
 
 
 class Pipeline:
-    def __init__(self, ops: Iterable[CollectionOperation]) -> None:
+    def __init__(self, ops: Iterable[CollectionFunc]) -> None:
         self.ops = ops
 
     @classmethod
@@ -424,9 +471,14 @@ class Pipeline:
     ) -> "Pipeline":
         return cls(PipelineBuilder(ldb_dir, data=data).build(op_defs))
 
-    def run(self, collection: Dict[str, str]) -> Dict[str, str]:
+    def run(
+        self,
+        collection: Iterable[Tuple[str, str]],
+    ) -> Iterator[Tuple[str, str]]:
         for op in self.ops:
-            collection = op.apply(collection)
+            collection = op(collection)
+        else:
+            collection = iter(collection)
         return collection
 
 
@@ -435,12 +487,9 @@ def apply_queries(
     data_object_hashes: Iterable[str],
     annotation_hashes: Iterable[str],
     collection_ops: Iterable[Tuple[str, str]],
-) -> Dict[str, str]:
+) -> Iterator[Tuple[str, str]]:
     """
-    Filter the given collection by the search functions.
-
-    If not `None`, `search` is applied to annotations and `file_search`
-    to file attributes.
+    Filter the given collection by the operations in `collection_ops`.
     """
-    collection = dict(zip(data_object_hashes, annotation_hashes))
+    collection = zip(data_object_hashes, annotation_hashes)
     return Pipeline.from_defs(ldb_dir, collection_ops).run(collection)
