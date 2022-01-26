@@ -18,16 +18,16 @@ jobs:
         id: venv-cache
         with:
           path: ./venv
-          key: ${{ runner.os }}-venv-${{ hashFiles('setup.cfg') }}
+          key: ${{ runner.os }}-venv2-${{ hashFiles('setup.cfg') }}
       - run: echo cache-hit is ${{ steps.venv-cache.outputs.cache-hit }}
       - name: Install lint dependencies
         if: steps.venv-cache.outputs.cache-hit != 'true'
         run: |
           python -m venv ./venv
-          ./venv/bin/activate
+          source ./venv/bin/activate 
           python -m pip install --upgrade pip
           python -m pip install '.[lint]'
       - name: Run linters
         run: |
-          ./venv/bin/activate
+          source ./venv/bin/activate
           SKIP=no-commit-to-branch pre-commit run -a --show-diff-on-failure
