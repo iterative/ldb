@@ -6,7 +6,7 @@ from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 from ldb.path import InstanceDir, WorkspacePath
 from ldb.stage import stage_workspace
-from ldb.utils import current_time, load_data_file
+from ldb.utils import chmod_minus_x, current_time, load_data_file
 from ldb.workspace import WorkspaceDataset
 
 DATA_DIR = Path(__file__).parent.parent / "data"
@@ -132,7 +132,11 @@ def num_empty_files(paths: Iterable[Path]) -> int:
 
 
 def add_user_filter(ldb_dir: Path) -> None:
-    script_name = "reverse.bat" if os.name == "nt" else "reverse"
     dest = ldb_dir / InstanceDir.USER_FILTERS
-    shutil.copy2(SORT_DIR / "reverse.py", dest)
-    shutil.copy2(SORT_DIR / script_name, dest)
+    if os.name == "nt":
+        py_dest = dest / "reverse.py"
+        shutil.copy2(SORT_DIR / "reverse", py_dest)
+        chmod_minus_x(py_dest)
+        shutil.copy2(SORT_DIR / "reverse.bat", dest)
+    else:
+        shutil.copy2(SORT_DIR / "reverse", dest)

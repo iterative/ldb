@@ -1,6 +1,1 @@
-import json
-import sys
-
-if __name__ == "__main__":
-    for data_object_hash, *_ in reversed(json.loads(sys.stdin.read())):
-        print(data_object_hash, flush=True)
+reverse

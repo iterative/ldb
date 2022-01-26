@@ -2,7 +2,7 @@ import sys
 
 from .utils import SORT_DIR
 
-REVERSE_SCRIPT = str(SORT_DIR / "reverse.py")
+REVERSE_SCRIPT = str(SORT_DIR / "reverse")
 SORT_Q1 = ["--sort", sys.executable, f"{REVERSE_SCRIPT}"]
 FILE_Q1 = ["--file", "fs.size > `400`"]
 ANNOT_Q1 = ["--query", "@ == `null` || inference.label != `null`"]
