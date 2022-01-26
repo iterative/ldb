@@ -1,3 +1,5 @@
+import os
+import shutil
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Tuple
@@ -127,3 +129,10 @@ def num_empty_files(paths: Iterable[Path]) -> int:
     for path in paths:
         num += bool(path.read_text())
     return num
+
+
+def add_user_filter(ldb_dir: Path) -> None:
+    script_name = "reverse.bat" if os.name == "nt" else "reverse"
+    dest = ldb_dir / InstanceDir.USER_FILTERS
+    shutil.copy2(SORT_DIR / "reverse.py", dest)
+    shutil.copy2(SORT_DIR / script_name, dest)

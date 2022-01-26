@@ -14,7 +14,7 @@ from ldb.path import Filename
 from ldb.storage import add_storage, create_storage_location
 from ldb.utils import DATASET_PREFIX, ROOT
 
-from .utils import DATA_DIR, stage_new_workspace
+from .utils import DATA_DIR, add_user_filter, stage_new_workspace
 
 
 def pytest_addoption(parser):
@@ -117,7 +117,9 @@ def ldb_instance_session(
     tmp_path_session: Path,
     global_base_session: Path,
 ) -> Path:
-    return make_ldb_instance(tmp_path_session)
+    ldb_dir = make_ldb_instance(tmp_path_session)
+    add_user_filter(ldb_dir)
+    return ldb_dir
 
 
 @pytest.fixture
