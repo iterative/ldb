@@ -43,6 +43,7 @@ no_install_types = true
 
 [[tool.mypy.overrides]]
 module = [
+    'clip',
     'fsspec.*',
     'pyannotate_runtime.*',
     'shtab.*',
