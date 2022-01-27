@@ -29,7 +29,7 @@ jobs:
           python -m pip install '.[lint]'
       - name: activate venv
         if: steps.venv-cache.outputs.cache-hit == 'true'
-          source ./venv/bin/activate
+        run: source ./venv/bin/activate
       - name: Run linters
         run: |
           SKIP=no-commit-to-branch pre-commit run -a --show-diff-on-failure
