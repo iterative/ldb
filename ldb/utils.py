@@ -3,6 +3,7 @@ import json
 import os
 import random
 import re
+import stat
 import string
 from contextlib import contextmanager
 from datetime import datetime
@@ -146,3 +147,16 @@ def chdir(path: Union[str, bytes, Path]) -> Iterator[None]:
         yield
     finally:
         os.chdir(old)
+
+
+def chmod_minus_x(path: Union[str, bytes, Path]) -> int:
+    """
+    Turn off the executable bit for everyone.
+
+    Equivalent the unix `chmod -x`
+    """
+    mode = os.stat(path).st_mode & ~(
+        stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH
+    )
+    os.chmod(path, mode)
+    return mode

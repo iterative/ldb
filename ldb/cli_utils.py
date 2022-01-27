@@ -55,6 +55,7 @@ def add_base_data_object_options(parser: ArgumentParser, dest: str) -> None:
         default=[],
         dest=dest,
         action=AppendConstValuesAction,
+        type=int,
         help="Take the first num items",
     )
     parser.add_argument(
@@ -64,7 +65,18 @@ def add_base_data_object_options(parser: ArgumentParser, dest: str) -> None:
         default=[],
         dest=dest,
         action=AppendConstValuesAction,
+        type=float,
         help="Each item will have the given probability of being selected",
+    )
+    parser.add_argument(
+        "--sort",
+        nargs="+",
+        metavar="<exec>",
+        const=OpType.SORT,
+        default=[],
+        dest=dest,
+        action=AppendConstValuesAction,
+        help="Executable to sort data objects",
     )
 
 

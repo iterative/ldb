@@ -349,8 +349,8 @@ def test_ls_root_dataset(ldb_instance, data_dir):
     "before,after,num",
     [
         ([], [], 6),
-        ([(OpType.LIMIT, "5")], [], 4),
-        ([], [(OpType.LIMIT, "5")], 5),
+        ([(OpType.LIMIT, 5)], [], 4),
+        ([], [(OpType.LIMIT, 5)], 5),
     ],
 )
 def test_ls_root_dataset_query(before, after, num, ldb_instance, data_dir):
