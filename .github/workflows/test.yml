@@ -4,6 +4,10 @@ on:
   push:
   pull_request:
 
+defaults:
+  run:
+    shell: bash
+
 jobs:
   lint:
     runs-on: ubuntu-latest
@@ -25,12 +29,12 @@ jobs:
         if: steps.venv-cache.outputs.cache-hit != 'true'
         run: |
           python -m venv ./venv
-          source ./venv/bin/activate
+          [[ "$RUNNER_OS" != "Windows" ]] && source ./venv/bin/activate || source ./venv/Scripts/activate
           python -m pip install --upgrade pip
           python -m pip install '.[lint]'
       - name: run linters
         run: |
-          source ./venv/bin/activate
+          [[ "$RUNNER_OS" != "Windows" ]] && source ./venv/bin/activate || source ./venv/Scripts/activate
           SKIP=no-commit-to-branch pre-commit run -a --show-diff-on-failure
 
   test:
@@ -55,10 +59,9 @@ jobs:
           key: ${{ runner.os }}-python${{ steps.setup-python.outputs.python-version }}-venv-test-${{ hashFiles('setup.cfg') }}
       - name: install dependencies
         if: steps.venv-cache.outputs.cache-hit != 'true'
-        shell: bash
         run: |
           python -m venv ./venv
-          source ./venv/bin/activate
+          [[ "$RUNNER_OS" != "Windows" ]] && source ./venv/bin/activate || source ./venv/Scripts/activate
           python -m pip install --upgrade pip
           python -m pip install '.[test-setup,test]'
       - name: test data cache
@@ -69,14 +72,12 @@ jobs:
           key: test-data-${{ hashFiles('data.dvc') }}
       - name: download test data
         if: steps.test-data-cache.outputs.cache-hit != 'true'
-        shell: bash
         run: |
-          source ./venv/bin/activate
+          [[ "$RUNNER_OS" != "Windows" ]] && source ./venv/bin/activate || source ./venv/Scripts/activate
           dvc pull
       - name: run tests
-        shell: bash
         run: |
-          source ./venv/bin/activate
+          [[ "$RUNNER_OS" != "Windows" ]] && source ./venv/bin/activate || source ./venv/Scripts/activate
           pytest
   build:
     runs-on: ubuntu-latest
