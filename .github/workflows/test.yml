@@ -55,6 +55,7 @@ jobs:
           key: ${{ runner.os }}-python${{ steps.setup-python.outputs.python-version }}-venv-test-${{ hashFiles('setup.cfg') }}
       - name: install dependencies
         if: steps.venv-cache.outputs.cache-hit != 'true'
+        shell: bash
         run: |
           python -m venv ./venv
           source ./venv/bin/activate
@@ -68,10 +69,12 @@ jobs:
           key: test-data-${{ hashFiles('data.dvc') }}
       - name: download test data
         if: steps.test-data-cache.outputs.cache-hit != 'true'
+        shell: bash
         run: |
           source ./venv/bin/activate
           dvc pull
       - name: run tests
+        shell: bash
         run: |
           source ./venv/bin/activate
           pytest
