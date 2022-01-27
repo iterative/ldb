@@ -11,7 +11,33 @@ from ldb.op_type import OpType
 from ldb.typing import JSONDecoded
 from ldb.utils import DATASET_PREFIX, ROOT, chdir
 
+from .data import QUERY_DATA
 from .utils import is_data_object_meta_obj, stage_new_workspace
+
+
+@pytest.mark.parametrize("args,data_objs,annots", QUERY_DATA)
+def test_cli_eval_counts_root_dataset(
+    args,
+    data_objs,
+    annots,
+    fashion_mnist_session,
+    capsys,
+):
+    ret = main(
+        [
+            "eval",
+            f"{DATASET_PREFIX}{ROOT}",
+            *args,
+            "--query=@ != `null`",
+            '--file=`"file-query"`',
+        ],
+    )
+    out_lines = capsys.readouterr().out.splitlines()
+    found_data_objs = sum(x == '"file-query"' for x in out_lines)
+    found_annots = sum(x == "true" for x in out_lines)
+    assert ret == 0
+    assert found_data_objs == data_objs
+    assert found_annots == annots
 
 
 @pytest.mark.parametrize(
@@ -194,9 +220,10 @@ def test_evaluate_root_dataset(limit, ldb_instance, data_dir):
             os.fspath(data_dir / "fashion-mnist/updates"),
         ],
     )
-    query_args = [(OpType.ANNOTATION_QUERY, "[label, inference.label]")]
+    query_args = []
     if limit:
         query_args.append((OpType.LIMIT, limit))
+    query_args.append((OpType.ANNOTATION_QUERY, "[label, inference.label]"))
     result = list(
         evaluate(
             ldb_instance,
