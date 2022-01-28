@@ -47,6 +47,8 @@ module = [
     'fsspec.*',
     'pyannotate_runtime.*',
     'shtab.*',
+    'torchvision.*',
+    'tqdm.*',
 ]
 ignore_missing_imports = true
 

@@ -1,7 +1,7 @@
 import json
 import sys
 
-from .clip_utils import image_similarity
+from .clip_utils import image_similarity, sort_by_iterable
 
 
 def main() -> None:
@@ -10,11 +10,7 @@ def main() -> None:
     data = json.loads(sys.stdin.read())
     file_paths = [d[1] for d in data]
     similarity = image_similarity(image_filepath, file_paths, model_name)
-    for _, (data_object_hash, _, _) in sorted(
-        zip(similarity, data),
-        key=lambda x: x[0],
-        reverse=True,
-    ):
+    for data_object_hash, _, _ in sort_by_iterable(data, similarity):
         print(data_object_hash)
 
 

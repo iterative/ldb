@@ -12,7 +12,7 @@ def dependency_exc(exc: Exception, extra: str) -> NoReturn:
 
 def validate_clip() -> None:
     try:
-        import clip  # noqa: F401
+        import clip  # pylint: disable=import-outside-toplevel,unused-import # noqa: F401,E501
     except ModuleNotFoundError as exc:
         dependency_exc(exc, "clip-plugin")
 
@@ -20,7 +20,7 @@ def validate_clip() -> None:
 def clip_text() -> None:
     validate_clip()
 
-    from .clip_text import main
+    from .clip_text import main  # pylint: disable=import-outside-toplevel
 
     main()
 
@@ -28,6 +28,6 @@ def clip_text() -> None:
 def clip_image() -> None:
     validate_clip()
 
-    from .clip_image import main
+    from .clip_image import main  # pylint: disable=import-outside-toplevel
 
     main()
