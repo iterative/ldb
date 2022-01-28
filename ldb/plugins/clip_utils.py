@@ -81,6 +81,13 @@ def text_similarity(
     file_paths: Sequence[str],
     model_name: Optional[str] = None,
 ) -> torch.Tensor:
+    """
+    Return similarities between a text and a sequence of images.
+
+    The similarities are given as a Tensor containing the sequence of
+    cosine similarities between an encoding of `text` and each encoding
+    of the images at `file_paths`.
+    """
     if model_name is None:
         model_name = "ViT-B/32"
     device = get_device()
@@ -110,6 +117,13 @@ def image_similarity(
     file_paths: Sequence[str],
     model_name: Optional[str] = None,
 ) -> torch.Tensor:
+    """
+    Return similarities between a target image and a sequence of images.
+
+    The similarities are given as a Tensor containing the sequence of
+    cosine similarities between an encoding of the image at
+    `image_filepath` each encoding of the images at `file_paths`.
+    """
     if model_name is None:
         model_name = "ViT-B/32"
     device = get_device()
