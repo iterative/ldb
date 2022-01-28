@@ -1,3 +1,4 @@
+import os
 from typing import Optional, Sequence, Union
 
 import clip
@@ -55,7 +56,12 @@ def text_similarity(
     if model_name is None:
         model_name = "ViT-B/32"
     device = get_device()
-    model, preprocess = clip.load(model_name, device=device)
+
+    model, preprocess = clip.load(
+        model_name,
+        device=device,
+        download_root=os.path.expanduser("~/.cache/clip"),
+    )
 
     text_features = get_text_features(model, device, text)
     image_features = get_image_features(model, preprocess, device, file_paths)
