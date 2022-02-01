@@ -2,12 +2,13 @@ import os
 import re
 import shutil
 from pathlib import Path
-from typing import Iterable, List, Sequence, Tuple
+from typing import Iterable, List, Sequence
 
 import pytest
 
 from ldb import path
 from ldb.core import add_default_read_add_storage
+from ldb.dataset import OpDef
 from ldb.ls import DatasetListing, ls, ls_collection
 from ldb.main import main
 from ldb.op_type import OpType
@@ -85,7 +86,7 @@ def is_hash(s: str) -> bool:
 def sorted_ls(
     ldb_dir: Path,
     paths: Sequence[str],
-    query_args: Iterable[Tuple[str, str]] = (),
+    query_args: Iterable[OpDef] = (),
 ) -> List[DatasetListing]:
     return sorted(
         ls(ldb_dir, paths, query_args),
@@ -519,3 +520,36 @@ def test_ls_collection_with_workspace_dataset(
         else d.annotation_hash == ""
         for d in ds_listings
     )
+
+
+@pytest.mark.slow
+def test_ls_sort_clip_text(fashion_mnist_session):
+    ds_listings = ls(
+        fashion_mnist_session,
+        [f"{DATASET_PREFIX}{ROOT}"],
+        [
+            (OpType.ANNOTATION_QUERY, "contains(`[0, 1, 3, 9]`, label)"),
+            (OpType.SORT, ["clip-text", "a shoe", "RN50"]),
+        ],
+    )
+    top_hashes = {d.data_object_hash for d in ds_listings[:3]}
+    assert "2c4a9d28cc2ce780d17bea08d45d33b3" in top_hashes
+    assert "ccb47dff4477d8492326a45423b0faca" in top_hashes
+
+
+@pytest.mark.slow
+def test_ls_sort_clip_image(fashion_mnist_session):
+    file_path = str(
+        DATA_DIR / "fashion-mnist/original/has_both/train/00016.png",
+    )
+    ds_listings = ls(
+        fashion_mnist_session,
+        [f"{DATASET_PREFIX}{ROOT}"],
+        [
+            (OpType.ANNOTATION_QUERY, "contains(`[0, 1, 3, 9]`, label)"),
+            (OpType.SORT, ["clip-image", file_path, "RN50"]),
+        ],
+    )
+    top_hashes = {d.data_object_hash for d in ds_listings[:3]}
+    assert "2c4a9d28cc2ce780d17bea08d45d33b3" in top_hashes
+    assert "ccb47dff4477d8492326a45423b0faca" in top_hashes

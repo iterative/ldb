@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import Iterable, List, Optional, Sequence, Tuple
 
 from ldb.add import process_args_for_ls
-from ldb.dataset import apply_queries
+from ldb.dataset import OpDef, apply_queries
 from ldb.path import InstanceDir
 from ldb.string_utils import left_truncate
 from ldb.utils import get_hash_path, load_data_file
@@ -20,7 +20,7 @@ class DatasetListing:
 def ls(
     ldb_dir: Path,
     paths: Sequence[str],
-    collection_ops: Iterable[Tuple[str, str]],
+    collection_ops: Iterable[OpDef],
 ) -> List[DatasetListing]:
     data_object_hashes, annotation_hashes, _ = process_args_for_ls(
         ldb_dir,

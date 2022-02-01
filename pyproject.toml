@@ -43,9 +43,12 @@ no_install_types = true
 
 [[tool.mypy.overrides]]
 module = [
+    'clip',
     'fsspec.*',
     'pyannotate_runtime.*',
     'shtab.*',
+    'torchvision.*',
+    'tqdm.*',
 ]
 ignore_missing_imports = true
 
@@ -55,7 +58,10 @@ disallow_untyped_defs = false
 
 [tool.pytest.ini_options]
 log_level = 'debug'
-addopts = '-ra'
+addopts = '-ra --strict-markers --numprocesses auto --maxprocesses 4'
+markers = [
+    "slow: marks tests as slow (deselect with \"-m 'not slow'\")",
+]
 testpaths = ['tests']
 
 [tool.black]
