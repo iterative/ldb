@@ -523,13 +523,31 @@ def test_ls_collection_with_workspace_dataset(
 
 
 @pytest.mark.slow
-def test_ls_clip_model(fashion_mnist_session):
+def test_ls_sort_clip_text(fashion_mnist_session):
     ds_listings = ls(
         fashion_mnist_session,
         [f"{DATASET_PREFIX}{ROOT}"],
         [
             (OpType.ANNOTATION_QUERY, "contains(`[0, 1, 3, 9]`, label)"),
             (OpType.SORT, ["clip-text", "a shoe", "RN50"]),
+        ],
+    )
+    top_hashes = {d.data_object_hash for d in ds_listings[:3]}
+    assert "2c4a9d28cc2ce780d17bea08d45d33b3" in top_hashes
+    assert "ccb47dff4477d8492326a45423b0faca" in top_hashes
+
+
+@pytest.mark.slow
+def test_ls_sort_clip_image(fashion_mnist_session):
+    file_path = str(
+        DATA_DIR / "fashion-mnist/original/has_both/train/00016.png",
+    )
+    ds_listings = ls(
+        fashion_mnist_session,
+        [f"{DATASET_PREFIX}{ROOT}"],
+        [
+            (OpType.ANNOTATION_QUERY, "contains(`[0, 1, 3, 9]`, label)"),
+            (OpType.SORT, ["clip-image", file_path, "RN50"]),
         ],
     )
     top_hashes = {d.data_object_hash for d in ds_listings[:3]}
