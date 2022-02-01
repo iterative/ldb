@@ -17,6 +17,14 @@ def validate_clip() -> None:
         dependency_exc(exc, "clip-plugin")
 
 
+def validate_resnet() -> None:
+    try:
+        import torch  # pylint: disable=import-outside-toplevel,unused-import # noqa: F401,E501
+        import torchvision  # pylint: disable=import-outside-toplevel,unused-import # noqa: F401,E501
+    except ModuleNotFoundError as exc:
+        dependency_exc(exc, "clip-plugin")
+
+
 def clip_text() -> None:
     validate_clip()
 
@@ -29,5 +37,13 @@ def clip_image() -> None:
     validate_clip()
 
     from .clip_image import main  # pylint: disable=import-outside-toplevel
+
+    main()
+
+
+def resnet_image() -> None:
+    validate_resnet()
+
+    from .resnet_image import main  # pylint: disable=import-outside-toplevel
 
     main()
