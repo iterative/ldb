@@ -1,7 +1,8 @@
 import json
 import sys
 
-from .clip_utils import sort_by_iterable, text_similarity
+from .clip_utils import text_similarity
+from .utils import sort_by_iterable
 
 
 def main() -> None:

@@ -1,14 +1,5 @@
 import os
-from typing import (
-    Any,
-    Callable,
-    Iterable,
-    Iterator,
-    Optional,
-    Sequence,
-    TypeVar,
-    Union,
-)
+from typing import Callable, Optional, Sequence, Union
 
 import clip
 import torch
@@ -48,11 +39,13 @@ def get_image_dataset_features(
     dataset: Dataset[torch.Tensor],
 ) -> torch.Tensor:
     all_features = []
-    with torch.no_grad():
+    with torch.no_grad():  # type: ignore[no-untyped-call]
         for images in tqdm(DataLoader(dataset, batch_size=64)):
             features = model.encode_image(images.to(device))
             all_features.append(features)
-    return torch.cat(all_features).cpu()  # type: ignore[attr-defined,no-any-return] # pylint: disable=no-member # noqa: E501
+    return torch.cat(
+        all_features,
+    ).cpu()  # pylint: disable=no-member # noqa: E501
 
 
 def get_image_features(
@@ -71,7 +64,7 @@ def get_text_features(
     text: Union[str, Sequence[str]],
 ) -> torch.Tensor:
     tokens = clip.tokenize(text).to(device)
-    with torch.no_grad():
+    with torch.no_grad():  # type: ignore[no-untyped-call]
         text_features: torch.Tensor = model.encode_text(tokens)
     return text_features
 
@@ -141,18 +134,3 @@ def image_similarity(
         keepdim=True,
     )
     return (image_features[:1] @ image_features[1:].T)[0]
-
-
-T = TypeVar("T")
-
-
-def sort_by_iterable(
-    data: Iterable[T],
-    iterable: Iterable[Any],
-) -> Iterator[T]:
-    for _, d in sorted(
-        zip(iterable, data),
-        key=lambda x: x[0],  # type: ignore[no-any-return]
-        reverse=True,
-    ):
-        yield d
