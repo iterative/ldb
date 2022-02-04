@@ -3,7 +3,7 @@ import sys
 from .utils import SORT_DIR
 
 REVERSE_SCRIPT = str(SORT_DIR / "reverse")
-SORT_Q1 = ["--sort", sys.executable, f"{REVERSE_SCRIPT}"]
+SORT_Q1 = ["--pipe", sys.executable, f"{REVERSE_SCRIPT}"]
 FILE_Q1 = ["--file", "fs.size > `400`"]
 ANNOT_Q1 = ["--query", "@ == `null` || inference.label != `null`"]
 BASIC_QUERIES = [*FILE_Q1, *ANNOT_Q1]
@@ -15,7 +15,7 @@ QUERY_DATA = [
     (["--limit", "12"], 12, 7),
     (["--limit", "12", *SORT_Q1, "--query", "@"], 7, 7),
     ([*SORT_Q1, "--limit", "12", "--query", "@"], 11, 11),
-    (["--sort=reverse", "--limit", "12", "--query", "@"], 11, 11),
+    (["--pipe=reverse", "--limit", "12", "--query", "@"], 11, 11),
     (["--file", "@"], 32, 23),
     (["--query", "@"], 23, 23),
     (["--file", "fs.size > `400`"], 26, 20),

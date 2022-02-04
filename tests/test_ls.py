@@ -529,7 +529,7 @@ def test_ls_sort_clip_text(fashion_mnist_session):
         [f"{DATASET_PREFIX}{ROOT}"],
         [
             (OpType.ANNOTATION_QUERY, "contains(`[0, 1, 3, 9]`, label)"),
-            (OpType.SORT, ["clip-text", "a shoe", "RN50"]),
+            (OpType.PIPE, ["clip-text", "a shoe", "RN50"]),
         ],
     )
     top_hashes = {d.data_object_hash for d in ds_listings[:3]}
@@ -547,7 +547,7 @@ def test_ls_sort_clip_image(fashion_mnist_session):
         [f"{DATASET_PREFIX}{ROOT}"],
         [
             (OpType.ANNOTATION_QUERY, "contains(`[0, 1, 3, 9]`, label)"),
-            (OpType.SORT, ["clip-image", file_path, "RN50"]),
+            (OpType.PIPE, ["clip-image", file_path, "RN50"]),
         ],
     )
     top_hashes = {d.data_object_hash for d in ds_listings[:3]}
@@ -569,7 +569,7 @@ def test_ls_sort_resnet_image(layer_num, fashion_mnist_session):
         [f"{DATASET_PREFIX}{ROOT}"],
         [
             (OpType.ANNOTATION_QUERY, "contains(`[0, 1, 3, 9]`, label)"),
-            (OpType.SORT, sort_args),
+            (OpType.PIPE, sort_args),
         ],
     )
     top_hashes = {d.data_object_hash for d in ds_listings[:3]}

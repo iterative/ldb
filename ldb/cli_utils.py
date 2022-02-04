@@ -69,14 +69,14 @@ def add_base_data_object_options(parser: ArgumentParser, dest: str) -> None:
         help="Each item will have the given probability of being selected",
     )
     parser.add_argument(
-        "--sort",
+        "--pipe",
         nargs="+",
         metavar="<exec>",
-        const=OpType.SORT,
+        const=OpType.PIPE,
         default=[],
         dest=dest,
         action=AppendConstValuesAction,
-        help="Executable to sort data objects",
+        help="Executable to filter or sort data objects",
     )
 
 

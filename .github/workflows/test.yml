@@ -75,7 +75,7 @@ jobs:
         run: |
           [[ "$RUNNER_OS" != "Windows" ]] && source ./venv/bin/activate || source ./venv/Scripts/activate
           dvc pull
-      - name: clip model cache
+      - name: ml model cache
         uses: actions/cache@v2
         with:
           path: |

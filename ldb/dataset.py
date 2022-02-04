@@ -368,7 +368,7 @@ class Sort(CollectionOperation):
         self,
         collection: Iterable[Tuple[str, str]],
     ) -> Iterator[Tuple[str, str]]:
-        from ldb.sort import (  # pylint: disable=import-outside-toplevel
+        from ldb.pipe import (  # pylint: disable=import-outside-toplevel
             sort_collection,
         )
 
@@ -459,7 +459,7 @@ class PipelineBuilder:
             elif op_type == OpType.SAMPLE:
                 assert isinstance(arg, float)
                 op = Sample(arg).apply
-            elif op_type == OpType.SORT:
+            elif op_type == OpType.PIPE:
                 assert isinstance(arg, list)
                 op = Sort(self.ldb_dir, arg).apply
             else:
