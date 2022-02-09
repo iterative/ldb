@@ -6,6 +6,13 @@ from .utils import sort_by_iterable
 
 
 def main() -> None:
+    if len(sys.argv) < 2:
+        print(
+            "usage: resnet-image <image_file_path> [<model_number>]",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
     image_filepath = sys.argv[1]
     model_name = "18"
     layer_index = None
@@ -27,7 +34,7 @@ def main() -> None:
         layer_index,
     )
     for data_object_hash, _, _ in sort_by_iterable(data, similarity):
-        print(data_object_hash)
+        print(data_object_hash, flush=True)
 
 
 if __name__ == "__main__":
