@@ -1,4 +1,3 @@
-import os
 from typing import Callable, Optional, Sequence, Union
 
 import clip
@@ -88,7 +87,6 @@ def text_similarity(
     model, preprocess = clip.load(
         model_name,
         device=device,
-        download_root=os.path.expanduser("~/.cache/clip"),
     )
 
     text_features = get_text_features(model, device, text)
