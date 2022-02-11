@@ -45,21 +45,21 @@ DataToWrite = Tuple[Path, bytes, bool]
 def get_storage_files_for_paths(
     paths: List[str],
     default_format: bool = False,
-) -> List[OpenFile]:
+) -> List[str]:
     seen = set()
     storage_files = []
     for path in paths:
         for file in get_storage_files(path, default_format=default_format):
-            if file.path not in seen:
+            if file not in seen:
                 storage_files.append(file)
-                seen.add(file.path)
+                seen.add(file)
     return storage_files
 
 
 def get_storage_files(
     path: str,
     default_format: bool = False,
-) -> List[OpenFile]:
+) -> List[str]:
     """
     Get storage files for indexing that match the glob, `path`.
 
@@ -95,11 +95,13 @@ def get_storage_files(
                 else:
                     file_match_globs.append(p_without_ext + ".json")
     files = (
-        list(fsspec.open_files(file_match_globs)) if file_match_globs else []
+        [i for f in file_match_globs for i in fs.glob(f)]
+        if file_match_globs
+        else []
     )
     # capture everything under any directories the `path` glob matches
-    for file in fsspec.open_files(path + "/**"):
-        if not is_hidden_fsspec_path(file.path):
+    for file in fs.expand_path(path, recursive=True):
+        if not is_hidden_fsspec_path(file) and fs.isfile(file):
             files.append(file)
     return files
 
@@ -109,16 +111,17 @@ def is_hidden_fsspec_path(path: str) -> bool:
 
 
 def group_storage_files_by_type(
-    storage_files: Iterable[OpenFile],
-) -> Tuple[List[OpenFile], List[OpenFile]]:
+    storage_files: Iterable[str],
+) -> Tuple[List[str], List[str]]:
     data_object_files = []
     annotation_files = []
     seen = set()
+    fs = fsspec.filesystem("file")
     for storage_file in storage_files:
-        if storage_file.path not in seen:
-            seen.add(storage_file.path)
-            if storage_file.fs.isfile(storage_file.path):
-                if storage_file.path.endswith(".json"):
+        if storage_file not in seen:
+            seen.add(storage_file)
+            if fs.isfile(storage_file):
+                if storage_file.endswith(".json"):
                     annotation_files.append(storage_file)
                 else:
                     data_object_files.append(storage_file)

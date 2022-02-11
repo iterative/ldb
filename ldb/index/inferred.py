@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from itertools import chain
 from pathlib import Path
-from typing import Dict, Iterable, List, Tuple
+from typing import Dict, Iterable, List, Tuple, Union
 
 import fsspec
 from fsspec.core import OpenFile
@@ -22,14 +22,13 @@ from ldb.utils import current_time, load_data_file
 
 class InferredPreprocessor(Preprocessor):
     @cached_property
-    def dir_path_to_files(self) -> Dict[str, List[OpenFile]]:
+    def dir_path_to_files(self) -> Dict[str, List[str]]:
+        fs = fsspec.filesystem("file")
         dir_paths = expand_dir_paths(self.paths)
-        file_seqs = [
-            fsspec.open_files(p.rstrip("/") + "/**") for p in dir_paths
-        ]
+        file_seqs = [fs.find(p.rstrip("/")) for p in dir_paths]
         return {d: f for d, f in zip(dir_paths, file_seqs) if f}
 
-    def get_storage_files(self) -> List[OpenFile]:
+    def get_storage_files(self) -> List[str]:
         return list(chain(*self.dir_path_to_files.values()))
 
     @cached_property
@@ -64,17 +63,16 @@ class InferredIndexer(PairIndexer):
 
     def infer_annotations(self) -> Dict[OpenFile, JSONObject]:
         annotations: Dict[OpenFile, JSONObject] = {}
+        fs = fsspec.filesystem("file")
         for dir_path, file_seq in self.preprocessor.dir_path_to_files.items():
             len_dir_path = len(dir_path)
             for file in file_seq:
-                raw_label = (
-                    file.path[len_dir_path:].rsplit("/", 1)[0].strip("/")
-                )
+                raw_label = file[len_dir_path:].rsplit("/", 1)[0].strip("/")
                 label_parts = raw_label.lstrip("/").split("/")
-                label = label_parts[-1]
+                label: Union[str, JSONObject] = label_parts[-1]
                 for p in label_parts[-2::-1]:
                     label = {p: label}
-                annotations[file] = {"label": label}
+                annotations[OpenFile(fs, file)] = {"label": label}
         return annotations
 
     def _index(self) -> None:

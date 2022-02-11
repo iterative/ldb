@@ -18,6 +18,7 @@ from typing import (
     Union,
 )
 
+import fsspec
 from fsspec.core import OpenFile
 from funcy.objects import cached_property
 
@@ -99,7 +100,7 @@ class Preprocessor:
     def __init__(self, paths: Sequence[str]) -> None:
         self.paths = [os.path.abspath(p) for p in paths]
 
-    def get_storage_files(self) -> List[OpenFile]:
+    def get_storage_files(self) -> List[str]:
         return get_storage_files_for_paths(
             self.paths,
             default_format=True,
@@ -107,8 +108,13 @@ class Preprocessor:
 
     @cached_property
     def files_by_type(self) -> Tuple[List[OpenFile], List[OpenFile]]:
+        fs = fsspec.filesystem("file")
         files = self.get_storage_files()
-        return group_storage_files_by_type(files)
+        data_obj_paths, annot_paths = group_storage_files_by_type(files)
+        return (
+            [OpenFile(fs, p) for p in data_obj_paths],
+            [OpenFile(fs, p) for p in annot_paths],
+        )
 
     @cached_property
     def data_object_files(self) -> List[OpenFile]:
