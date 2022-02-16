@@ -348,6 +348,10 @@ class Limit(CollectionOperation):
 
 class Sample(CollectionOperation):
     def __init__(self, p: float) -> None:
+        if not 0.0 <= p <= 1.0:
+            raise ValueError(
+                "sample probability must be in the range (0.0, 1.0) inclusive",
+            )
         self.p = p
 
     def apply(
