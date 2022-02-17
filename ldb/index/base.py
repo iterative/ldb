@@ -20,6 +20,7 @@ from typing import (
 
 import fsspec
 from fsspec.core import OpenFile
+from fsspec.spec import AbstractFileSystem
 from funcy.objects import cached_property
 
 from ldb.dataset import get_collection_dir_keys
@@ -100,7 +101,7 @@ class Preprocessor:
     def __init__(self, paths: Sequence[str]) -> None:
         self.paths = [os.path.abspath(p) for p in paths]
 
-    def get_storage_files(self) -> List[str]:
+    def get_storage_files(self) -> Dict[AbstractFileSystem, List[str]]:
         return get_storage_files_for_paths(
             self.paths,
             default_format=True,
@@ -109,12 +110,15 @@ class Preprocessor:
     @cached_property
     def files_by_type(self) -> Tuple[List[OpenFile], List[OpenFile]]:
         fs = fsspec.filesystem("file")
-        files = self.get_storage_files()
-        data_obj_paths, annot_paths = group_storage_files_by_type(files)
-        return (
-            [OpenFile(fs, p) for p in data_obj_paths],
-            [OpenFile(fs, p) for p in annot_paths],
-        )
+        data_obj_files = []
+        annot_files = []
+        for fs, fs_paths in self.get_storage_files().items():
+            data_obj_paths, annot_paths = group_storage_files_by_type(fs_paths)
+            for path in data_obj_paths:
+                data_obj_files.append(OpenFile(fs, path))
+            for path in annot_paths:
+                annot_files.append(OpenFile(fs, path))
+        return data_obj_files, annot_files
 
     @cached_property
     def data_object_files(self) -> List[OpenFile]:
@@ -235,7 +239,7 @@ class PairIndexer(Indexer):
         files.extend(indexed_ephemeral_files)
         indexed_ephemeral_bools = chain(
             repeat(False, len(files) - len(indexed_ephemeral_files)),
-            repeat(True),
+            repeat(True, len(indexed_ephemeral_files)),
         )
         return (
             files,

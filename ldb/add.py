@@ -310,10 +310,13 @@ def path_for_delete(
 
 def get_data_object_storage_files(paths: Sequence[str]) -> Iterator[OpenFile]:
     paths = [os.path.abspath(p) for p in paths]
-    fs = fsspec.filesystem("file")
-    for file in get_storage_files_for_paths(paths, default_format=False):
-        if not file.endswith(".json"):
-            yield OpenFile(fs, file)
+    for fs, fs_paths in get_storage_files_for_paths(
+        paths,
+        default_format=False,
+    ).items():
+        for path in fs_paths:
+            if not path.endswith(".json"):
+                yield OpenFile(fs, path)
 
 
 def data_object_hashes_from_path(paths: Sequence[str]) -> Iterator[str]:

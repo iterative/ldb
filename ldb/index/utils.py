@@ -20,6 +20,7 @@ from typing import (
 import fsspec
 from fsspec.core import OpenFile
 from fsspec.implementations.local import make_path_posix
+from fsspec.spec import AbstractFileSystem
 
 from ldb.data_formats import Format
 from ldb.exceptions import IndexingException, NotAStorageLocationError
@@ -45,21 +46,29 @@ DataToWrite = Tuple[Path, bytes, bool]
 def get_storage_files_for_paths(
     paths: List[str],
     default_format: bool = False,
-) -> List[str]:
-    seen = set()
-    storage_files = []
+) -> Dict[AbstractFileSystem, List[str]]:
+    storage_files: Dict[AbstractFileSystem, Tuple[List[str], Set[str]]] = {}
     for path in paths:
-        for file in get_storage_files(path, default_format=default_format):
+        fs, paths_found = get_storage_files(
+            path,
+            default_format=default_format,
+        )
+        try:
+            fs_paths, seen = storage_files[fs]
+        except KeyError:
+            fs_paths, seen = [], set()
+            storage_files[fs] = fs_paths, seen
+        for file in paths_found:
             if file not in seen:
-                storage_files.append(file)
+                fs_paths.append(file)
                 seen.add(file)
-    return storage_files
+    return {fs: fs_paths for fs, (fs_paths, _) in storage_files.items()}
 
 
 def get_storage_files(
     path: str,
     default_format: bool = False,
-) -> List[str]:
+) -> Tuple[AbstractFileSystem, List[str]]:
     """
     Get storage files for indexing that match the glob, `path`.
 
@@ -73,9 +82,9 @@ def get_storage_files(
     The current implementation may result in some directory paths and some
     duplicate paths being included.
     """
-    if is_hidden_fsspec_path(path):
-        return []
     fs = fsspec.filesystem("file")
+    if is_hidden_fsspec_path(path):
+        return fs, []
     # "path/**", "path/**/**" or "path/**/" are treated the same as just "path"
     # so we strip off any "/**" or "/**/" at the end
     path = re.sub(ENDING_DOUBLE_STAR_RE, "", path)
@@ -103,7 +112,7 @@ def get_storage_files(
     for file in fs.expand_path(path, recursive=True):
         if not is_hidden_fsspec_path(file) and fs.isfile(file):
             files.append(file)
-    return files
+    return fs, files
 
 
 def is_hidden_fsspec_path(path: str) -> bool:
@@ -128,8 +137,9 @@ def group_storage_files_by_type(
     return data_object_files, annotation_files
 
 
-def expand_dir_paths(paths: Iterable[str]) -> List[str]:
-    fs = fsspec.filesystem("file")
+def expand_dir_paths(
+    paths: Iterable[str],
+) -> Dict[AbstractFileSystem, List[str]]:
     for path in paths:
         path, num = re.subn(ENDING_DOUBLE_STAR_RE, "", path)
         if num:
@@ -139,16 +149,27 @@ def expand_dir_paths(paths: Iterable[str]) -> List[str]:
                 "used",
             )
 
-    paths = sorted({p for p in fs.expand_path(paths) if fs.isdir(p)})
-    for i in range(len(paths) - 1):
-        if paths[i + 1].startswith(paths[i]):
-            raise IndexingException(
-                f"Paths passed with the {Format.INFER} format should match "
-                "non-overlapping directories. Found overlapping directories:\n"
-                f"{paths[i]!r}\n"
-                f"{paths[i + 1]!r}",
-            )
-    return paths
+    path_sets: Dict[AbstractFileSystem, Set[str]] = {}
+    fs = fsspec.filesystem("file")
+    for path in paths:
+        fs_paths = path_sets.setdefault(fs, set())
+        for p in fs.expand_path(paths):
+            if fs.isdir(p):
+                fs_paths.add(p)
+    path_lists: Dict[AbstractFileSystem, List[str]] = {}
+    for fs, fs_path_set in path_sets.items():
+        paths = sorted(fs_path_set)
+        for i in range(len(paths) - 1):
+            if paths[i + 1].startswith(paths[i]):
+                raise IndexingException(
+                    f"Paths passed with the {Format.INFER} format should "
+                    "match non-overlapping directories. Found overlapping "
+                    "directories:\n"
+                    f"{paths[i]!r}\n"
+                    f"{paths[i + 1]!r}",
+                )
+        path_lists[fs] = paths
+    return path_lists
 
 
 def copy_to_read_add_storage(

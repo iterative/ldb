@@ -3,8 +3,8 @@ from itertools import chain
 from pathlib import Path
 from typing import Dict, Iterable, List, Tuple, Union
 
-import fsspec
 from fsspec.core import OpenFile
+from fsspec.spec import AbstractFileSystem
 from funcy.objects import cached_property
 
 from ldb.data_formats import Format
@@ -22,14 +22,24 @@ from ldb.utils import current_time, load_data_file
 
 class InferredPreprocessor(Preprocessor):
     @cached_property
-    def dir_path_to_files(self) -> Dict[str, List[str]]:
-        fs = fsspec.filesystem("file")
-        dir_paths = expand_dir_paths(self.paths)
-        file_seqs = [fs.find(p.rstrip("/")) for p in dir_paths]
-        return {d: f for d, f in zip(dir_paths, file_seqs) if f}
+    def dir_path_to_files(
+        self,
+    ) -> Dict[AbstractFileSystem, Dict[str, List[str]]]:
+        dir_path_lists = expand_dir_paths(self.paths)
+        file_seqs: Dict[AbstractFileSystem, Dict[str, List[str]]] = {}
+        for fs, dir_paths in dir_path_lists.items():
+            fs_seq: Dict[str, List[str]] = file_seqs.setdefault(fs, {})
+            for p in dir_paths:
+                file_paths = fs.find(p.rstrip("/"))
+                if file_paths:
+                    fs_seq[p] = file_paths
+        return file_seqs
 
-    def get_storage_files(self) -> List[str]:
-        return list(chain(*self.dir_path_to_files.values()))
+    def get_storage_files(self) -> Dict[AbstractFileSystem, List[str]]:
+        return {
+            fs: list(chain(*seqs.values()))
+            for fs, seqs in self.dir_path_to_files.items()
+        }
 
     @cached_property
     def files_by_type(self) -> Tuple[List[OpenFile], List[OpenFile]]:
@@ -61,18 +71,23 @@ class InferredIndexer(PairIndexer):
             strict_format,
         )
 
-    def infer_annotations(self) -> Dict[OpenFile, JSONObject]:
-        annotations: Dict[OpenFile, JSONObject] = {}
-        fs = fsspec.filesystem("file")
-        for dir_path, file_seq in self.preprocessor.dir_path_to_files.items():
-            len_dir_path = len(dir_path)
-            for file in file_seq:
-                raw_label = file[len_dir_path:].rsplit("/", 1)[0].strip("/")
-                label_parts = raw_label.lstrip("/").split("/")
-                label: Union[str, JSONObject] = label_parts[-1]
-                for p in label_parts[-2::-1]:
-                    label = {p: label}
-                annotations[OpenFile(fs, file)] = {"label": label}
+    def infer_annotations(
+        self,
+    ) -> Dict[AbstractFileSystem, Dict[str, JSONObject]]:
+        annotations: Dict[AbstractFileSystem, Dict[str, JSONObject]] = {}
+        for fs, seqs in self.preprocessor.dir_path_to_files.items():
+            fs_annots = annotations.setdefault(fs, {})
+            for dir_path, file_seq in seqs.items():
+                len_dir_path = len(dir_path)
+                for file in file_seq:
+                    raw_label = (
+                        file[len_dir_path:].rsplit("/", 1)[0].strip("/")
+                    )
+                    label_parts = raw_label.lstrip("/").split("/")
+                    label: Union[str, JSONObject] = label_parts[-1]
+                    for p in label_parts[-2::-1]:
+                        label = {p: label}
+                    fs_annots[file] = {"label": label}
         return annotations
 
     def _index(self) -> None:
@@ -83,10 +98,16 @@ class InferredIndexer(PairIndexer):
             _,
         ) = self.process_files()
 
+        old_to_new_files = {}
+        for old, new in self.old_to_new_files.items():
+            old_to_new_files[old.fs, old.path] = new
+
         annotations_by_data_object_path = {
-            (self.old_to_new_files.get(f) or f).path: annot
-            for f, annot in annotations.items()
+            (old_to_new_files.get((fs, f)) or OpenFile(fs, f)).path: annot
+            for fs, fs_annotations in annotations.items()
+            for f, annot in fs_annotations.items()
         }
+
         self.index_inferred_files(
             files,
             indexed_ephemeral_bools,
