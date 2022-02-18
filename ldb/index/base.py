@@ -58,6 +58,7 @@ ENDING_DOUBLE_STAR_RE = r"(?:/+\*\*)+/*$"
 AnnotationMeta = Dict[str, Union[str, int, None]]
 DataObjectMeta = Dict[str, Union[str, Dict[str, Union[str, int]]]]
 DataToWrite = Tuple[Path, bytes, bool]
+FSPathsMapping = Dict[AbstractFileSystem, List[str]]
 
 
 class IndexedObjectResult(NamedTuple):
@@ -101,32 +102,46 @@ class Preprocessor:
     def __init__(self, paths: Sequence[str]) -> None:
         self.paths = [os.path.abspath(p) for p in paths]
 
-    def get_storage_files(self) -> Dict[AbstractFileSystem, List[str]]:
+    def get_storage_files(self) -> FSPathsMapping:
         return get_storage_files_for_paths(
             self.paths,
             default_format=True,
         )
 
     @cached_property
-    def files_by_type(self) -> Tuple[List[OpenFile], List[OpenFile]]:
+    def files_by_type(self) -> Tuple[FSPathsMapping, FSPathsMapping]:
         fs = fsspec.filesystem("file")
-        data_obj_files = []
-        annot_files = []
+        data_obj_files = {}
+        annot_files = {}
         for fs, fs_paths in self.get_storage_files().items():
-            data_obj_paths, annot_paths = group_storage_files_by_type(fs_paths)
-            for path in data_obj_paths:
-                data_obj_files.append(OpenFile(fs, path))
-            for path in annot_paths:
-                annot_files.append(OpenFile(fs, path))
+            data_obj_files[fs], annot_files[fs] = group_storage_files_by_type(
+                fs_paths,
+            )
         return data_obj_files, annot_files
 
     @cached_property
-    def data_object_files(self) -> List[OpenFile]:
+    def data_object_paths(self) -> FSPathsMapping:
         return self.files_by_type[0]
 
     @cached_property
-    def annotation_files(self) -> List[OpenFile]:
+    def annotation_paths(self) -> FSPathsMapping:
         return self.files_by_type[1]
+
+    @cached_property
+    def data_object_files(self) -> List[OpenFile]:
+        return [
+            OpenFile(fs, p)
+            for fs, paths in self.data_object_paths.items()
+            for p in paths
+        ]
+
+    @cached_property
+    def annotation_files(self) -> List[OpenFile]:
+        return [
+            OpenFile(fs, p)
+            for fs, paths in self.annotation_paths.items()
+            for p in paths
+        ]
 
 
 class Indexer(ABC):

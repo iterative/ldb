@@ -188,7 +188,6 @@ def copy_to_read_add_storage(
             unique_id(),
         ],
     )
-    # annotation_files_by_path = annotation_files_by_path.copy()
     fs.makedirs(base_dir, exist_ok=True)
     old_to_new_files = {}
     old_to_new_annot_files = {}

@@ -12,6 +12,7 @@ from ldb.exceptions import IndexingException
 from ldb.index.base import (
     AnnotationMeta,
     DataObjectFileIndexingItem,
+    FSPathsMapping,
     PairIndexer,
     Preprocessor,
 )
@@ -42,16 +43,17 @@ class InferredPreprocessor(Preprocessor):
         }
 
     @cached_property
-    def files_by_type(self) -> Tuple[List[OpenFile], List[OpenFile]]:
+    def files_by_type(self) -> Tuple[FSPathsMapping, FSPathsMapping]:
         files, annotation_files = super().files_by_type
-        if annotation_files:
-            first_path = annotation_files[0].path
-            raise IndexingException(
-                f"No annotation files should be present for {Format.INFER} "
-                "format.\n"
-                f"Found {len(annotation_files)} JSON files.\n"
-                f"First path: {first_path}",
-            )
+        for fs, path_seq in annotation_files.items():
+            if path_seq:
+                first_path = path_seq[0]
+                raise IndexingException(
+                    "No annotation files should be present for "
+                    f"{Format.INFER} format.\n"
+                    f"Found {len(annotation_files)} JSON files.\n"
+                    f"First path: {first_path} (protocol={fs.protocol})",
+                )
         return files, annotation_files
 
 
