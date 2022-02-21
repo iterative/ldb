@@ -20,6 +20,7 @@ from typing import (
 import fsspec
 from fsspec.core import OpenFile
 from fsspec.implementations.local import make_path_posix
+from fsspec.spec import AbstractFileSystem
 
 from ldb.data_formats import Format
 from ldb.exceptions import IndexingException, NotAStorageLocationError
@@ -45,21 +46,29 @@ DataToWrite = Tuple[Path, bytes, bool]
 def get_storage_files_for_paths(
     paths: List[str],
     default_format: bool = False,
-) -> List[OpenFile]:
-    seen = set()
-    storage_files = []
+) -> Dict[AbstractFileSystem, List[str]]:
+    storage_files: Dict[AbstractFileSystem, Tuple[List[str], Set[str]]] = {}
     for path in paths:
-        for file in get_storage_files(path, default_format=default_format):
-            if file.path not in seen:
-                storage_files.append(file)
-                seen.add(file.path)
-    return storage_files
+        fs, paths_found = get_storage_files(
+            path,
+            default_format=default_format,
+        )
+        try:
+            fs_paths, seen = storage_files[fs]
+        except KeyError:
+            fs_paths, seen = [], set()
+            storage_files[fs] = fs_paths, seen
+        for file in paths_found:
+            if file not in seen:
+                fs_paths.append(file)
+                seen.add(file)
+    return {fs: fs_paths for fs, (fs_paths, _) in storage_files.items()}
 
 
 def get_storage_files(
     path: str,
     default_format: bool = False,
-) -> List[OpenFile]:
+) -> Tuple[AbstractFileSystem, List[str]]:
     """
     Get storage files for indexing that match the glob, `path`.
 
@@ -73,9 +82,9 @@ def get_storage_files(
     The current implementation may result in some directory paths and some
     duplicate paths being included.
     """
-    if is_hidden_fsspec_path(path):
-        return []
     fs = fsspec.filesystem("file")
+    if is_hidden_fsspec_path(path):
+        return fs, []
     # "path/**", "path/**/**" or "path/**/" are treated the same as just "path"
     # so we strip off any "/**" or "/**/" at the end
     path = re.sub(ENDING_DOUBLE_STAR_RE, "", path)
@@ -95,13 +104,15 @@ def get_storage_files(
                 else:
                     file_match_globs.append(p_without_ext + ".json")
     files = (
-        list(fsspec.open_files(file_match_globs)) if file_match_globs else []
+        [i for f in file_match_globs for i in fs.glob(f)]
+        if file_match_globs
+        else []
     )
     # capture everything under any directories the `path` glob matches
-    for file in fsspec.open_files(path + "/**"):
-        if not is_hidden_fsspec_path(file.path):
+    for file in fs.expand_path(path, recursive=True):
+        if not is_hidden_fsspec_path(file) and fs.isfile(file):
             files.append(file)
-    return files
+    return fs, files
 
 
 def is_hidden_fsspec_path(path: str) -> bool:
@@ -109,24 +120,26 @@ def is_hidden_fsspec_path(path: str) -> bool:
 
 
 def group_storage_files_by_type(
-    storage_files: Iterable[OpenFile],
-) -> Tuple[List[OpenFile], List[OpenFile]]:
+    storage_files: Iterable[str],
+) -> Tuple[List[str], List[str]]:
     data_object_files = []
     annotation_files = []
     seen = set()
+    fs = fsspec.filesystem("file")
     for storage_file in storage_files:
-        if storage_file.path not in seen:
-            seen.add(storage_file.path)
-            if storage_file.fs.isfile(storage_file.path):
-                if storage_file.path.endswith(".json"):
+        if storage_file not in seen:
+            seen.add(storage_file)
+            if fs.isfile(storage_file):
+                if storage_file.endswith(".json"):
                     annotation_files.append(storage_file)
                 else:
                     data_object_files.append(storage_file)
     return data_object_files, annotation_files
 
 
-def expand_dir_paths(paths: Iterable[str]) -> List[str]:
-    fs = fsspec.filesystem("file")
+def expand_dir_paths(
+    paths: Iterable[str],
+) -> Dict[AbstractFileSystem, List[str]]:
     for path in paths:
         path, num = re.subn(ENDING_DOUBLE_STAR_RE, "", path)
         if num:
@@ -136,16 +149,27 @@ def expand_dir_paths(paths: Iterable[str]) -> List[str]:
                 "used",
             )
 
-    paths = sorted({p for p in fs.expand_path(paths) if fs.isdir(p)})
-    for i in range(len(paths) - 1):
-        if paths[i + 1].startswith(paths[i]):
-            raise IndexingException(
-                f"Paths passed with the {Format.INFER} format should match "
-                "non-overlapping directories. Found overlapping directories:\n"
-                f"{paths[i]!r}\n"
-                f"{paths[i + 1]!r}",
-            )
-    return paths
+    path_sets: Dict[AbstractFileSystem, Set[str]] = {}
+    fs = fsspec.filesystem("file")
+    for path in paths:
+        fs_paths = path_sets.setdefault(fs, set())
+        for p in fs.expand_path(paths):
+            if fs.isdir(p):
+                fs_paths.add(p)
+    path_lists: Dict[AbstractFileSystem, List[str]] = {}
+    for fs, fs_path_set in path_sets.items():
+        paths = sorted(fs_path_set)
+        for i in range(len(paths) - 1):
+            if paths[i + 1].startswith(paths[i]):
+                raise IndexingException(
+                    f"Paths passed with the {Format.INFER} format should "
+                    "match non-overlapping directories. Found overlapping "
+                    "directories:\n"
+                    f"{paths[i]!r}\n"
+                    f"{paths[i + 1]!r}",
+                )
+        path_lists[fs] = paths
+    return path_lists
 
 
 def copy_to_read_add_storage(
@@ -164,7 +188,6 @@ def copy_to_read_add_storage(
             unique_id(),
         ],
     )
-    # annotation_files_by_path = annotation_files_by_path.copy()
     fs.makedirs(base_dir, exist_ok=True)
     old_to_new_files = {}
     old_to_new_annot_files = {}
