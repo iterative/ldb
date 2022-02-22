@@ -15,7 +15,7 @@ from typing import (
 )
 
 import fsspec
-from fsspec.core import OpenFile
+from fsspec.spec import AbstractFileSystem
 
 from ldb import config
 from ldb.config import ConfigType
@@ -308,7 +308,9 @@ def path_for_delete(
     return list(data_object_hashes_from_path(paths))
 
 
-def get_data_object_storage_files(paths: Sequence[str]) -> Iterator[OpenFile]:
+def get_data_object_storage_files(
+    paths: Sequence[str],
+) -> Iterator[Tuple[AbstractFileSystem, str]]:
     paths = [os.path.abspath(p) for p in paths]
     for fs, fs_paths in get_storage_files_for_paths(
         paths,
@@ -316,12 +318,12 @@ def get_data_object_storage_files(paths: Sequence[str]) -> Iterator[OpenFile]:
     ).items():
         for path in fs_paths:
             if not path.endswith(".json"):
-                yield OpenFile(fs, path)
+                yield fs, path
 
 
 def data_object_hashes_from_path(paths: Sequence[str]) -> Iterator[str]:
-    for file in get_data_object_storage_files(paths):
-        yield hash_file(file)
+    for fs, path in get_data_object_storage_files(paths):
+        yield hash_file(fs, path)
 
 
 DELETE_FUNCTIONS: Dict[ArgType, Callable[[Path, Sequence[str]], List[str]]] = {
@@ -398,8 +400,8 @@ def process_args_for_ls(
 
 def path_for_ls(ldb_dir: Path, paths: Sequence[str]) -> AddInput:
     hashes = []
-    for file in get_data_object_storage_files(paths):
-        data_object_hash = hash_file(file)
+    for fs, path in get_data_object_storage_files(paths):
+        data_object_hash = hash_file(fs, path)
         try:
             annotation_hash = get_current_annotation_hash(
                 ldb_dir,
@@ -408,7 +410,7 @@ def path_for_ls(ldb_dir: Path, paths: Sequence[str]) -> AddInput:
         except DataObjectNotFoundError as exc:
             raise DataObjectNotFoundError(
                 f"Data object not found: 0x{data_object_hash} "
-                f"(path={file.path!r})",
+                f"(path={path!r})",
             ) from exc
         hashes.append((data_object_hash, annotation_hash))
     if hashes:

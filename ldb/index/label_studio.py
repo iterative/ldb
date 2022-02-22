@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Iterable, List, Sequence
+from typing import List, Sequence
 
 import fsspec
 from fsspec.core import OpenFile
@@ -8,7 +8,11 @@ from funcy.objects import cached_property
 from ldb.exceptions import IndexingException
 from ldb.index.base import PairIndexer, Preprocessor
 from ldb.index.inferred import InferredIndexingItem
-from ldb.index.utils import get_annotation_content
+from ldb.index.utils import (
+    FileSystemPath,
+    IndexingJobMapping,
+    get_annotation_content,
+)
 from ldb.typing import JSONObject
 from ldb.utils import current_time
 
@@ -64,32 +68,29 @@ class LabelStudioIndexer(PairIndexer):
     def _index(self) -> None:
         (
             files,
-            indexed_ephemeral_bools,
             _,
         ) = self.process_files()
         self.index_label_studio_files(
             files,
-            indexed_ephemeral_bools,
             self.preprocessor.annotations,
         )
 
     def index_label_studio_files(
         self,
-        data_object_files: List[OpenFile],
-        indexed_ephemeral_bools: Iterable[bool],
+        indexing_jobs: IndexingJobMapping,
         annotations: List[JSONObject],
     ) -> None:
-        for data_object_file, is_indexed_ephemeral, annotation in zip(
-            data_object_files,
-            indexed_ephemeral_bools,
-            annotations,
-        ):
-            obj_result = InferredIndexingItem(
-                self.ldb_dir,
-                current_time(),
-                data_object_file,
-                not is_indexed_ephemeral,
-                self.hashes,
-                annotation,
-            ).index_data()
-            self.result.append(obj_result)
+        annot_iter = iter(annotations)
+
+        for fs, jobs in indexing_jobs.items():
+            for config, path_seq in jobs:
+                for data_object_path in path_seq:
+                    obj_result = InferredIndexingItem(
+                        self.ldb_dir,
+                        current_time(),
+                        FileSystemPath(fs, data_object_path),
+                        config.save_data_object_path_info,
+                        self.hashes,
+                        next(annot_iter),
+                    ).index_data()
+                    self.result.append(obj_result)

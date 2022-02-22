@@ -2,13 +2,11 @@ import os
 from abc import ABC
 from dataclasses import dataclass, field
 from datetime import datetime
-from itertools import chain, repeat
 from pathlib import Path
 from typing import (
     Any,
     Dict,
     Iterable,
-    Iterator,
     List,
     Mapping,
     NamedTuple,
@@ -26,6 +24,11 @@ from funcy.objects import cached_property
 from ldb.dataset import get_collection_dir_keys
 from ldb.exceptions import LDBException
 from ldb.index.utils import (
+    DEFAULT_CONFIG,
+    INDEXED_EPHEMERAL_CONFIG,
+    FileSystemPath,
+    FSPathsMapping,
+    IndexingJobMapping,
     construct_annotation_meta,
     construct_data_object_meta,
     copy_to_read_add_storage,
@@ -58,7 +61,6 @@ ENDING_DOUBLE_STAR_RE = r"(?:/+\*\*)+/*$"
 AnnotationMeta = Dict[str, Union[str, int, None]]
 DataObjectMeta = Dict[str, Union[str, Dict[str, Union[str, int]]]]
 DataToWrite = Tuple[Path, bytes, bool]
-FSPathsMapping = Dict[AbstractFileSystem, List[str]]
 
 
 class IndexedObjectResult(NamedTuple):
@@ -185,19 +187,17 @@ class PairIndexer(Indexer):
 
     def _index(self) -> None:
         (
-            files,
-            indexed_ephemeral_bools,
+            indexing_jobs,
             annotation_files_by_path,
         ) = self.process_files()
         self.index_files(
-            files,
-            indexed_ephemeral_bools,
+            indexing_jobs,
             annotation_files_by_path,
         )
 
     def process_files(
         self,
-    ) -> Tuple[List[OpenFile], Iterator[bool], Dict[str, OpenFile]]:
+    ) -> Tuple[IndexingJobMapping, Dict[str, OpenFile]]:
         storage_locations = get_storage_locations(self.ldb_dir)
         local_files, cloud_files = separate_local_and_cloud_files(
             self.preprocessor.data_object_files,
@@ -212,7 +212,7 @@ class PairIndexer(Indexer):
             storage_locations,
         )
         for f in ephemeral_files:
-            self.hashes[f.path] = hash_file(f)
+            self.hashes[f.path] = hash_file(f.fs, f.path)
         existing_hashes = set(
             get_collection_dir_keys(
                 self.ldb_dir / InstanceDir.DATA_OBJECT_INFO,
@@ -251,50 +251,54 @@ class PairIndexer(Indexer):
             for f in self.old_to_new_annot_files.values():
                 annotation_files_by_path[f.path] = f
             files.extend(added_storage_files)
-        files.extend(indexed_ephemeral_files)
-        indexed_ephemeral_bools = chain(
-            repeat(False, len(files) - len(indexed_ephemeral_files)),
-            repeat(True, len(indexed_ephemeral_files)),
-        )
+        fs = fsspec.filesystem("file")  # TODO: use actual files' filesystem
+        paths: List[str] = [f.path for f in files]
+        indexed_ephemeral_paths: List[str] = [
+            f.path for f in indexed_ephemeral_files
+        ]
         return (
-            files,
-            indexed_ephemeral_bools,
+            {
+                fs: [
+                    (DEFAULT_CONFIG, paths),
+                    (INDEXED_EPHEMERAL_CONFIG, indexed_ephemeral_paths),
+                ],
+            },
             annotation_files_by_path,
         )
 
     def index_files(
         self,
-        data_object_files: List[OpenFile],
-        indexed_ephemeral_bools: Iterable[bool],
+        indexing_jobs: IndexingJobMapping,
         annotation_files_by_path: Dict[str, OpenFile],
     ) -> None:
-        for data_object_file, is_indexed_ephemeral in zip(
-            data_object_files,
-            indexed_ephemeral_bools,
-        ):
-            annotation_file = annotation_files_by_path.get(
-                data_object_path_to_annotation_path(data_object_file.path),
-            )
-            if annotation_file is None and self.strict_format:
-                continue
-            obj_result = self.index_single_pair(
-                data_object_file,
-                is_indexed_ephemeral,
-                annotation_file,
-            )
-            self.result.append(obj_result)
+        for fs, jobs in indexing_jobs.items():
+            for config, path_seq in jobs:
+                for data_object_path in path_seq:
+                    annotation_file = annotation_files_by_path.get(
+                        data_object_path_to_annotation_path(data_object_path),
+                    )
+                    if annotation_file is None and self.strict_format:
+                        continue
+                    obj_result = self.index_single_pair(
+                        fs,
+                        data_object_path,
+                        config.save_data_object_path_info,
+                        annotation_file,
+                    )
+                    self.result.append(obj_result)
 
     def index_single_pair(
         self,
-        data_object_file: OpenFile,
-        is_indexed_ephemeral: bool,
+        fs: AbstractFileSystem,
+        data_object_path: str,
+        save_data_object_path_info: bool,
         annotation_file: OpenFile,
     ) -> IndexedObjectResult:
         return PairIndexingItem(
             self.ldb_dir,
             current_time(),
-            data_object_file,
-            not is_indexed_ephemeral,
+            FileSystemPath(fs, data_object_path),
+            save_data_object_path_info,
             self.hashes,
             annotation_file,
         ).index_data()
@@ -487,15 +491,15 @@ class AnnotationFileIndexingItem(IndexingItem):
 
 @dataclass
 class DataObjectFileIndexingItem(IndexingItem):
-    data_object_file: OpenFile
+    data_object: FileSystemPath
     save_data_object_path_info: bool
     data_object_hash_cache: Mapping[str, str]
 
     @cached_property
     def data_object_hash(self) -> str:
-        hash_str = self.data_object_hash_cache.get(self.data_object_file.path)
+        hash_str = self.data_object_hash_cache.get(self.data_object.path)
         if hash_str is None:
-            hash_str = hash_file(self.data_object_file)
+            hash_str = hash_file(self.data_object.fs, self.data_object.path)
         return hash_str
 
     @cached_property
@@ -507,7 +511,7 @@ class DataObjectFileIndexingItem(IndexingItem):
             meta_contents["last_indexed"] = self.current_timestamp
         else:
             meta_contents = construct_data_object_meta(
-                self.data_object_file,
+                self.data_object,
                 load_data_file(self.data_object_meta_file_path)
                 if self.data_object_meta_file_path.exists()
                 else {},

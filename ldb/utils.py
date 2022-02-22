@@ -8,11 +8,15 @@ import string
 from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
-from typing import Any, BinaryIO, Iterator, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Iterator, Optional, Tuple, Union
 
-from fsspec.core import OpenFile
+from fsspec.spec import AbstractFileSystem
 
 from ldb.exceptions import LDBException
+
+if TYPE_CHECKING:
+    from _typeshed import SupportsRead
+
 
 DATASET_PREFIX = "ds:"
 ROOT = "root"
@@ -36,10 +40,10 @@ def write_data_file(
             file.write(data)
 
 
-def hash_file(file: OpenFile) -> str:
+def hash_file(fs: AbstractFileSystem, path: str) -> str:
     hash_obj = hashlib.md5()
-    with file as open_file:
-        for chunk in iter_chunks(open_file):
+    with fs.open(path, "rb") as file:
+        for chunk in iter_chunks(file):
             hash_obj.update(chunk)
     return hash_obj.hexdigest()
 
@@ -49,7 +53,7 @@ def hash_data(data: bytes) -> str:
 
 
 def iter_chunks(
-    file: BinaryIO,
+    file: "SupportsRead[bytes]",
     chunk_size: int = CHUNK_SIZE,
 ) -> Iterator[bytes]:
     data = file.read(chunk_size)

@@ -2,6 +2,7 @@ import getpass
 import json
 import os
 import re
+from dataclasses import dataclass
 from datetime import date, datetime
 from pathlib import Path
 from typing import (
@@ -10,6 +11,7 @@ from typing import (
     Iterable,
     List,
     Mapping,
+    NamedTuple,
     Optional,
     Sequence,
     Set,
@@ -41,6 +43,23 @@ ENDING_DOUBLE_STAR_RE = r"(?:/+\*\*)+/*$"
 AnnotationMeta = Dict[str, Union[str, int, None]]
 DataObjectMeta = Dict[str, Union[str, Dict[str, Union[str, int]]]]
 DataToWrite = Tuple[Path, bytes, bool]
+IndexingJob = Tuple["IndexingConfig", List[str]]
+IndexingJobMapping = Dict[AbstractFileSystem, List[IndexingJob]]
+FSPathsMapping = Dict[AbstractFileSystem, List[str]]
+
+
+class FileSystemPath(NamedTuple):
+    fs: AbstractFileSystem
+    path: str
+
+
+@dataclass
+class IndexingConfig:
+    save_data_object_path_info: bool
+
+
+DEFAULT_CONFIG = IndexingConfig(save_data_object_path_info=True)
+INDEXED_EPHEMERAL_CONFIG = IndexingConfig(save_data_object_path_info=False)
 
 
 def get_storage_files_for_paths(
@@ -221,7 +240,10 @@ def copy_to_read_add_storage(
             file.fs.put_file(file.path, dest, protocol=fs.protocol)
         except FileNotFoundError:
             # Use hash instead of preserving path if path is too long
-            data_object_hash = hashes.get(file.path) or hash_file(file)
+            data_object_hash = hashes.get(file.path) or hash_file(
+                file.fs,
+                file.path,
+            )
             dest = fs.sep.join(
                 [
                     base_dir,
@@ -324,11 +346,12 @@ def in_storage_locations(
 
 
 def construct_data_object_meta(
-    file: OpenFile,
+    fs_path: FileSystemPath,
     prev_meta: Dict[str, Any],
     current_timestamp: str,
 ) -> DataObjectMeta:
-    fs_info = os.stat(file.path)
+    path = fs_path.path
+    fs_info = os.stat(path)  # TODO: use fsspec
 
     atime = timestamp_to_datetime(fs_info.st_atime)
     mtime = timestamp_to_datetime(fs_info.st_mtime)
@@ -350,12 +373,12 @@ def construct_data_object_meta(
     path_info = {
         "fs_id": "",
         "protocol": "file",
-        "path": file.path,
+        "path": path,
     }
     if path_info not in alternate_paths:
         alternate_paths.append(path_info)
     return {
-        "type": get_filetype(file.path),
+        "type": get_filetype(path),
         "first_indexed": first_indexed,
         "last_indexed": current_timestamp,
         "last_indexed_by": getpass.getuser(),
