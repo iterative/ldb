@@ -397,19 +397,28 @@ def construct_data_object_meta(
     }
 
 
+def parse_annotation(raw_annotation: str) -> JSONDecoded:
+    try:
+        parsed_annotation: JSONDecoded = json.loads(raw_annotation)
+    except Exception as exc:
+        raise IndexingException(  # TODO: use more appropriate exception type
+            "Unable to parse JSON annotation\n" f"{type(exc).__name__}: {exc}",
+        ) from exc
+    return parsed_annotation
+
+
 def get_annotation_content(
-    annotation_file: OpenFile,
+    fs: AbstractFileSystem,
+    path: str,
 ) -> JSONDecoded:
     try:
-        with annotation_file as open_annotation_file:
-            annotation_str = open_annotation_file.read()
-        original_content: JSONDecoded = json.loads(annotation_str)
+        with fs.open(path, "r") as file:
+            raw_annotation = file.read()
+        return parse_annotation(raw_annotation)
     except Exception as exc:
         raise IndexingException(
-            f"Unable to parse JSON annotation: {annotation_file.path!r}\n"
-            f"{type(exc).__name__}: {exc}",
+            f"Unable to read annotation file: {path}",
         ) from exc
-    return original_content
 
 
 def construct_annotation_meta(

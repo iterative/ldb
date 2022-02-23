@@ -29,15 +29,16 @@ class LabelStudioPreprocessor(Preprocessor):
     @cached_property
     def annotations(self) -> List[JSONObject]:
         result = []
-        for file in self.annotation_files:
-            annotation = get_annotation_content(file)
-            if not isinstance(annotation, list):
-                raise IndexingException(
-                    "Annotation file must contain a JSON array for "
-                    "label-studio format. Incorrectly formatted file: "
-                    f"{file.path}",
-                )
-            result.extend(annotation)
+        for fs, paths in self.annotation_paths.items():
+            for path in paths:
+                annotation = get_annotation_content(fs, path)
+                if not isinstance(annotation, list):
+                    raise IndexingException(
+                        "Annotation file must contain a JSON array for "
+                        "label-studio format. Incorrectly formatted file: "
+                        f"{path}",
+                    )
+                result.extend(annotation)
         return result
 
     @cached_property

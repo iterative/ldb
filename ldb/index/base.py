@@ -12,6 +12,7 @@ from typing import (
     NamedTuple,
     Optional,
     Sequence,
+    Set,
     Tuple,
     Union,
 )
@@ -22,7 +23,7 @@ from fsspec.spec import AbstractFileSystem
 from funcy.objects import cached_property
 
 from ldb.dataset import get_collection_dir_keys
-from ldb.exceptions import LDBException
+from ldb.exceptions import IndexingException, LDBException
 from ldb.index.utils import (
     DEFAULT_CONFIG,
     INDEXED_EPHEMERAL_CONFIG,
@@ -188,16 +189,16 @@ class PairIndexer(Indexer):
     def _index(self) -> None:
         (
             indexing_jobs,
-            annotation_files_by_path,
+            annotation_paths,
         ) = self.process_files()
         self.index_files(
             indexing_jobs,
-            annotation_files_by_path,
+            annotation_paths,
         )
 
     def process_files(
         self,
-    ) -> Tuple[IndexingJobMapping, Dict[str, OpenFile]]:
+    ) -> Tuple[IndexingJobMapping, Set[str]]:
         storage_locations = get_storage_locations(self.ldb_dir)
         local_files, cloud_files = separate_local_and_cloud_files(
             self.preprocessor.data_object_files,
@@ -256,6 +257,11 @@ class PairIndexer(Indexer):
         indexed_ephemeral_paths: List[str] = [
             f.path for f in indexed_ephemeral_files
         ]
+
+        print(len(paths), len(indexed_ephemeral_paths))
+        # print(list(annotation_files_by_path))
+        # print(list(self.old_to_new_files.items()))
+        # print(list(self.old_to_new_annot_files.items()))
         return (
             {
                 fs: [
@@ -263,36 +269,41 @@ class PairIndexer(Indexer):
                     (INDEXED_EPHEMERAL_CONFIG, indexed_ephemeral_paths),
                 ],
             },
-            annotation_files_by_path,
+            set(annotation_files_by_path),
         )
 
     def index_files(
         self,
         indexing_jobs: IndexingJobMapping,
-        annotation_files_by_path: Dict[str, OpenFile],
+        annotation_paths: Set[str],
     ) -> None:
         for fs, jobs in indexing_jobs.items():
             for config, path_seq in jobs:
                 for data_object_path in path_seq:
-                    annotation_file = annotation_files_by_path.get(
-                        data_object_path_to_annotation_path(data_object_path),
-                    )
-                    if annotation_file is None and self.strict_format:
-                        continue
-                    obj_result = self.index_single_pair(
-                        fs,
+                    annotation_path = data_object_path_to_annotation_path(
                         data_object_path,
-                        config.save_data_object_path_info,
-                        annotation_file,
                     )
-                    self.result.append(obj_result)
+                    try:
+                        annotation_paths.remove(
+                            annotation_path,
+                        )
+                    except KeyError:
+                        annotation_path = ""
+                    if not self.strict_format or annotation_path:
+                        obj_result = self.index_single_pair(
+                            fs,
+                            data_object_path,
+                            config.save_data_object_path_info,
+                            annotation_path,
+                        )
+                        self.result.append(obj_result)
 
     def index_single_pair(
         self,
         fs: AbstractFileSystem,
         data_object_path: str,
         save_data_object_path_info: bool,
-        annotation_file: OpenFile,
+        annotation_path: str,
     ) -> IndexedObjectResult:
         return PairIndexingItem(
             self.ldb_dir,
@@ -300,7 +311,7 @@ class PairIndexer(Indexer):
             FileSystemPath(fs, data_object_path),
             save_data_object_path_info,
             self.hashes,
-            annotation_file,
+            FileSystemPath(fs, annotation_path) if annotation_path else None,
         ).index_data()
 
 
@@ -460,11 +471,13 @@ class IndexingItem(ABC):
 
 @dataclass
 class AnnotationFileIndexingItem(IndexingItem):
-    annotation_file: OpenFile
+    annotation_fsp: Optional[FileSystemPath]
 
     @cached_property
     def annotation_meta(self) -> AnnotationMeta:
-        fs_info = self.annotation_file.fs.info(self.annotation_file.path)
+        if self.annotation_fsp is None:
+            raise IndexingException("Missing annotation_fsp")
+        fs_info = self.annotation_fsp.fs.info(self.annotation_fsp.path)
         curr_mtime_float = fs_info.get("created")
         if curr_mtime_float is not None:
             curr_mtime: Optional[datetime] = timestamp_to_datetime(
@@ -486,7 +499,11 @@ class AnnotationFileIndexingItem(IndexingItem):
 
     @cached_property
     def annotation_content(self) -> JSONDecoded:
-        return get_annotation_content(self.annotation_file)
+        if self.annotation_fsp is None:
+            raise IndexingException("Missing annotation_fsp")
+        return get_annotation_content(
+            *self.annotation_fsp,
+        )
 
 
 @dataclass
@@ -521,7 +538,10 @@ class DataObjectFileIndexingItem(IndexingItem):
 
 
 @dataclass
-class PairIndexingItem(AnnotationFileIndexingItem, DataObjectFileIndexingItem):
+class PairIndexingItem(
+    AnnotationFileIndexingItem,
+    DataObjectFileIndexingItem,
+):
     @cached_property
     def data_object_dir(self) -> Path:
         return get_hash_path(
@@ -535,4 +555,4 @@ class PairIndexingItem(AnnotationFileIndexingItem, DataObjectFileIndexingItem):
 
     @cached_property
     def has_annotation(self) -> bool:
-        return self.annotation_file is not None
+        return self.annotation_fsp is not None
