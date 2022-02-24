@@ -192,13 +192,20 @@ def expand_dir_paths(
 
 
 def copy_to_read_add_storage(
-    data_object_files: Sequence[OpenFile],
-    annotation_files_by_path: Dict[str, OpenFile],
+    data_object_files: FSPathsMapping,
+    annotation_files_by_path: FSPathsMapping,
     read_add_location: StorageLocation,
-    hashes: Mapping[str, str],
+    hashes: Mapping[AbstractFileSystem, Mapping[str, str]],
     strict_format: bool,
-) -> Tuple[Dict[OpenFile, OpenFile], Dict[OpenFile, OpenFile]]:
+) -> Tuple[
+    Dict[AbstractFileSystem, Dict[str, FileSystemPath]],
+    Dict[AbstractFileSystem, Dict[str, FileSystemPath]],
+]:
+
     fs = fsspec.filesystem(read_add_location.protocol)
+    assert (
+        fs.protocol == "file"
+    )  # until get_file below is replaced with transfer
     base_dir = fs.sep.join(
         [
             read_add_location.path,
@@ -210,60 +217,72 @@ def copy_to_read_add_storage(
     fs.makedirs(base_dir, exist_ok=True)
     old_to_new_files = {}
     old_to_new_annot_files = {}
-    for file in data_object_files:
-        dest = file.path
-        if file.fs.protocol == "file":
-            dest = re.sub("^[A-Za-z]:", "", make_path_posix(dest))
-        dest = fs.sep.join(
-            [base_dir] + dest.lstrip(file.fs.sep).split(file.fs.sep),
-        )
+    for rfs, paths in data_object_files.items():
+        fs_id = rfs.protocol  # TODO use actual fs_id
+        rfs_base_dir = fs.sep.join([base_dir, fs_id])
 
-        annotation_file = annotation_files_by_path.get(
-            data_object_path_to_annotation_path(file.path),
-        )
-        annotation_dest = None
-        if annotation_file is not None:
-            annotation_dest = data_object_path_to_annotation_path(dest)
-        elif strict_format:
-            continue
-        try:
-            fs.makedirs(
-                fs._parent(dest),  # pylint: disable=protected-access)
-                exist_ok=True,
-            )
-            if annotation_dest is not None:
-                file.fs.put_file(
-                    annotation_file.path,
-                    annotation_dest,
-                    protocol=fs.protocol,
-                )
-            file.fs.put_file(file.path, dest, protocol=fs.protocol)
-        except FileNotFoundError:
-            # Use hash instead of preserving path if path is too long
-            data_object_hash = hashes.get(file.path) or hash_file(
-                file.fs,
-                file.path,
-            )
+        rfs_annotation_paths = set(annotation_files_by_path.get(rfs, []))
+
+        fs_old_to_new_files = {}
+        fs_old_to_new_annot_files = {}
+        for path in paths:
             dest = fs.sep.join(
-                [
-                    base_dir,
-                    data_object_hash + get_fsspec_path_suffix(file.path),
-                ],
+                [rfs_base_dir] + path.lstrip(rfs.sep).split(rfs.sep),
             )
-            if annotation_file is not None:
-                annotation_dest = data_object_path_to_annotation_path(dest)
-                file.fs.put_file(
-                    annotation_file.path,
-                    annotation_dest,
-                    protocol=fs.protocol,
+
+            annotation_dest = None
+            annotation_file = data_object_path_to_annotation_path(path)
+            if annotation_file in rfs_annotation_paths:
+                annotation_dest = fs.sep.join(
+                    [rfs_base_dir]
+                    + annotation_file.lstrip(rfs.sep).split(rfs.sep),
                 )
-            file.fs.put_file(file.path, dest, protocol=fs.protocol)
-        old_to_new_files[file] = OpenFile(fs, dest)
-        if annotation_dest is not None:
-            old_to_new_annot_files[annotation_file] = OpenFile(
-                fs,
-                annotation_dest,
-            )
+            elif strict_format:
+                continue
+            try:
+                fs.makedirs(
+                    fs._parent(dest),  # pylint: disable=protected-access)
+                    exist_ok=True,
+                )
+                if annotation_dest is not None:
+                    # TODO: make transfer so this works with remote read-add storage
+                    rfs.get_file(
+                        annotation_file,
+                        annotation_dest,
+                    )
+                rfs.get_file(path, dest)
+            except FileNotFoundError:
+                # Use hash instead of preserving path if path is too long
+                try:
+                    data_object_hash = hashes[rfs][path]
+                except KeyError:
+                    data_object_hash = hash_file(
+                        rfs,
+                        path,
+                    )
+                dest = fs.sep.join(
+                    [
+                        base_dir,
+                        data_object_hash + get_fsspec_path_suffix(path),
+                    ],
+                )
+                if annotation_dest is not None:
+                    annotation_dest = data_object_path_to_annotation_path(dest)
+                    rfs.get_file(
+                        annotation_file,
+                        annotation_dest,
+                    )
+                rfs.get_file(path, dest, protocol=fs.protocol)
+            fs_old_to_new_files[path] = FileSystemPath(fs, dest)
+            if annotation_dest is not None:
+                fs_old_to_new_annot_files[annotation_file] = FileSystemPath(
+                    fs,
+                    annotation_dest,
+                )
+        if fs_old_to_new_files:
+            old_to_new_files[fs] = fs_old_to_new_files
+        if fs_old_to_new_annot_files:
+            old_to_new_annot_files[fs] = fs_old_to_new_annot_files
     return old_to_new_files, old_to_new_annot_files
 
 
@@ -272,77 +291,99 @@ def data_object_path_to_annotation_path(path: str) -> str:
 
 
 def separate_local_and_cloud_files(
-    storage_files: Sequence[OpenFile],
-) -> Tuple[List[OpenFile], List[OpenFile]]:
-    local = []
-    cloud = []
-    for file in storage_files:
-        if file.fs.protocol == "file":
-            local.append(file)
+    storage_files: FSPathsMapping,
+) -> Tuple[FSPathsMapping, FSPathsMapping]:
+    local = {}
+    cloud = {}
+    for fs, paths in storage_files.items():
+        if fs.protocol == "file":
+            local[fs] = paths
         else:
-            cloud.append(file)
+            cloud[fs] = paths
     return local, cloud
 
 
 def separate_storage_and_non_storage_files(
-    files: Sequence[OpenFile],
-    storage_locations: List[StorageLocation],
-) -> Tuple[List[OpenFile], List[OpenFile]]:
-    storage = []
-    non_storage = []
-    for file in files:
-        if in_storage_locations(
-            file.path,
-            file.fs.protocol,
-            storage_locations,
-        ):
-            storage.append(file)
+    fs_paths: FSPathsMapping,
+    storage_locations: Sequence[StorageLocation],
+) -> Tuple[FSPathsMapping, FSPathsMapping]:
+    storage = {}
+    non_storage = {}
+    for fs, paths in fs_paths.items():
+        matching_locs = filter_storage_locations(fs, storage_locations)
+        if not matching_locs:
+            non_storage[fs] = [p for p in paths]
         else:
-            non_storage.append(file)
+            fs_storage = []
+            fs_non_storage = []
+            for path in paths:
+                if in_storage_locations(path, matching_locs):
+                    fs_storage.append(path)
+                else:
+                    fs_non_storage.append(path)
+            if fs_storage:
+                storage[fs] = fs_storage
+            if fs_non_storage:
+                non_storage[fs] = fs_non_storage
     return storage, non_storage
 
 
 def separate_indexed_files(
     existing_hashes: Set[str],
-    hashes: Mapping[str, str],
-    files: Iterable[OpenFile],
-) -> Tuple[List[OpenFile], List[OpenFile]]:
-    indexed = []
-    not_indexed = []
-    for file in files:
-        hash_str = hashes.get(file.path)
-        if hash_str is not None and hash_str in existing_hashes:
-            indexed.append(file)
-        else:
-            not_indexed.append(file)
+    hashes: Mapping[AbstractFileSystem, Mapping[str, str]],
+    fs_paths: FSPathsMapping,
+) -> Tuple[FSPathsMapping, FSPathsMapping]:
+    indexed = {}
+    not_indexed = {}
+    for fs, paths in fs_paths.items():
+        fs_indexed = []
+        fs_not_indexed = []
+        for path in paths:
+            try:
+                hash_str = hashes[fs][path]
+            except KeyError:
+                hash_str = None
+            if hash_str is not None and hash_str in existing_hashes:
+                fs_indexed.append(path)
+            else:
+                fs_not_indexed.append(path)
+        if fs_indexed:
+            indexed[fs] = fs_indexed
+        if fs_not_indexed:
+            not_indexed[fs] = fs_not_indexed
     return indexed, not_indexed
 
 
 def validate_locations_in_storage(
-    storage_files: Sequence[OpenFile],
-    storage_locations: List[StorageLocation],
+    fs_paths: FSPathsMapping,
+    storage_locations: Sequence[StorageLocation],
 ) -> None:
-    for storage_file in storage_files:
-        if in_storage_locations(
-            storage_file.path,
-            storage_file.fs.protocol,
-            storage_locations,
-        ):
-            raise NotAStorageLocationError(
-                "Found file outside of configured storage locations: "
-                f"{storage_file.path}",
-            )
+    for fs, paths in fs_paths.items():
+        matching_locs = filter_storage_locations(fs, storage_locations)
+        for path in paths:
+            if not in_storage_locations(path, matching_locs):
+                raise NotAStorageLocationError(
+                    "Found file outside of configured storage locations: "
+                    f"{path}",
+                )
+
+
+def filter_storage_locations(
+    fs: AbstractFileSystem,
+    storage_locations: Sequence[StorageLocation],
+) -> List[StorageLocation]:
+    # TODO use fs_id
+    return [s for s in storage_locations if s.protocol == fs.protocol]
 
 
 def in_storage_locations(
     path: str,
-    protocol: str,
     storage_locations: Sequence[StorageLocation],
 ) -> bool:
-    return any(
-        loc.protocol == protocol and path.startswith(loc.path)
-        for loc in storage_locations
-    )
+    for loc in storage_locations:
+        if path.startswith(loc.path):
+            return True
+    return False
 
 
 def construct_data_object_meta(

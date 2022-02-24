@@ -10,6 +10,7 @@ from ldb.index.base import PairIndexer, Preprocessor
 from ldb.index.inferred import InferredIndexingItem
 from ldb.index.utils import (
     FileSystemPath,
+    FSPathsMapping,
     IndexingJobMapping,
     get_annotation_content,
 )
@@ -42,12 +43,9 @@ class LabelStudioPreprocessor(Preprocessor):
         return result
 
     @cached_property
-    def data_object_files(self) -> List[OpenFile]:
-        return list(
-            fsspec.open_files(
-                [a["data"][self.url_key] for a in self.annotations],
-            ),
-        )
+    def data_object_paths(self) -> FSPathsMapping:
+        fs = next(iter(self.annotation_paths.keys()))
+        return {fs: [a["data"][self.url_key] for a in self.annotations]}
 
 
 class LabelStudioIndexer(PairIndexer):
@@ -68,11 +66,11 @@ class LabelStudioIndexer(PairIndexer):
 
     def _index(self) -> None:
         (
-            files,
+            indexing_jobs,
             _,
         ) = self.process_files()
         self.index_label_studio_files(
-            files,
+            indexing_jobs,
             self.preprocessor.annotations,
         )
 
@@ -83,8 +81,10 @@ class LabelStudioIndexer(PairIndexer):
     ) -> None:
         annot_iter = iter(annotations)
 
+        print("HERE")
         for fs, jobs in indexing_jobs.items():
             for config, path_seq in jobs:
+                print(len(path_seq))
                 for data_object_path in path_seq:
                     obj_result = InferredIndexingItem(
                         self.ldb_dir,

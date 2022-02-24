@@ -156,7 +156,7 @@ class Indexer(ABC):
         self.ldb_dir = ldb_dir
         self.preprocessor = preprocessor
         self.result = IndexingResult()
-        self.hashes: Dict[str, str] = {}
+        self.hashes: Dict[AbstractFileSystem, Dict[str, str]] = {}
 
     def index(self) -> None:
         try:
@@ -201,7 +201,7 @@ class PairIndexer(Indexer):
     ) -> Tuple[IndexingJobMapping, Set[str]]:
         storage_locations = get_storage_locations(self.ldb_dir)
         local_files, cloud_files = separate_local_and_cloud_files(
-            self.preprocessor.data_object_files,
+            self.preprocessor.data_object_paths,
         )
         if not self.read_any_cloud_location:
             validate_locations_in_storage(cloud_files, storage_locations)
@@ -212,22 +212,33 @@ class PairIndexer(Indexer):
             local_files,
             storage_locations,
         )
-        for f in ephemeral_files:
-            self.hashes[f.path] = hash_file(f.fs, f.path)
+
+        for fs, paths in ephemeral_files.items():
+            fs_hashes = self.hashes.setdefault(fs, {})
+            for path in paths:
+                fs_hashes[path] = hash_file(fs, path)
+
         existing_hashes = set(
             get_collection_dir_keys(
                 self.ldb_dir / InstanceDir.DATA_OBJECT_INFO,
             ),
         )
+
         indexed_ephemeral_files, ephemeral_files = separate_indexed_files(
             existing_hashes,
             self.hashes,
             ephemeral_files,
         )
-        files = cloud_files + local_storage_files
-        annotation_files_by_path = {
-            f.path: f for f in self.preprocessor.annotation_files
+        files = {
+            fs: cloud_files.get(fs, []) + local_storage_files.get(fs, [])
+            for fs in cloud_files.keys() | local_storage_files.keys()
         }
+        fs = fsspec.filesystem("file")  # TODO: use actual files' filesystem
+        annotation_paths = {
+            fs: paths.copy()
+            for fs, paths in self.preprocessor.annotation_paths.items()
+        }
+
         if ephemeral_files:
             read_add_location = next(
                 (loc for loc in storage_locations if loc.read_and_add),
@@ -242,34 +253,28 @@ class PairIndexer(Indexer):
                 self.old_to_new_annot_files,
             ) = copy_to_read_add_storage(
                 ephemeral_files,
-                annotation_files_by_path,
+                self.preprocessor.annotation_paths,
                 read_add_location,
                 self.hashes,
                 strict_format=self.strict_format,
             )
 
-            added_storage_files = self.old_to_new_files.values()
-            for f in self.old_to_new_annot_files.values():
-                annotation_files_by_path[f.path] = f
-            files.extend(added_storage_files)
-        fs = fsspec.filesystem("file")  # TODO: use actual files' filesystem
-        paths: List[str] = [f.path for f in files]
-        indexed_ephemeral_paths: List[str] = [
-            f.path for f in indexed_ephemeral_files
-        ]
-
-        print(len(paths), len(indexed_ephemeral_paths))
-        # print(list(annotation_files_by_path))
-        # print(list(self.old_to_new_files.items()))
-        # print(list(self.old_to_new_annot_files.items()))
+            for fs, paths in self.old_to_new_annot_files.items():
+                for old, new in paths.items():
+                    annotation_paths[new.fs].append(new.path)
+            for fs, paths in self.old_to_new_files.items():
+                files.setdefault(fs, []).extend(paths)
         return (
             {
                 fs: [
-                    (DEFAULT_CONFIG, paths),
-                    (INDEXED_EPHEMERAL_CONFIG, indexed_ephemeral_paths),
+                    (DEFAULT_CONFIG, files.get(fs, [])),
+                    (
+                        INDEXED_EPHEMERAL_CONFIG,
+                        indexed_ephemeral_files.get(fs, []),
+                    ),
                 ],
             },
-            set(annotation_files_by_path),
+            set(annotation_paths[fs]),
         )
 
     def index_files(
@@ -510,11 +515,14 @@ class AnnotationFileIndexingItem(IndexingItem):
 class DataObjectFileIndexingItem(IndexingItem):
     data_object: FileSystemPath
     save_data_object_path_info: bool
-    data_object_hash_cache: Mapping[str, str]
+    data_object_hash_cache: Mapping[AbstractFileSystem, Mapping[str, str]]
 
     @cached_property
     def data_object_hash(self) -> str:
-        hash_str = self.data_object_hash_cache.get(self.data_object.path)
+        hash_str = None
+        fs_hashes = self.data_object_hash_cache.get(self.data_object.fs)
+        if fs_hashes is not None:
+            hash_str = fs_hashes.get(self.data_object.path)
         if hash_str is None:
             hash_str = hash_file(self.data_object.fs, self.data_object.path)
         return hash_str
