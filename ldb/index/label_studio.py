@@ -1,8 +1,6 @@
 from pathlib import Path
 from typing import List, Sequence
 
-import fsspec
-from fsspec.core import OpenFile
 from funcy.objects import cached_property
 
 from ldb.exceptions import IndexingException
@@ -65,10 +63,7 @@ class LabelStudioIndexer(PairIndexer):
         )
 
     def _index(self) -> None:
-        (
-            indexing_jobs,
-            _,
-        ) = self.process_files()
+        indexing_jobs, _ = self.process_files()
         self.index_label_studio_files(
             indexing_jobs,
             self.preprocessor.annotations,

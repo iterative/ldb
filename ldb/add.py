@@ -14,8 +14,9 @@ from typing import (
     Tuple,
 )
 
-import fsspec
+from fsspec.core import get_fs_token_paths
 from fsspec.spec import AbstractFileSystem
+from fsspec.utils import get_protocol
 
 from ldb import config
 from ldb.config import ConfigType
@@ -63,14 +64,22 @@ def get_arg_type(paths: Sequence[str]) -> ArgType:
         return ArgType.DATASET
     if any(p.startswith("0x") for p in paths):
         return ArgType.DATA_OBJECT
-    if any(
-        f.fs.protocol == "file"
-        and f.fs.isdir(f.path + "/.ldb_workspace")
-        and os.path.abspath(f.path) != os.getcwd()
-        for f in fsspec.open_files(paths)
-    ):
+    if any(expands_to_workspace(p) for p in paths):
         return ArgType.WORKSPACE_DATASET
     return ArgType.PATH
+
+
+def expands_to_workspace(urlpath: str) -> bool:
+    if get_protocol(urlpath) != "file":
+        return False
+    fs, _, paths = get_fs_token_paths(urlpath)
+    for path in paths:
+        if (
+            fs.isdir(fs.sep.join([path, ".ldb_workspace"]))
+            and os.path.abspath(path) != os.getcwd()
+        ):
+            return True
+    return False
 
 
 def process_args_for_add(

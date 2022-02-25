@@ -12,13 +12,10 @@ from typing import (
     NamedTuple,
     Optional,
     Sequence,
-    Set,
     Tuple,
     Union,
 )
 
-import fsspec
-from fsspec.core import OpenFile
 from fsspec.spec import AbstractFileSystem
 from funcy.objects import cached_property
 
@@ -103,6 +100,7 @@ class IndexingResult:
 
 class Preprocessor:
     def __init__(self, paths: Sequence[str]) -> None:
+        # TODO only use abspath for local paths
         self.paths = [os.path.abspath(p) for p in paths]
 
     def get_storage_files(self) -> FSPathsMapping:
@@ -113,11 +111,11 @@ class Preprocessor:
 
     @cached_property
     def files_by_type(self) -> Tuple[FSPathsMapping, FSPathsMapping]:
-        fs = fsspec.filesystem("file")
         data_obj_files = {}
         annot_files = {}
         for fs, fs_paths in self.get_storage_files().items():
             data_obj_files[fs], annot_files[fs] = group_storage_files_by_type(
+                fs,
                 fs_paths,
             )
         return data_obj_files, annot_files
@@ -129,22 +127,6 @@ class Preprocessor:
     @cached_property
     def annotation_paths(self) -> FSPathsMapping:
         return self.files_by_type[1]
-
-    @cached_property
-    def data_object_files(self) -> List[OpenFile]:
-        return [
-            OpenFile(fs, p)
-            for fs, paths in self.data_object_paths.items()
-            for p in paths
-        ]
-
-    @cached_property
-    def annotation_files(self) -> List[OpenFile]:
-        return [
-            OpenFile(fs, p)
-            for fs, paths in self.annotation_paths.items()
-            for p in paths
-        ]
 
 
 class Indexer(ABC):
@@ -183,14 +165,17 @@ class PairIndexer(Indexer):
         super().__init__(ldb_dir, preprocessor)
         self.read_any_cloud_location = read_any_cloud_location
         self.strict_format = strict_format
-        self.old_to_new_files: Dict[OpenFile, OpenFile] = {}
-        self.old_to_new_annot_files: Dict[OpenFile, OpenFile] = {}
+        self.old_to_new_files: Dict[
+            AbstractFileSystem,
+            Dict[str, FileSystemPath],
+        ] = {}
+        self.old_to_new_annot_files: Dict[
+            AbstractFileSystem,
+            Dict[str, FileSystemPath],
+        ] = {}
 
     def _index(self) -> None:
-        (
-            indexing_jobs,
-            annotation_paths,
-        ) = self.process_files()
+        indexing_jobs, annotation_paths = self.process_files()
         self.index_files(
             indexing_jobs,
             annotation_paths,
@@ -198,7 +183,7 @@ class PairIndexer(Indexer):
 
     def process_files(
         self,
-    ) -> Tuple[IndexingJobMapping, Set[str]]:
+    ) -> Tuple[IndexingJobMapping, FSPathsMapping]:
         storage_locations = get_storage_locations(self.ldb_dir)
         local_files, cloud_files = separate_local_and_cloud_files(
             self.preprocessor.data_object_paths,
@@ -233,7 +218,6 @@ class PairIndexer(Indexer):
             fs: cloud_files.get(fs, []) + local_storage_files.get(fs, [])
             for fs in cloud_files.keys() | local_storage_files.keys()
         }
-        fs = fsspec.filesystem("file")  # TODO: use actual files' filesystem
         annotation_paths = {
             fs: paths.copy()
             for fs, paths in self.preprocessor.annotation_paths.items()
@@ -259,37 +243,38 @@ class PairIndexer(Indexer):
                 strict_format=self.strict_format,
             )
 
-            for fs, paths in self.old_to_new_annot_files.items():
-                for old, new in paths.items():
+            for fs, fs_paths in self.old_to_new_annot_files.items():
+                for _, new in fs_paths.items():
                     annotation_paths[new.fs].append(new.path)
-            for fs, paths in self.old_to_new_files.items():
-                files.setdefault(fs, []).extend(paths)
+            for fs, fs_paths in self.old_to_new_files.items():
+                for _, new in fs_paths.items():
+                    files.setdefault(new.fs, []).append(new.path)
+        indexing_jobs: IndexingJobMapping = {}
+        for config_type, fs_jobs in [
+            (DEFAULT_CONFIG, files),
+            (INDEXED_EPHEMERAL_CONFIG, indexed_ephemeral_files),
+        ]:
+            for fs, job in fs_jobs.items():
+                indexing_jobs.setdefault(fs, []).append((config_type, job))
         return (
-            {
-                fs: [
-                    (DEFAULT_CONFIG, files.get(fs, [])),
-                    (
-                        INDEXED_EPHEMERAL_CONFIG,
-                        indexed_ephemeral_files.get(fs, []),
-                    ),
-                ],
-            },
-            set(annotation_paths[fs]),
+            indexing_jobs,
+            annotation_paths,
         )
 
     def index_files(
         self,
         indexing_jobs: IndexingJobMapping,
-        annotation_paths: Set[str],
+        annotation_paths: FSPathsMapping,
     ) -> None:
         for fs, jobs in indexing_jobs.items():
+            fs_annotation_paths = set(annotation_paths.get(fs, []))
             for config, path_seq in jobs:
                 for data_object_path in path_seq:
                     annotation_path = data_object_path_to_annotation_path(
                         data_object_path,
                     )
                     try:
-                        annotation_paths.remove(
+                        fs_annotation_paths.remove(
                             annotation_path,
                         )
                     except KeyError:

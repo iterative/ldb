@@ -20,9 +20,8 @@ from typing import (
 )
 
 import fsspec
-from fsspec.core import OpenFile
-from fsspec.implementations.local import make_path_posix
 from fsspec.spec import AbstractFileSystem
+from fsspec.utils import get_protocol
 
 from ldb.data_formats import Format
 from ldb.exceptions import IndexingException, NotAStorageLocationError
@@ -101,7 +100,7 @@ def get_storage_files(
     The current implementation may result in some directory paths and some
     duplicate paths being included.
     """
-    fs = fsspec.filesystem("file")
+    fs = fsspec.filesystem(get_protocol(path))
     if is_hidden_fsspec_path(path):
         return fs, []
     # "path/**", "path/**/**" or "path/**/" are treated the same as just "path"
@@ -139,12 +138,12 @@ def is_hidden_fsspec_path(path: str) -> bool:
 
 
 def group_storage_files_by_type(
+    fs: AbstractFileSystem,
     storage_files: Iterable[str],
 ) -> Tuple[List[str], List[str]]:
     data_object_files = []
     annotation_files = []
     seen = set()
-    fs = fsspec.filesystem("file")
     for storage_file in storage_files:
         if storage_file not in seen:
             seen.add(storage_file)
@@ -169,8 +168,8 @@ def expand_dir_paths(
             )
 
     path_sets: Dict[AbstractFileSystem, Set[str]] = {}
-    fs = fsspec.filesystem("file")
     for path in paths:
+        fs = fsspec.filesystem(get_protocol(path))
         fs_paths = path_sets.setdefault(fs, set())
         for p in fs.expand_path(paths):
             if fs.isdir(p):
@@ -245,7 +244,8 @@ def copy_to_read_add_storage(
                     exist_ok=True,
                 )
                 if annotation_dest is not None:
-                    # TODO: make transfer so this works with remote read-add storage
+                    # TODO: make transfer so this works with remote
+                    # read-add storage
                     rfs.get_file(
                         annotation_file,
                         annotation_dest,
@@ -312,7 +312,7 @@ def separate_storage_and_non_storage_files(
     for fs, paths in fs_paths.items():
         matching_locs = filter_storage_locations(fs, storage_locations)
         if not matching_locs:
-            non_storage[fs] = [p for p in paths]
+            non_storage[fs] = paths.copy()
         else:
             fs_storage = []
             fs_non_storage = []
@@ -340,7 +340,7 @@ def separate_indexed_files(
         fs_not_indexed = []
         for path in paths:
             try:
-                hash_str = hashes[fs][path]
+                hash_str: Optional[str] = hashes[fs][path]
             except KeyError:
                 hash_str = None
             if hash_str is not None and hash_str in existing_hashes:
