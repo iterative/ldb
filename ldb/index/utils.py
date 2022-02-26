@@ -20,6 +20,7 @@ from typing import (
 )
 
 import fsspec
+from fsspec.implementations.local import make_path_posix
 from fsspec.spec import AbstractFileSystem
 from fsspec.utils import get_protocol
 
@@ -190,6 +191,21 @@ def expand_dir_paths(
     return path_lists
 
 
+def create_storage_path(
+    dest_fs: AbstractFileSystem,
+    base_dir: str,
+    source_fs: AbstractFileSystem,
+    path: str,
+) -> str:
+    if source_fs.protocol == "file":
+        # handle windows drive
+        path = re.sub("^[A-Za-z]:", "", path)
+    path = dest_fs.sep.join(
+        [base_dir] + path.lstrip(source_fs.sep).split(source_fs.sep),
+    )
+    return path
+
+
 def copy_to_read_add_storage(
     data_object_files: FSPathsMapping,
     annotation_files_by_path: FSPathsMapping,
@@ -207,7 +223,7 @@ def copy_to_read_add_storage(
     )  # until get_file below is replaced with transfer
     base_dir = fs.sep.join(
         [
-            read_add_location.path,
+            *make_path_posix(read_add_location.path).split("/"),
             "ldb-autoimport",
             date.today().isoformat(),
             unique_id(),
@@ -225,16 +241,15 @@ def copy_to_read_add_storage(
         fs_old_to_new_files = {}
         fs_old_to_new_annot_files = {}
         for path in paths:
-            dest = fs.sep.join(
-                [rfs_base_dir] + path.lstrip(rfs.sep).split(rfs.sep),
-            )
-
+            dest = create_storage_path(fs, rfs_base_dir, rfs, path)
             annotation_dest = None
             annotation_file = data_object_path_to_annotation_path(path)
             if annotation_file in rfs_annotation_paths:
-                annotation_dest = fs.sep.join(
-                    [rfs_base_dir]
-                    + annotation_file.lstrip(rfs.sep).split(rfs.sep),
+                annotation_dest = create_storage_path(
+                    fs,
+                    rfs_base_dir,
+                    rfs,
+                    annotation_file,
                 )
             elif strict_format:
                 continue
