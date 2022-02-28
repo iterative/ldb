@@ -31,9 +31,9 @@ from ldb.index.utils import (
     construct_data_object_meta,
     copy_to_read_add_storage,
     data_object_path_to_annotation_path,
+    expand_indexing_paths,
     get_annotation_content,
-    get_storage_files_for_paths,
-    group_storage_files_by_type,
+    group_indexing_paths_by_type,
     separate_indexed_files,
     separate_local_and_cloud_files,
     separate_storage_and_non_storage_files,
@@ -104,7 +104,7 @@ class Preprocessor:
         self.paths = [os.path.abspath(p) for p in paths]
 
     def get_storage_files(self) -> FSPathsMapping:
-        return get_storage_files_for_paths(
+        return expand_indexing_paths(
             self.paths,
             default_format=True,
         )
@@ -114,7 +114,7 @@ class Preprocessor:
         data_obj_files = {}
         annot_files = {}
         for fs, fs_paths in self.get_storage_files().items():
-            data_obj_files[fs], annot_files[fs] = group_storage_files_by_type(
+            data_obj_files[fs], annot_files[fs] = group_indexing_paths_by_type(
                 fs,
                 fs_paths,
             )

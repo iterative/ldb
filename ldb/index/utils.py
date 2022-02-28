@@ -62,34 +62,34 @@ DEFAULT_CONFIG = IndexingConfig(save_data_object_path_info=True)
 INDEXED_EPHEMERAL_CONFIG = IndexingConfig(save_data_object_path_info=False)
 
 
-def get_storage_files_for_paths(
+def expand_indexing_paths(
     paths: List[str],
     default_format: bool = False,
 ) -> Dict[AbstractFileSystem, List[str]]:
-    storage_files: Dict[AbstractFileSystem, Tuple[List[str], Set[str]]] = {}
-    for path in paths:
-        fs, paths_found = get_storage_files(
-            path,
+    path_collections: Dict[AbstractFileSystem, Tuple[List[str], Set[str]]] = {}
+    for indexing_path in paths:
+        fs, paths_found = expand_single_indexing_path(
+            indexing_path,
             default_format=default_format,
         )
         try:
-            fs_paths, seen = storage_files[fs]
+            fs_paths, seen = path_collections[fs]
         except KeyError:
             fs_paths, seen = [], set()
-            storage_files[fs] = fs_paths, seen
-        for file in paths_found:
-            if file not in seen:
-                fs_paths.append(file)
-                seen.add(file)
-    return {fs: fs_paths for fs, (fs_paths, _) in storage_files.items()}
+            path_collections[fs] = fs_paths, seen
+        for path in paths_found:
+            if path not in seen:
+                fs_paths.append(path)
+                seen.add(path)
+    return {fs: fs_paths for fs, (fs_paths, _) in path_collections.items()}
 
 
-def get_storage_files(
+def expand_single_indexing_path(
     path: str,
     default_format: bool = False,
 ) -> Tuple[AbstractFileSystem, List[str]]:
     """
-    Get storage files for indexing that match the glob, `path`.
+    Get storage paths for indexing that match the glob, `path`.
 
     Because every file path under `path` is returned, any final "/**" does not
     change the result. First, `path` is expanded with any final "/**" removed
@@ -109,51 +109,51 @@ def get_storage_files(
     path = re.sub(ENDING_DOUBLE_STAR_RE, "", path)
     # find corresponding data object for annotation match and vice versa
     # for any files the expanded `path` glob matches
-    file_match_globs = []
-    for mpath in fs.expand_path(path):
-        if not is_hidden_fsspec_path(mpath) and fs.isfile(mpath):
-            file_match_globs.append(mpath)
+    path_match_globs = []
+    for epath in fs.expand_path(path):
+        if not is_hidden_fsspec_path(epath) and fs.isfile(epath):
+            path_match_globs.append(epath)
             if default_format:
                 # TODO: Check all extension levels (i.e. for abc.tar.gz use
                 # .tar.gz and .gz)
-                p_without_ext, ext = os.path.splitext(path)
+                p_without_ext, ext = os.path.splitext(epath)
                 if ext == ".json":
-                    file_match_globs.append(p_without_ext)
-                    file_match_globs.append(p_without_ext + ".*")
+                    path_match_globs.append(p_without_ext)
+                    path_match_globs.append(p_without_ext + ".*")
                 else:
-                    file_match_globs.append(p_without_ext + ".json")
-    files = (
-        [i for f in file_match_globs for i in fs.glob(f)]
-        if file_match_globs
+                    path_match_globs.append(p_without_ext + ".json")
+    paths = (
+        [i for p in path_match_globs for i in fs.glob(p)]
+        if path_match_globs
         else []
     )
     # capture everything under any directories the `path` glob matches
-    for file in fs.expand_path(path, recursive=True):
-        if not is_hidden_fsspec_path(file) and fs.isfile(file):
-            files.append(file)
-    return fs, files
+    for epath in fs.expand_path(path, recursive=True):
+        if not is_hidden_fsspec_path(epath) and fs.isfile(epath):
+            paths.append(epath)
+    return fs, paths
 
 
 def is_hidden_fsspec_path(path: str) -> bool:
     return re.search(r"^\.|/\.", path) is not None
 
 
-def group_storage_files_by_type(
+def group_indexing_paths_by_type(
     fs: AbstractFileSystem,
-    storage_files: Iterable[str],
+    storage_paths: Iterable[str],
 ) -> Tuple[List[str], List[str]]:
-    data_object_files = []
-    annotation_files = []
+    data_object_paths = []
+    annotation_paths = []
     seen = set()
-    for storage_file in storage_files:
-        if storage_file not in seen:
-            seen.add(storage_file)
-            if fs.isfile(storage_file):
-                if storage_file.endswith(".json"):
-                    annotation_files.append(storage_file)
+    for storage_path in storage_paths:
+        if storage_path not in seen:
+            seen.add(storage_path)
+            if fs.isfile(storage_path):
+                if storage_path.endswith(".json"):
+                    annotation_paths.append(storage_path)
                 else:
-                    data_object_files.append(storage_file)
-    return data_object_files, annotation_files
+                    data_object_paths.append(storage_path)
+    return data_object_paths, annotation_paths
 
 
 def expand_dir_paths(
@@ -207,8 +207,8 @@ def create_storage_path(
 
 
 def copy_to_read_add_storage(
-    data_object_files: FSPathsMapping,
-    annotation_files_by_path: FSPathsMapping,
+    data_object_paths: FSPathsMapping,
+    annotation_paths: FSPathsMapping,
     read_add_location: StorageLocation,
     hashes: Mapping[AbstractFileSystem, Mapping[str, str]],
     strict_format: bool,
@@ -217,11 +217,11 @@ def copy_to_read_add_storage(
     Dict[AbstractFileSystem, Dict[str, FileSystemPath]],
 ]:
 
-    fs = fsspec.filesystem(read_add_location.protocol)
+    dest_fs = fsspec.filesystem(read_add_location.protocol)
     assert (
-        fs.protocol == "file"
+        dest_fs.protocol == "file"
     )  # until get_file below is replaced with transfer
-    base_dir = fs.sep.join(
+    base_dir = dest_fs.sep.join(
         [
             *make_path_posix(read_add_location.path).split("/"),
             "ldb-autoimport",
@@ -229,53 +229,53 @@ def copy_to_read_add_storage(
             unique_id(),
         ],
     )
-    fs.makedirs(base_dir, exist_ok=True)
-    old_to_new_files = {}
-    old_to_new_annot_files = {}
-    for rfs, paths in data_object_files.items():
-        fs_id = rfs.protocol  # TODO use actual fs_id
-        rfs_base_dir = fs.sep.join([base_dir, fs_id])
+    dest_fs.makedirs(base_dir, exist_ok=True)
+    old_to_new_paths = {}
+    old_to_new_annot_paths = {}
+    for source_fs, paths in data_object_paths.items():
+        fs_id = source_fs.protocol  # TODO use actual fs_id
+        fs_base_dir = dest_fs.sep.join([base_dir, fs_id])
 
-        rfs_annotation_paths = set(annotation_files_by_path.get(rfs, []))
+        fs_annotation_paths = set(annotation_paths.get(source_fs, []))
 
-        fs_old_to_new_files = {}
-        fs_old_to_new_annot_files = {}
+        fs_old_to_new_paths = {}
+        fs_old_to_new_annot_paths = {}
         for path in paths:
-            dest = create_storage_path(fs, rfs_base_dir, rfs, path)
+            dest = create_storage_path(dest_fs, fs_base_dir, source_fs, path)
             annotation_dest = None
-            annotation_file = data_object_path_to_annotation_path(path)
-            if annotation_file in rfs_annotation_paths:
+            annotation_path = data_object_path_to_annotation_path(path)
+            if annotation_path in fs_annotation_paths:
                 annotation_dest = create_storage_path(
-                    fs,
-                    rfs_base_dir,
-                    rfs,
-                    annotation_file,
+                    dest_fs,
+                    fs_base_dir,
+                    source_fs,
+                    annotation_path,
                 )
             elif strict_format:
                 continue
             try:
-                fs.makedirs(
-                    fs._parent(dest),  # pylint: disable=protected-access)
+                dest_fs.makedirs(
+                    dest_fs._parent(dest),  # pylint: disable=protected-access)
                     exist_ok=True,
                 )
                 if annotation_dest is not None:
                     # TODO: make transfer so this works with remote
                     # read-add storage
-                    rfs.get_file(
-                        annotation_file,
+                    source_fs.get_file(
+                        annotation_path,
                         annotation_dest,
                     )
-                rfs.get_file(path, dest)
+                source_fs.get_file(path, dest)
             except FileNotFoundError:
                 # Use hash instead of preserving path if path is too long
                 try:
-                    data_object_hash = hashes[rfs][path]
+                    data_object_hash = hashes[source_fs][path]
                 except KeyError:
                     data_object_hash = hash_file(
-                        rfs,
+                        source_fs,
                         path,
                     )
-                dest = fs.sep.join(
+                dest = dest_fs.sep.join(
                     [
                         base_dir,
                         data_object_hash + get_fsspec_path_suffix(path),
@@ -283,22 +283,22 @@ def copy_to_read_add_storage(
                 )
                 if annotation_dest is not None:
                     annotation_dest = data_object_path_to_annotation_path(dest)
-                    rfs.get_file(
-                        annotation_file,
+                    source_fs.get_file(
+                        annotation_path,
                         annotation_dest,
                     )
-                rfs.get_file(path, dest, protocol=fs.protocol)
-            fs_old_to_new_files[path] = FileSystemPath(fs, dest)
+                source_fs.get_file(path, dest, protocol=dest_fs.protocol)
+            fs_old_to_new_paths[path] = FileSystemPath(dest_fs, dest)
             if annotation_dest is not None:
-                fs_old_to_new_annot_files[annotation_file] = FileSystemPath(
-                    fs,
+                fs_old_to_new_annot_paths[annotation_path] = FileSystemPath(
+                    dest_fs,
                     annotation_dest,
                 )
-        if fs_old_to_new_files:
-            old_to_new_files[fs] = fs_old_to_new_files
-        if fs_old_to_new_annot_files:
-            old_to_new_annot_files[fs] = fs_old_to_new_annot_files
-    return old_to_new_files, old_to_new_annot_files
+        if fs_old_to_new_paths:
+            old_to_new_paths[dest_fs] = fs_old_to_new_paths
+        if fs_old_to_new_annot_paths:
+            old_to_new_annot_paths[dest_fs] = fs_old_to_new_annot_paths
+    return old_to_new_paths, old_to_new_annot_paths
 
 
 def data_object_path_to_annotation_path(path: str) -> str:
@@ -306,15 +306,15 @@ def data_object_path_to_annotation_path(path: str) -> str:
 
 
 def separate_local_and_cloud_files(
-    storage_files: FSPathsMapping,
+    paths: FSPathsMapping,
 ) -> Tuple[FSPathsMapping, FSPathsMapping]:
     local = {}
     cloud = {}
-    for fs, paths in storage_files.items():
+    for fs, fs_paths in paths.items():
         if fs.protocol == "file":
-            local[fs] = paths
+            local[fs] = fs_paths
         else:
-            cloud[fs] = paths
+            cloud[fs] = fs_paths
     return local, cloud
 
 

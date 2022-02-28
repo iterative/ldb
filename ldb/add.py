@@ -28,7 +28,7 @@ from ldb.dataset import (
 )
 from ldb.exceptions import DataObjectNotFoundError, LDBException
 from ldb.index import index
-from ldb.index.utils import get_storage_files_for_paths
+from ldb.index.utils import expand_indexing_paths
 from ldb.path import InstanceDir, WorkspacePath
 from ldb.utils import (
     DATASET_PREFIX,
@@ -321,7 +321,7 @@ def get_data_object_storage_files(
     paths: Sequence[str],
 ) -> Iterator[Tuple[AbstractFileSystem, str]]:
     paths = [os.path.abspath(p) for p in paths]
-    for fs, fs_paths in get_storage_files_for_paths(
+    for fs, fs_paths in expand_indexing_paths(
         paths,
         default_format=False,
     ).items():
