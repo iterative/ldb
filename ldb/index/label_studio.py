@@ -1,6 +1,7 @@
 from pathlib import Path
 from typing import List, Sequence
 
+from fsspec.implementations.local import make_path_posix
 from funcy.objects import cached_property
 
 from ldb.exceptions import IndexingException
@@ -43,7 +44,12 @@ class LabelStudioPreprocessor(Preprocessor):
     @cached_property
     def data_object_paths(self) -> FSPathsMapping:
         fs = next(iter(self.annotation_paths.keys()))
-        return {fs: [a["data"][self.url_key] for a in self.annotations]}
+        return {
+            fs: [
+                make_path_posix(a["data"][self.url_key])
+                for a in self.annotations
+            ],
+        }
 
 
 class LabelStudioIndexer(PairIndexer):
