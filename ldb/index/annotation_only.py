@@ -5,11 +5,14 @@ from funcy.objects import cached_property
 from ldb.exceptions import DataObjectNotFoundError, IndexingException
 from ldb.index.base import (
     AnnotationFileIndexingItem,
-    DataObjectMeta,
     IndexedObjectResult,
     Indexer,
 )
-from ldb.index.utils import FileSystemPath, get_annotation_content
+from ldb.index.utils import (
+    DataObjectMeta,
+    FileSystemPath,
+    get_annotation_content,
+)
 from ldb.typing import JSONObject
 from ldb.utils import current_time, load_data_file
 

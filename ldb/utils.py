@@ -6,7 +6,7 @@ import re
 import stat
 import string
 from contextlib import contextmanager
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Iterator, Optional, Tuple, Union
 
@@ -71,19 +71,19 @@ def get_hash_path(base_dir: Path, hash_str: str) -> Path:
 
 
 def format_datetime(dt_obj: datetime) -> str:
-    return dt_obj.astimezone().isoformat(" ")
+    return dt_obj.astimezone(timezone.utc).isoformat(" ")
 
 
 def parse_datetime(dt_str: str) -> datetime:
-    return datetime.fromisoformat(dt_str)
+    return datetime.fromisoformat(dt_str).astimezone(timezone.utc)
 
 
 def timestamp_to_datetime(timestamp: float) -> datetime:
-    return datetime.fromtimestamp(timestamp).astimezone()
+    return datetime.fromtimestamp(timestamp, timezone.utc)
 
 
 def current_time() -> datetime:
-    return datetime.now().astimezone()
+    return datetime.now(timezone.utc)
 
 
 def load_data_file(path: Path) -> Any:
