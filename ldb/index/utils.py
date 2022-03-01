@@ -42,7 +42,10 @@ from ldb.utils import (
 ENDING_DOUBLE_STAR_RE = r"(?:/+\*\*)+/*$"
 
 AnnotationMeta = Dict[str, Union[str, int, None]]
-DataObjectMeta = Dict[str, Union[str, None, Dict[str, Union[str, int, None]]]]
+DataObjectMeta = Dict[
+    str,
+    Union[str, None, Dict[str, Union[str, List[str], int, None]]],
+]
 DataToWrite = Tuple[Path, bytes, bool]
 IndexingJob = Tuple["IndexingConfig", List[str]]
 IndexingJobMapping = Dict[AbstractFileSystem, List[IndexingJob]]
@@ -456,9 +459,10 @@ def construct_data_object_meta(
         tags = []
         alternate_paths = []
 
+    protocol: Union[str, List[str]] = fs.protocol
     path_info = {
         "fs_id": "",
-        "protocol": "file",
+        "protocol": protocol,
         "path": path,
     }
     if path_info not in alternate_paths:

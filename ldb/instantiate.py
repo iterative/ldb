@@ -137,7 +137,14 @@ class InstItem:
         return self.base_dest + self.ext.lower()
 
     def copy_data_object(self) -> str:
-        fs = fsspec.filesystem(self.data_object_meta["fs"]["protocol"])
+        protocols: Union[str, List[str]] = self.data_object_meta["fs"][
+            "protocol"
+        ]
+        if isinstance(protocols, str):
+            protocol: str = protocols
+        else:
+            protocol = protocols[0]
+        fs = fsspec.filesystem(protocol)
         os.makedirs(os.path.split(self.data_object_dest)[0], exist_ok=True)
         dest = self.data_object_dest
         fs.get_file(self.data_object_meta["fs"]["path"], dest)
