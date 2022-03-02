@@ -133,10 +133,14 @@ def expand_single_indexing_path(
         if path_match_globs
         else []
     )
-    # capture everything under any directories the `path` glob matches
-    for epath in fs.expand_path(path, recursive=True):
-        if not is_hidden_fsspec_path(epath) and fs.isfile(epath):
-            paths.append(epath)
+    protocol: str = (
+        fs.protocol if isinstance(fs.protocol, str) else fs.protocol[0]
+    )
+    if protocol not in ("http", "https"):
+        # capture everything under any directories the `path` glob matches
+        for epath in fs.expand_path(path, recursive=True):
+            if not is_hidden_fsspec_path(epath) and fs.isfile(epath):
+                paths.append(epath)
     return fs, paths
 
 
