@@ -46,9 +46,9 @@ from ldb.typing import JSONDecoded, JSONObject
 from ldb.utils import (
     current_time,
     format_datetime,
+    get_file_hash,
     get_hash_path,
     hash_data,
-    hash_file,
     json_dumps,
     load_data_file,
     timestamp_to_datetime,
@@ -197,7 +197,7 @@ class PairIndexer(Indexer):
         for fs, paths in ephemeral_files.items():
             fs_hashes = self.hashes.setdefault(fs, {})
             for path in paths:
-                fs_hashes[path] = hash_file(fs, path)
+                fs_hashes[path] = get_file_hash(fs, path)
 
         existing_hashes = set(
             get_collection_dir_keys(
@@ -505,7 +505,10 @@ class DataObjectFileIndexingItem(IndexingItem):
         if fs_hashes is not None:
             hash_str = fs_hashes.get(self.data_object.path)
         if hash_str is None:
-            hash_str = hash_file(self.data_object.fs, self.data_object.path)
+            hash_str = get_file_hash(
+                self.data_object.fs,
+                self.data_object.path,
+            )
         return hash_str
 
     @cached_property

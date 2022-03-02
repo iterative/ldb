@@ -34,8 +34,8 @@ from ldb.utils import (
     DATASET_PREFIX,
     ROOT,
     format_dataset_identifier,
+    get_file_hash,
     get_hash_path,
-    hash_file,
     parse_data_object_hash_identifier,
     parse_dataset_identifier,
 )
@@ -332,7 +332,7 @@ def get_data_object_storage_files(
 
 def data_object_hashes_from_path(paths: Sequence[str]) -> Iterator[str]:
     for fs, path in get_data_object_storage_files(paths):
-        yield hash_file(fs, path)
+        yield get_file_hash(fs, path)
 
 
 DELETE_FUNCTIONS: Dict[ArgType, Callable[[Path, Sequence[str]], List[str]]] = {
@@ -410,7 +410,7 @@ def process_args_for_ls(
 def path_for_ls(ldb_dir: Path, paths: Sequence[str]) -> AddInput:
     hashes = []
     for fs, path in get_data_object_storage_files(paths):
-        data_object_hash = hash_file(fs, path)
+        data_object_hash = get_file_hash(fs, path)
         try:
             annotation_hash = get_current_annotation_hash(
                 ldb_dir,

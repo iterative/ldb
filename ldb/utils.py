@@ -40,6 +40,26 @@ def write_data_file(
             file.write(data)
 
 
+def get_etag_md5_match(etag: str) -> str:
+    # The e-tag will be a json string, so look for double quotes
+    md5_hash_match = re.match(r"(?i)\"([a-f\d]{32})\"", etag)
+    if md5_hash_match is None:
+        return ""
+    return md5_hash_match.group(1)
+
+
+def get_file_hash(fs: AbstractFileSystem, path: str) -> str:
+    protocol: str = (
+        fs.protocol if isinstance(fs.protocol, str) else fs.protocol[0]
+    )
+    if protocol in ("s3", "s3a"):
+        return get_etag_md5_match(fs.info(path).get("ETag", "")) or hash_file(
+            fs,
+            path,
+        )
+    return hash_file(fs, path)
+
+
 def hash_file(fs: AbstractFileSystem, path: str) -> str:
     hash_obj = hashlib.md5()
     with fs.open(path, "rb") as file:

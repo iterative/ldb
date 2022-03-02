@@ -31,9 +31,9 @@ from ldb.storage import StorageLocation
 from ldb.typing import JSONDecoded
 from ldb.utils import (
     format_datetime,
+    get_file_hash,
     get_filetype,
     get_fsspec_path_suffix,
-    hash_file,
     parse_datetime,
     timestamp_to_datetime,
     unique_id,
@@ -281,7 +281,7 @@ def copy_to_read_add_storage(
                 try:
                     data_object_hash = hashes[source_fs][path]
                 except KeyError:
-                    data_object_hash = hash_file(
+                    data_object_hash = get_file_hash(
                         source_fs,
                         path,
                     )
