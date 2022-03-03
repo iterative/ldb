@@ -26,13 +26,14 @@ from fsspec.utils import get_protocol
 
 from ldb.data_formats import Format
 from ldb.exceptions import IndexingException, NotAStorageLocationError
-from ldb.func_utils import apply_optional, get_first
+from ldb.func_utils import apply_optional
 from ldb.storage import StorageLocation
 from ldb.typing import JSONDecoded
 from ldb.utils import (
     format_datetime,
     get_file_hash,
     get_filetype,
+    get_first,
     get_fsspec_path_suffix,
     parse_datetime,
     timestamp_to_datetime,

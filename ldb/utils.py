@@ -8,21 +8,63 @@ import string
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Iterator, Optional, Tuple, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Iterator,
+    Optional,
+    Tuple,
+    TypeVar,
+    Union,
+    overload,
+)
 
 from fsspec.spec import AbstractFileSystem
 
 from ldb.exceptions import LDBException
 
 if TYPE_CHECKING:
-    from _typeshed import SupportsRead
-
+    from _typeshed import SupportsGetItem, SupportsRead
 
 DATASET_PREFIX = "ds:"
 ROOT = "root"
 CHUNK_SIZE = 2 ** 20
 HASH_DIR_SPLIT_POINT = 3
 UNIQUE_ID_ALPHABET = string.ascii_lowercase + string.digits
+
+_KT_contra = TypeVar("_KT_contra", contravariant=True)
+_VT_co = TypeVar("_VT_co", covariant=True)
+_T = TypeVar("_T")
+
+
+@overload
+def get_first(
+    container: "SupportsGetItem[_KT_contra, _VT_co]",
+    *keys: _KT_contra,
+) -> Optional[_VT_co]:
+    ...
+
+
+@overload
+def get_first(
+    container: "SupportsGetItem[_KT_contra, _VT_co]",
+    *key: _KT_contra,
+    default: _T,
+) -> Union[_VT_co, _T]:
+    ...
+
+
+def get_first(
+    container: "SupportsGetItem[_KT_contra, _VT_co]",
+    *keys: _KT_contra,
+    default: Optional[_T] = None,
+) -> Union[_VT_co, Optional[_T]]:
+    for key in keys:
+        try:
+            return container[key]
+        except LookupError:
+            pass
+    return default
 
 
 def json_dumps(obj: Any, **kwargs: Any) -> str:
