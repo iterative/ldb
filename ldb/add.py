@@ -318,7 +318,7 @@ def path_for_delete(
 
 
 def get_data_object_storage_files(
-    paths: Sequence[str],
+    paths: Iterable[str],
 ) -> Iterator[Tuple[AbstractFileSystem, str]]:
     for fs, fs_paths in expand_indexing_paths(
         paths,
