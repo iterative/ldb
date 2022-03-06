@@ -68,7 +68,7 @@ INDEXED_EPHEMERAL_CONFIG = IndexingConfig(save_data_object_path_info=False)
 
 
 def expand_indexing_paths(
-    paths: List[str],
+    paths: Iterable[str],
     default_format: bool = False,
 ) -> Dict[AbstractFileSystem, List[str]]:
     path_collections: Dict[AbstractFileSystem, Tuple[List[str], Set[str]]] = {}
