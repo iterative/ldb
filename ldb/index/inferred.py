@@ -1,9 +1,8 @@
 from dataclasses import dataclass
 from itertools import chain
 from pathlib import Path
-from typing import Dict, Iterable, List, Tuple, Union
+from typing import Dict, List, Tuple, Union
 
-from fsspec.core import OpenFile
 from fsspec.spec import AbstractFileSystem
 from funcy.objects import cached_property
 
@@ -12,11 +11,16 @@ from ldb.exceptions import IndexingException
 from ldb.index.base import (
     AnnotationMeta,
     DataObjectFileIndexingItem,
-    FSPathsMapping,
     PairIndexer,
     Preprocessor,
 )
-from ldb.index.utils import construct_annotation_meta, expand_dir_paths
+from ldb.index.utils import (
+    FileSystemPath,
+    FSPathsMapping,
+    IndexingJobMapping,
+    construct_annotation_meta,
+    expand_dir_paths,
+)
 from ldb.typing import JSONDecoded, JSONObject
 from ldb.utils import current_time, load_data_file
 
@@ -31,7 +35,7 @@ class InferredPreprocessor(Preprocessor):
         for fs, dir_paths in dir_path_lists.items():
             fs_seq: Dict[str, List[str]] = file_seqs.setdefault(fs, {})
             for p in dir_paths:
-                file_paths = fs.find(p.rstrip("/"))
+                file_paths: List[str] = fs.find(p.rstrip("/"))
                 if file_paths:
                     fs_seq[p] = file_paths
         return file_seqs
@@ -56,6 +60,15 @@ class InferredPreprocessor(Preprocessor):
                 )
         return files, annotation_files
 
+    @cached_property
+    def data_object_paths(self) -> FSPathsMapping:
+        return {
+            fs: [
+                path for dir_paths in path_maps.values() for path in dir_paths
+            ]
+            for fs, path_maps in self.dir_path_to_files.items()
+        }
+
 
 class InferredIndexer(PairIndexer):
     def __init__(
@@ -78,7 +91,7 @@ class InferredIndexer(PairIndexer):
     ) -> Dict[AbstractFileSystem, Dict[str, JSONObject]]:
         annotations: Dict[AbstractFileSystem, Dict[str, JSONObject]] = {}
         for fs, seqs in self.preprocessor.dir_path_to_files.items():
-            fs_annots = annotations.setdefault(fs, {})
+            fs_annots: Dict[str, JSONObject] = annotations.setdefault(fs, {})
             for dir_path, file_seq in seqs.items():
                 len_dir_path = len(dir_path)
                 for file in file_seq:
@@ -94,47 +107,45 @@ class InferredIndexer(PairIndexer):
 
     def _index(self) -> None:
         annotations = self.infer_annotations()
-        (
-            files,
-            indexed_ephemeral_bools,
-            _,
-        ) = self.process_files()
+        indexing_jobs, _ = self.process_files()
 
-        old_to_new_files = {}
-        for old, new in self.old_to_new_files.items():
-            old_to_new_files[old.fs, old.path] = new
+        annotations_by_data_object_path: Dict[
+            Tuple[AbstractFileSystem, str],
+            JSONObject,
+        ] = {}
 
-        annotations_by_data_object_path = {
-            (old_to_new_files.get((fs, f)) or OpenFile(fs, f)).path: annot
-            for fs, fs_annotations in annotations.items()
-            for f, annot in fs_annotations.items()
-        }
-
+        for fs, fs_annotations in annotations.items():
+            fs_old_to_new = self.old_to_new_files.get(fs, {})
+            for f, annot in fs_annotations.items():
+                path = fs_old_to_new.get(f)
+                if path is None:
+                    path = FileSystemPath(fs, f)
+                annotations_by_data_object_path[path] = annot
         self.index_inferred_files(
-            files,
-            indexed_ephemeral_bools,
+            indexing_jobs,
             annotations_by_data_object_path,
         )
 
     def index_inferred_files(
         self,
-        data_object_files: List[OpenFile],
-        indexed_ephemeral_bools: Iterable[bool],
-        annotations_by_data_object_path: Dict[str, JSONObject],
+        indexing_jobs: IndexingJobMapping,
+        annotations_by_data_object_path: Dict[
+            Tuple[AbstractFileSystem, str],
+            JSONObject,
+        ],
     ) -> None:
-        for data_object_file, is_indexed_ephemeral in zip(
-            data_object_files,
-            indexed_ephemeral_bools,
-        ):
-            item = InferredIndexingItem(
-                self.ldb_dir,
-                current_time(),
-                data_object_file,
-                not is_indexed_ephemeral,
-                self.hashes,
-                annotations_by_data_object_path[data_object_file.path],
-            )
-            self.result.append(item.index_data())
+        for fs, jobs in indexing_jobs.items():
+            for config, path_seq in jobs:
+                for data_object_path in path_seq:
+                    item = InferredIndexingItem(
+                        self.ldb_dir,
+                        current_time(),
+                        FileSystemPath(fs, data_object_path),
+                        config.save_data_object_path_info,
+                        self.hashes,
+                        annotations_by_data_object_path[fs, data_object_path],
+                    )
+                    self.result.append(item.index_data())
 
 
 @dataclass

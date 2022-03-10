@@ -2,6 +2,7 @@ import getpass
 import json
 import os
 import re
+from dataclasses import dataclass
 from datetime import date, datetime
 from pathlib import Path
 from typing import (
@@ -10,6 +11,7 @@ from typing import (
     Iterable,
     List,
     Mapping,
+    NamedTuple,
     Optional,
     Sequence,
     Set,
@@ -18,9 +20,9 @@ from typing import (
 )
 
 import fsspec
-from fsspec.core import OpenFile
 from fsspec.implementations.local import make_path_posix
 from fsspec.spec import AbstractFileSystem
+from fsspec.utils import get_protocol
 
 from ldb.data_formats import Format
 from ldb.exceptions import IndexingException, NotAStorageLocationError
@@ -41,36 +43,53 @@ ENDING_DOUBLE_STAR_RE = r"(?:/+\*\*)+/*$"
 AnnotationMeta = Dict[str, Union[str, int, None]]
 DataObjectMeta = Dict[str, Union[str, Dict[str, Union[str, int]]]]
 DataToWrite = Tuple[Path, bytes, bool]
+IndexingJob = Tuple["IndexingConfig", List[str]]
+IndexingJobMapping = Dict[AbstractFileSystem, List[IndexingJob]]
+FSPathsMapping = Dict[AbstractFileSystem, List[str]]
 
 
-def get_storage_files_for_paths(
+class FileSystemPath(NamedTuple):
+    fs: AbstractFileSystem
+    path: str
+
+
+@dataclass
+class IndexingConfig:
+    save_data_object_path_info: bool
+
+
+DEFAULT_CONFIG = IndexingConfig(save_data_object_path_info=True)
+INDEXED_EPHEMERAL_CONFIG = IndexingConfig(save_data_object_path_info=False)
+
+
+def expand_indexing_paths(
     paths: List[str],
     default_format: bool = False,
 ) -> Dict[AbstractFileSystem, List[str]]:
-    storage_files: Dict[AbstractFileSystem, Tuple[List[str], Set[str]]] = {}
-    for path in paths:
-        fs, paths_found = get_storage_files(
-            path,
+    path_collections: Dict[AbstractFileSystem, Tuple[List[str], Set[str]]] = {}
+    for indexing_path in paths:
+        fs, paths_found = expand_single_indexing_path(
+            indexing_path,
             default_format=default_format,
         )
         try:
-            fs_paths, seen = storage_files[fs]
+            fs_paths, seen = path_collections[fs]
         except KeyError:
             fs_paths, seen = [], set()
-            storage_files[fs] = fs_paths, seen
-        for file in paths_found:
-            if file not in seen:
-                fs_paths.append(file)
-                seen.add(file)
-    return {fs: fs_paths for fs, (fs_paths, _) in storage_files.items()}
+            path_collections[fs] = fs_paths, seen
+        for path in paths_found:
+            if path not in seen:
+                fs_paths.append(path)
+                seen.add(path)
+    return {fs: fs_paths for fs, (fs_paths, _) in path_collections.items()}
 
 
-def get_storage_files(
+def expand_single_indexing_path(
     path: str,
     default_format: bool = False,
 ) -> Tuple[AbstractFileSystem, List[str]]:
     """
-    Get storage files for indexing that match the glob, `path`.
+    Get storage paths for indexing that match the glob, `path`.
 
     Because every file path under `path` is returned, any final "/**" does not
     change the result. First, `path` is expanded with any final "/**" removed
@@ -82,7 +101,7 @@ def get_storage_files(
     The current implementation may result in some directory paths and some
     duplicate paths being included.
     """
-    fs = fsspec.filesystem("file")
+    fs = fsspec.filesystem(get_protocol(path))
     if is_hidden_fsspec_path(path):
         return fs, []
     # "path/**", "path/**/**" or "path/**/" are treated the same as just "path"
@@ -90,51 +109,51 @@ def get_storage_files(
     path = re.sub(ENDING_DOUBLE_STAR_RE, "", path)
     # find corresponding data object for annotation match and vice versa
     # for any files the expanded `path` glob matches
-    file_match_globs = []
-    for mpath in fs.expand_path(path):
-        if not is_hidden_fsspec_path(mpath) and fs.isfile(mpath):
-            file_match_globs.append(mpath)
+    path_match_globs = []
+    for epath in fs.expand_path(path):
+        if not is_hidden_fsspec_path(epath) and fs.isfile(epath):
+            path_match_globs.append(epath)
             if default_format:
                 # TODO: Check all extension levels (i.e. for abc.tar.gz use
                 # .tar.gz and .gz)
-                p_without_ext, ext = os.path.splitext(path)
+                p_without_ext, ext = os.path.splitext(epath)
                 if ext == ".json":
-                    file_match_globs.append(p_without_ext)
-                    file_match_globs.append(p_without_ext + ".*")
+                    path_match_globs.append(p_without_ext)
+                    path_match_globs.append(p_without_ext + ".*")
                 else:
-                    file_match_globs.append(p_without_ext + ".json")
-    files = (
-        [i for f in file_match_globs for i in fs.glob(f)]
-        if file_match_globs
+                    path_match_globs.append(p_without_ext + ".json")
+    paths = (
+        [i for p in path_match_globs for i in fs.glob(p)]
+        if path_match_globs
         else []
     )
     # capture everything under any directories the `path` glob matches
-    for file in fs.expand_path(path, recursive=True):
-        if not is_hidden_fsspec_path(file) and fs.isfile(file):
-            files.append(file)
-    return fs, files
+    for epath in fs.expand_path(path, recursive=True):
+        if not is_hidden_fsspec_path(epath) and fs.isfile(epath):
+            paths.append(epath)
+    return fs, paths
 
 
 def is_hidden_fsspec_path(path: str) -> bool:
     return re.search(r"^\.|/\.", path) is not None
 
 
-def group_storage_files_by_type(
-    storage_files: Iterable[str],
+def group_indexing_paths_by_type(
+    fs: AbstractFileSystem,
+    storage_paths: Iterable[str],
 ) -> Tuple[List[str], List[str]]:
-    data_object_files = []
-    annotation_files = []
+    data_object_paths = []
+    annotation_paths = []
     seen = set()
-    fs = fsspec.filesystem("file")
-    for storage_file in storage_files:
-        if storage_file not in seen:
-            seen.add(storage_file)
-            if fs.isfile(storage_file):
-                if storage_file.endswith(".json"):
-                    annotation_files.append(storage_file)
+    for storage_path in storage_paths:
+        if storage_path not in seen:
+            seen.add(storage_path)
+            if fs.isfile(storage_path):
+                if storage_path.endswith(".json"):
+                    annotation_paths.append(storage_path)
                 else:
-                    data_object_files.append(storage_file)
-    return data_object_files, annotation_files
+                    data_object_paths.append(storage_path)
+    return data_object_paths, annotation_paths
 
 
 def expand_dir_paths(
@@ -150,8 +169,8 @@ def expand_dir_paths(
             )
 
     path_sets: Dict[AbstractFileSystem, Set[str]] = {}
-    fs = fsspec.filesystem("file")
     for path in paths:
+        fs = fsspec.filesystem(get_protocol(path))
         fs_paths = path_sets.setdefault(fs, set())
         for p in fs.expand_path(paths):
             if fs.isdir(p):
@@ -172,77 +191,114 @@ def expand_dir_paths(
     return path_lists
 
 
+def create_storage_path(
+    dest_fs: AbstractFileSystem,
+    base_dir: str,
+    source_fs: AbstractFileSystem,
+    path: str,
+) -> str:
+    if source_fs.protocol == "file":
+        # handle windows drive
+        path = re.sub("^[A-Za-z]:", "", path)
+    path = dest_fs.sep.join(
+        [base_dir] + path.lstrip(source_fs.sep).split(source_fs.sep),
+    )
+    return path
+
+
 def copy_to_read_add_storage(
-    data_object_files: Sequence[OpenFile],
-    annotation_files_by_path: Dict[str, OpenFile],
+    data_object_paths: FSPathsMapping,
+    annotation_paths: FSPathsMapping,
     read_add_location: StorageLocation,
-    hashes: Mapping[str, str],
+    hashes: Mapping[AbstractFileSystem, Mapping[str, str]],
     strict_format: bool,
-) -> Tuple[Dict[OpenFile, OpenFile], Dict[OpenFile, OpenFile]]:
-    fs = fsspec.filesystem(read_add_location.protocol)
-    base_dir = fs.sep.join(
+) -> Tuple[
+    Dict[AbstractFileSystem, Dict[str, FileSystemPath]],
+    Dict[AbstractFileSystem, Dict[str, FileSystemPath]],
+]:
+
+    dest_fs = fsspec.filesystem(read_add_location.protocol)
+    assert (
+        dest_fs.protocol == "file"
+    )  # until get_file below is replaced with transfer
+    base_dir = dest_fs.sep.join(
         [
-            read_add_location.path,
+            *make_path_posix(read_add_location.path).split("/"),
             "ldb-autoimport",
             date.today().isoformat(),
             unique_id(),
         ],
     )
-    fs.makedirs(base_dir, exist_ok=True)
-    old_to_new_files = {}
-    old_to_new_annot_files = {}
-    for file in data_object_files:
-        dest = file.path
-        if file.fs.protocol == "file":
-            dest = re.sub("^[A-Za-z]:", "", make_path_posix(dest))
-        dest = fs.sep.join(
-            [base_dir] + dest.lstrip(file.fs.sep).split(file.fs.sep),
-        )
+    dest_fs.makedirs(base_dir, exist_ok=True)
+    old_to_new_paths = {}
+    old_to_new_annot_paths = {}
+    for source_fs, paths in data_object_paths.items():
+        fs_id = source_fs.protocol  # TODO use actual fs_id
+        fs_base_dir = dest_fs.sep.join([base_dir, fs_id])
 
-        annotation_file = annotation_files_by_path.get(
-            data_object_path_to_annotation_path(file.path),
-        )
-        annotation_dest = None
-        if annotation_file is not None:
-            annotation_dest = data_object_path_to_annotation_path(dest)
-        elif strict_format:
-            continue
-        try:
-            fs.makedirs(
-                fs._parent(dest),  # pylint: disable=protected-access)
-                exist_ok=True,
-            )
+        fs_annotation_paths = set(annotation_paths.get(source_fs, []))
+
+        fs_old_to_new_paths = {}
+        fs_old_to_new_annot_paths = {}
+        for path in paths:
+            dest = create_storage_path(dest_fs, fs_base_dir, source_fs, path)
+            annotation_dest = None
+            annotation_path = data_object_path_to_annotation_path(path)
+            if annotation_path in fs_annotation_paths:
+                annotation_dest = create_storage_path(
+                    dest_fs,
+                    fs_base_dir,
+                    source_fs,
+                    annotation_path,
+                )
+            elif strict_format:
+                continue
+            try:
+                dest_fs.makedirs(
+                    dest_fs._parent(dest),  # pylint: disable=protected-access)
+                    exist_ok=True,
+                )
+                if annotation_dest is not None:
+                    # TODO: make transfer so this works with remote
+                    # read-add storage
+                    source_fs.get_file(
+                        annotation_path,
+                        annotation_dest,
+                    )
+                source_fs.get_file(path, dest)
+            except FileNotFoundError:
+                # Use hash instead of preserving path if path is too long
+                try:
+                    data_object_hash = hashes[source_fs][path]
+                except KeyError:
+                    data_object_hash = hash_file(
+                        source_fs,
+                        path,
+                    )
+                dest = dest_fs.sep.join(
+                    [
+                        base_dir,
+                        data_object_hash + get_fsspec_path_suffix(path),
+                    ],
+                )
+                if annotation_dest is not None:
+                    annotation_dest = data_object_path_to_annotation_path(dest)
+                    source_fs.get_file(
+                        annotation_path,
+                        annotation_dest,
+                    )
+                source_fs.get_file(path, dest, protocol=dest_fs.protocol)
+            fs_old_to_new_paths[path] = FileSystemPath(dest_fs, dest)
             if annotation_dest is not None:
-                file.fs.put_file(
-                    annotation_file.path,
+                fs_old_to_new_annot_paths[annotation_path] = FileSystemPath(
+                    dest_fs,
                     annotation_dest,
-                    protocol=fs.protocol,
                 )
-            file.fs.put_file(file.path, dest, protocol=fs.protocol)
-        except FileNotFoundError:
-            # Use hash instead of preserving path if path is too long
-            data_object_hash = hashes.get(file.path) or hash_file(file)
-            dest = fs.sep.join(
-                [
-                    base_dir,
-                    data_object_hash + get_fsspec_path_suffix(file.path),
-                ],
-            )
-            if annotation_file is not None:
-                annotation_dest = data_object_path_to_annotation_path(dest)
-                file.fs.put_file(
-                    annotation_file.path,
-                    annotation_dest,
-                    protocol=fs.protocol,
-                )
-            file.fs.put_file(file.path, dest, protocol=fs.protocol)
-        old_to_new_files[file] = OpenFile(fs, dest)
-        if annotation_dest is not None:
-            old_to_new_annot_files[annotation_file] = OpenFile(
-                fs,
-                annotation_dest,
-            )
-    return old_to_new_files, old_to_new_annot_files
+        if fs_old_to_new_paths:
+            old_to_new_paths[dest_fs] = fs_old_to_new_paths
+        if fs_old_to_new_annot_paths:
+            old_to_new_annot_paths[dest_fs] = fs_old_to_new_annot_paths
+    return old_to_new_paths, old_to_new_annot_paths
 
 
 def data_object_path_to_annotation_path(path: str) -> str:
@@ -250,85 +306,108 @@ def data_object_path_to_annotation_path(path: str) -> str:
 
 
 def separate_local_and_cloud_files(
-    storage_files: Sequence[OpenFile],
-) -> Tuple[List[OpenFile], List[OpenFile]]:
-    local = []
-    cloud = []
-    for file in storage_files:
-        if file.fs.protocol == "file":
-            local.append(file)
+    paths: FSPathsMapping,
+) -> Tuple[FSPathsMapping, FSPathsMapping]:
+    local = {}
+    cloud = {}
+    for fs, fs_paths in paths.items():
+        if fs.protocol == "file":
+            local[fs] = fs_paths
         else:
-            cloud.append(file)
+            cloud[fs] = fs_paths
     return local, cloud
 
 
 def separate_storage_and_non_storage_files(
-    files: Sequence[OpenFile],
-    storage_locations: List[StorageLocation],
-) -> Tuple[List[OpenFile], List[OpenFile]]:
-    storage = []
-    non_storage = []
-    for file in files:
-        if in_storage_locations(
-            file.path,
-            file.fs.protocol,
-            storage_locations,
-        ):
-            storage.append(file)
+    fs_paths: FSPathsMapping,
+    storage_locations: Sequence[StorageLocation],
+) -> Tuple[FSPathsMapping, FSPathsMapping]:
+    storage = {}
+    non_storage = {}
+    for fs, paths in fs_paths.items():
+        matching_locs = filter_storage_locations(fs, storage_locations)
+        if not matching_locs:
+            non_storage[fs] = paths.copy()
         else:
-            non_storage.append(file)
+            fs_storage = []
+            fs_non_storage = []
+            for path in paths:
+                if in_storage_locations(path, matching_locs):
+                    fs_storage.append(path)
+                else:
+                    fs_non_storage.append(path)
+            if fs_storage:
+                storage[fs] = fs_storage
+            if fs_non_storage:
+                non_storage[fs] = fs_non_storage
     return storage, non_storage
 
 
 def separate_indexed_files(
     existing_hashes: Set[str],
-    hashes: Mapping[str, str],
-    files: Iterable[OpenFile],
-) -> Tuple[List[OpenFile], List[OpenFile]]:
-    indexed = []
-    not_indexed = []
-    for file in files:
-        hash_str = hashes.get(file.path)
-        if hash_str is not None and hash_str in existing_hashes:
-            indexed.append(file)
-        else:
-            not_indexed.append(file)
+    hashes: Mapping[AbstractFileSystem, Mapping[str, str]],
+    fs_paths: FSPathsMapping,
+) -> Tuple[FSPathsMapping, FSPathsMapping]:
+    indexed = {}
+    not_indexed = {}
+    for fs, paths in fs_paths.items():
+        fs_indexed = []
+        fs_not_indexed = []
+        for path in paths:
+            try:
+                hash_str: Optional[str] = hashes[fs][path]
+            except KeyError:
+                hash_str = None
+            if hash_str is not None and hash_str in existing_hashes:
+                fs_indexed.append(path)
+            else:
+                fs_not_indexed.append(path)
+        if fs_indexed:
+            indexed[fs] = fs_indexed
+        if fs_not_indexed:
+            not_indexed[fs] = fs_not_indexed
     return indexed, not_indexed
 
 
 def validate_locations_in_storage(
-    storage_files: Sequence[OpenFile],
-    storage_locations: List[StorageLocation],
+    fs_paths: FSPathsMapping,
+    storage_locations: Sequence[StorageLocation],
 ) -> None:
-    for storage_file in storage_files:
-        if in_storage_locations(
-            storage_file.path,
-            storage_file.fs.protocol,
-            storage_locations,
-        ):
-            raise NotAStorageLocationError(
-                "Found file outside of configured storage locations: "
-                f"{storage_file.path}",
-            )
+    for fs, paths in fs_paths.items():
+        matching_locs = filter_storage_locations(fs, storage_locations)
+        for path in paths:
+            if not in_storage_locations(path, matching_locs):
+                raise NotAStorageLocationError(
+                    "Found file outside of configured storage locations: "
+                    f"{path}",
+                )
+
+
+def filter_storage_locations(
+    fs: AbstractFileSystem,
+    storage_locations: Sequence[StorageLocation],
+) -> List[StorageLocation]:
+    # TODO use fs_id
+    return [s for s in storage_locations if s.protocol == fs.protocol]
 
 
 def in_storage_locations(
     path: str,
-    protocol: str,
     storage_locations: Sequence[StorageLocation],
 ) -> bool:
-    return any(
-        loc.protocol == protocol and path.startswith(loc.path)
-        for loc in storage_locations
-    )
+    for loc in storage_locations:
+        if path.startswith(loc.path):
+            return True
+    return False
 
 
 def construct_data_object_meta(
-    file: OpenFile,
+    fs_path: FileSystemPath,
     prev_meta: Dict[str, Any],
     current_timestamp: str,
 ) -> DataObjectMeta:
-    fs_info = os.stat(file.path)
+    path = fs_path.path
+    fs_info = os.stat(path)  # TODO: use fsspec
 
     atime = timestamp_to_datetime(fs_info.st_atime)
     mtime = timestamp_to_datetime(fs_info.st_mtime)
@@ -350,12 +429,12 @@ def construct_data_object_meta(
     path_info = {
         "fs_id": "",
         "protocol": "file",
-        "path": file.path,
+        "path": path,
     }
     if path_info not in alternate_paths:
         alternate_paths.append(path_info)
     return {
-        "type": get_filetype(file.path),
+        "type": get_filetype(path),
         "first_indexed": first_indexed,
         "last_indexed": current_timestamp,
         "last_indexed_by": getpass.getuser(),
@@ -374,19 +453,28 @@ def construct_data_object_meta(
     }
 
 
+def parse_annotation(raw_annotation: str) -> JSONDecoded:
+    try:
+        parsed_annotation: JSONDecoded = json.loads(raw_annotation)
+    except Exception as exc:
+        raise IndexingException(  # TODO: use more appropriate exception type
+            "Unable to parse JSON annotation\n" f"{type(exc).__name__}: {exc}",
+        ) from exc
+    return parsed_annotation
+
+
 def get_annotation_content(
-    annotation_file: OpenFile,
+    fs: AbstractFileSystem,
+    path: str,
 ) -> JSONDecoded:
     try:
-        with annotation_file as open_annotation_file:
-            annotation_str = open_annotation_file.read()
-        original_content: JSONDecoded = json.loads(annotation_str)
+        with fs.open(path, "r") as file:
+            raw_annotation = file.read()
+        return parse_annotation(raw_annotation)
     except Exception as exc:
         raise IndexingException(
-            f"Unable to parse JSON annotation: {annotation_file.path!r}\n"
-            f"{type(exc).__name__}: {exc}",
+            f"Unable to read annotation file: {path}",
         ) from exc
-    return original_content
 
 
 def construct_annotation_meta(

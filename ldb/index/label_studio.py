@@ -1,14 +1,18 @@
 from pathlib import Path
-from typing import Iterable, List, Sequence
+from typing import List, Sequence
 
-import fsspec
-from fsspec.core import OpenFile
+from fsspec.implementations.local import make_path_posix
 from funcy.objects import cached_property
 
 from ldb.exceptions import IndexingException
 from ldb.index.base import PairIndexer, Preprocessor
 from ldb.index.inferred import InferredIndexingItem
-from ldb.index.utils import get_annotation_content
+from ldb.index.utils import (
+    FileSystemPath,
+    FSPathsMapping,
+    IndexingJobMapping,
+    get_annotation_content,
+)
 from ldb.typing import JSONObject
 from ldb.utils import current_time
 
@@ -25,24 +29,27 @@ class LabelStudioPreprocessor(Preprocessor):
     @cached_property
     def annotations(self) -> List[JSONObject]:
         result = []
-        for file in self.annotation_files:
-            annotation = get_annotation_content(file)
-            if not isinstance(annotation, list):
-                raise IndexingException(
-                    "Annotation file must contain a JSON array for "
-                    "label-studio format. Incorrectly formatted file: "
-                    f"{file.path}",
-                )
-            result.extend(annotation)
+        for fs, paths in self.annotation_paths.items():
+            for path in paths:
+                annotation = get_annotation_content(fs, path)
+                if not isinstance(annotation, list):
+                    raise IndexingException(
+                        "Annotation file must contain a JSON array for "
+                        "label-studio format. Incorrectly formatted file: "
+                        f"{path}",
+                    )
+                result.extend(annotation)
         return result
 
     @cached_property
-    def data_object_files(self) -> List[OpenFile]:
-        return list(
-            fsspec.open_files(
-                [a["data"][self.url_key] for a in self.annotations],
-            ),
-        )
+    def data_object_paths(self) -> FSPathsMapping:
+        fs = next(iter(self.annotation_paths.keys()))
+        return {
+            fs: [
+                make_path_posix(a["data"][self.url_key])
+                for a in self.annotations
+            ],
+        }
 
 
 class LabelStudioIndexer(PairIndexer):
@@ -62,34 +69,30 @@ class LabelStudioIndexer(PairIndexer):
         )
 
     def _index(self) -> None:
-        (
-            files,
-            indexed_ephemeral_bools,
-            _,
-        ) = self.process_files()
+        indexing_jobs, _ = self.process_files()
         self.index_label_studio_files(
-            files,
-            indexed_ephemeral_bools,
+            indexing_jobs,
             self.preprocessor.annotations,
         )
 
     def index_label_studio_files(
         self,
-        data_object_files: List[OpenFile],
-        indexed_ephemeral_bools: Iterable[bool],
+        indexing_jobs: IndexingJobMapping,
         annotations: List[JSONObject],
     ) -> None:
-        for data_object_file, is_indexed_ephemeral, annotation in zip(
-            data_object_files,
-            indexed_ephemeral_bools,
-            annotations,
-        ):
-            obj_result = InferredIndexingItem(
-                self.ldb_dir,
-                current_time(),
-                data_object_file,
-                not is_indexed_ephemeral,
-                self.hashes,
-                annotation,
-            ).index_data()
-            self.result.append(obj_result)
+        annot_iter = iter(annotations)
+
+        print("HERE")
+        for fs, jobs in indexing_jobs.items():
+            for config, path_seq in jobs:
+                print(len(path_seq))
+                for data_object_path in path_seq:
+                    obj_result = InferredIndexingItem(
+                        self.ldb_dir,
+                        current_time(),
+                        FileSystemPath(fs, data_object_path),
+                        config.save_data_object_path_info,
+                        self.hashes,
+                        next(annot_iter),
+                    ).index_data()
+                    self.result.append(obj_result)

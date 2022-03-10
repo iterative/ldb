@@ -14,8 +14,9 @@ from typing import (
     Tuple,
 )
 
-import fsspec
-from fsspec.core import OpenFile
+from fsspec.core import get_fs_token_paths
+from fsspec.spec import AbstractFileSystem
+from fsspec.utils import get_protocol
 
 from ldb import config
 from ldb.config import ConfigType
@@ -27,7 +28,7 @@ from ldb.dataset import (
 )
 from ldb.exceptions import DataObjectNotFoundError, LDBException
 from ldb.index import index
-from ldb.index.utils import get_storage_files_for_paths
+from ldb.index.utils import expand_indexing_paths
 from ldb.path import InstanceDir, WorkspacePath
 from ldb.utils import (
     DATASET_PREFIX,
@@ -63,14 +64,22 @@ def get_arg_type(paths: Sequence[str]) -> ArgType:
         return ArgType.DATASET
     if any(p.startswith("0x") for p in paths):
         return ArgType.DATA_OBJECT
-    if any(
-        f.fs.protocol == "file"
-        and f.fs.isdir(f.path + "/.ldb_workspace")
-        and os.path.abspath(f.path) != os.getcwd()
-        for f in fsspec.open_files(paths)
-    ):
+    if any(expands_to_workspace(p) for p in paths):
         return ArgType.WORKSPACE_DATASET
     return ArgType.PATH
+
+
+def expands_to_workspace(urlpath: str) -> bool:
+    if get_protocol(urlpath) != "file":
+        return False
+    fs, _, paths = get_fs_token_paths(urlpath)
+    for path in paths:
+        if (
+            fs.isdir(fs.sep.join([path, ".ldb_workspace"]))
+            and os.path.abspath(path) != os.getcwd()
+        ):
+            return True
+    return False
 
 
 def process_args_for_add(
@@ -308,20 +317,22 @@ def path_for_delete(
     return list(data_object_hashes_from_path(paths))
 
 
-def get_data_object_storage_files(paths: Sequence[str]) -> Iterator[OpenFile]:
+def get_data_object_storage_files(
+    paths: Sequence[str],
+) -> Iterator[Tuple[AbstractFileSystem, str]]:
     paths = [os.path.abspath(p) for p in paths]
-    for fs, fs_paths in get_storage_files_for_paths(
+    for fs, fs_paths in expand_indexing_paths(
         paths,
         default_format=False,
     ).items():
         for path in fs_paths:
             if not path.endswith(".json"):
-                yield OpenFile(fs, path)
+                yield fs, path
 
 
 def data_object_hashes_from_path(paths: Sequence[str]) -> Iterator[str]:
-    for file in get_data_object_storage_files(paths):
-        yield hash_file(file)
+    for fs, path in get_data_object_storage_files(paths):
+        yield hash_file(fs, path)
 
 
 DELETE_FUNCTIONS: Dict[ArgType, Callable[[Path, Sequence[str]], List[str]]] = {
@@ -398,8 +409,8 @@ def process_args_for_ls(
 
 def path_for_ls(ldb_dir: Path, paths: Sequence[str]) -> AddInput:
     hashes = []
-    for file in get_data_object_storage_files(paths):
-        data_object_hash = hash_file(file)
+    for fs, path in get_data_object_storage_files(paths):
+        data_object_hash = hash_file(fs, path)
         try:
             annotation_hash = get_current_annotation_hash(
                 ldb_dir,
@@ -408,7 +419,7 @@ def path_for_ls(ldb_dir: Path, paths: Sequence[str]) -> AddInput:
         except DataObjectNotFoundError as exc:
             raise DataObjectNotFoundError(
                 f"Data object not found: 0x{data_object_hash} "
-                f"(path={file.path!r})",
+                f"(path={path!r})",
             ) from exc
         hashes.append((data_object_hash, annotation_hash))
     if hashes:

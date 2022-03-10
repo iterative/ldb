@@ -9,57 +9,62 @@ from ldb.index.base import (
     IndexedObjectResult,
     Indexer,
 )
-from ldb.index.utils import get_annotation_content
+from ldb.index.utils import FileSystemPath, get_annotation_content
 from ldb.typing import JSONObject
 from ldb.utils import current_time, load_data_file
 
 
 class AnnotationOnlyIndexer(Indexer):
     def _index(self) -> None:
-        for annotation_file in self.preprocessor.annotation_files:
-            item = AnnotationOnlyIndexingItem(
-                self.ldb_dir,
-                current_time(),
-                annotation_file,
-            )
-            self.result.append(item.index_data())
+        for fs, paths in self.preprocessor.annotation_paths.items():
+            for path in paths:
+                item = AnnotationOnlyIndexingItem(
+                    self.ldb_dir,
+                    current_time(),
+                    FileSystemPath(fs, path),
+                )
+                self.result.append(item.index_data())
 
 
 @dataclass
 class AnnotationOnlyIndexingItem(AnnotationFileIndexingItem):
+    annotation_fsp: FileSystemPath
+
     @cached_property
-    def annotation_file_contents(self) -> JSONObject:
+    def annotation_file_content(self) -> JSONObject:
         return get_annotation_content(  # type: ignore[return-value]
-            self.annotation_file,
+            *self.annotation_fsp,
         )
 
     @cached_property
     def data_object_hash(self) -> str:
         try:
-            return self.annotation_file_contents["ldb_meta"]["data_object_id"]  # type: ignore[no-any-return] # noqa: E501
+            return self.annotation_file_content[  # type: ignore[no-any-return]
+                "ldb_meta"
+            ]["data_object_id"]
         except KeyError as exc:
             raise IndexingException(
                 "Missing ldb_meta.data_object_id key for annotation-only "
-                f"format: {self.annotation_file.path}",
+                f"format: {self.annotation_fsp.path}",
             ) from exc
 
     @cached_property
     def data_object_meta(self) -> DataObjectMeta:
-        meta_contents: DataObjectMeta = load_data_file(
+        meta_content: DataObjectMeta = load_data_file(
             self.data_object_meta_file_path,
         )
-        meta_contents["last_indexed"] = self.current_timestamp
-        return meta_contents
+        meta_content["last_indexed"] = self.current_timestamp
+        return meta_content
 
     @cached_property
     def annotation_content(self) -> JSONObject:  # type: ignore[override]
-        return self.annotation_file_contents["annotation"]  # type: ignore[no-any-return] # noqa: E501
+        return self.annotation_file_content["annotation"]  # type: ignore[no-any-return] # noqa: E501
 
     def index_data(self) -> IndexedObjectResult:
         if not self.data_object_dir.exists():
             raise DataObjectNotFoundError(
                 f"Data object not found: 0x{self.data_object_hash} "
-                f"(annotation_file_path={self.annotation_file.path!r})",
+                f"(annotation_file_path={self.annotation_fsp.path!r})",
             )
 
         new_annotation = not self.annotation_meta_file_path.is_file()

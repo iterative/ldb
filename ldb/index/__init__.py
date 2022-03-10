@@ -1,13 +1,12 @@
 from pathlib import Path
 from typing import Sequence
 
-from fsspec.core import OpenFile
-
 from ldb.data_formats import INDEX_FORMATS, Format
 from ldb.index.annotation_only import AnnotationOnlyIndexer
 from ldb.index.base import Indexer, IndexingResult, PairIndexer, Preprocessor
 from ldb.index.inferred import InferredIndexer, InferredPreprocessor
 from ldb.index.label_studio import LabelStudioIndexer, LabelStudioPreprocessor
+from ldb.index.utils import FSPathsMapping
 
 
 def index(
@@ -23,8 +22,8 @@ def index(
         preprocessor = Preprocessor(paths)
         if fmt == Format.AUTO:
             fmt = autodetect_format(
-                preprocessor.data_object_files,
-                preprocessor.annotation_files,
+                preprocessor.data_object_paths,
+                preprocessor.annotation_paths,
             )
             print(f"Auto-detected data format: {fmt}")
         if fmt in (Format.STRICT, Format.BARE):
@@ -63,9 +62,9 @@ def index(
 
 
 def autodetect_format(
-    files: Sequence[OpenFile],
-    annotation_files: Sequence[OpenFile],
+    data_object_paths: FSPathsMapping,
+    annotation_paths: FSPathsMapping,
 ) -> str:
-    if annotation_files and not files:
+    if any(annotation_paths.values()) and not any(data_object_paths.values()):
         return Format.ANNOT
     return Format.STRICT
