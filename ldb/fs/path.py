@@ -1,7 +1,9 @@
 """
 Originally from dvc.fs.path.
 
-See:
+Copied version:
+  https://github.com/iterative/dvc/blob/e80e725fe45f74141e273dccf47f6a61b942b412/dvc/fs/path.py
+Current version:
   https://github.com/iterative/dvc/blob/main/dvc/fs/path.py
 """
 import ntpath

@@ -6,9 +6,9 @@ from typing import Iterable, List, Sequence
 
 import pytest
 
-from ldb import path
 from ldb.core import add_default_read_add_storage
 from ldb.dataset import OpDef
+from ldb.fs import posix_path as fsp
 from ldb.ls import DatasetListing, ls, ls_collection
 from ldb.main import main
 from ldb.op_type import OpType
@@ -19,60 +19,60 @@ from ldb.workspace import collection_dir_to_object
 from .data import QUERY_DATA
 from .utils import DATA_DIR, stage_new_workspace
 
-UPDATES_DIR = path.join(DATA_DIR.as_posix(), "fashion-mnist", "updates")
-ORIGINAL_DIR = path.join(DATA_DIR.as_posix(), "fashion-mnist", "original")
+UPDATES_DIR = fsp.join(DATA_DIR.as_posix(), "fashion-mnist", "updates")
+ORIGINAL_DIR = fsp.join(DATA_DIR.as_posix(), "fashion-mnist", "original")
 UPDATES_DIR_LISTINGS = [
     DatasetListing(
         data_object_hash="31ed21a2633c6802e756dd06220b0b82",
-        data_object_path=path.join(UPDATES_DIR, "no_inference", "00028.png"),
+        data_object_path=fsp.join(UPDATES_DIR, "no_inference", "00028.png"),
         annotation_hash="",
         annotation_version=0,
     ),
     DatasetListing(
         data_object_hash="399146164375493f916025b04d00709c",
-        data_object_path=path.join(UPDATES_DIR, "no_inference", "00023.png"),
+        data_object_path=fsp.join(UPDATES_DIR, "no_inference", "00023.png"),
         annotation_hash="97dde24d0e61ac83f051cd748e16f5dc",
         annotation_version=1,
     ),
     DatasetListing(
         data_object_hash="47149106168f7d88fcea9e168608f129",
-        data_object_path=path.join(UPDATES_DIR, "same_inference", "00029.png"),
+        data_object_path=fsp.join(UPDATES_DIR, "same_inference", "00029.png"),
         annotation_hash="062133135568b9e077d15703593fb0e6",
         annotation_version=1,
     ),
     DatasetListing(
         data_object_hash="65383bee429980b89febc3f9b3349379",
-        data_object_path=path.join(UPDATES_DIR, "no_inference", "00010.png"),
+        data_object_path=fsp.join(UPDATES_DIR, "no_inference", "00010.png"),
         annotation_hash="",
         annotation_version=0,
     ),
     DatasetListing(
         data_object_hash="66e0373a2a989870fbc2c7791d8e6490",
-        data_object_path=path.join(UPDATES_DIR, "no_inference", "00021.png"),
+        data_object_path=fsp.join(UPDATES_DIR, "no_inference", "00021.png"),
         annotation_hash="ef8b9794e2e24d461477fc6b847e8540",
         annotation_version=1,
     ),
     DatasetListing(
         data_object_hash="a2430513e897d5abcf62a55b8df81355",
-        data_object_path=path.join(UPDATES_DIR, "diff_inference", "00015.png"),
+        data_object_path=fsp.join(UPDATES_DIR, "diff_inference", "00015.png"),
         annotation_hash="8d68100832b01b8b8470a14b467d2f63",
         annotation_version=1,
     ),
     DatasetListing(
         data_object_hash="b5fba326c8247d9e62aa17a109146c02",
-        data_object_path=path.join(UPDATES_DIR, "same_inference", "00040.png"),
+        data_object_path=fsp.join(UPDATES_DIR, "same_inference", "00040.png"),
         annotation_hash="5a86b5dbd8161f6fb6ec7c3b6a75ec5c",
         annotation_version=1,
     ),
     DatasetListing(
         data_object_hash="def3cbcb30f3254a2a220e51ddf45375",
-        data_object_path=path.join(UPDATES_DIR, "no_inference", "00026.png"),
+        data_object_path=fsp.join(UPDATES_DIR, "no_inference", "00026.png"),
         annotation_hash="",
         annotation_version=0,
     ),
     DatasetListing(
         data_object_hash="e299594dc1f79f8e69c6d79a42699822",
-        data_object_path=path.join(UPDATES_DIR, "diff_inference", "00002.png"),
+        data_object_path=fsp.join(UPDATES_DIR, "diff_inference", "00002.png"),
         annotation_hash="3ee7b8de6da6d440c43f7afecaf590ef",
         annotation_version=1,
     ),
@@ -127,7 +127,7 @@ def test_ls_storage_locations(ldb_instance, workspace_path, data_dir):
     expected = [
         DatasetListing(
             data_object_hash="31ed21a2633c6802e756dd06220b0b82",
-            data_object_path=path.join(
+            data_object_path=fsp.join(
                 UPDATES_DIR,
                 "no_inference",
                 "00028.png",
@@ -137,7 +137,7 @@ def test_ls_storage_locations(ldb_instance, workspace_path, data_dir):
         ),
         DatasetListing(
             data_object_hash="399146164375493f916025b04d00709c",
-            data_object_path=path.join(
+            data_object_path=fsp.join(
                 UPDATES_DIR,
                 "no_inference",
                 "00023.png",
@@ -147,7 +147,7 @@ def test_ls_storage_locations(ldb_instance, workspace_path, data_dir):
         ),
         DatasetListing(
             data_object_hash="65383bee429980b89febc3f9b3349379",
-            data_object_path=path.join(
+            data_object_path=fsp.join(
                 UPDATES_DIR,
                 "no_inference",
                 "00010.png",
@@ -157,7 +157,7 @@ def test_ls_storage_locations(ldb_instance, workspace_path, data_dir):
         ),
         DatasetListing(
             data_object_hash="66e0373a2a989870fbc2c7791d8e6490",
-            data_object_path=path.join(
+            data_object_path=fsp.join(
                 UPDATES_DIR,
                 "no_inference",
                 "00021.png",
@@ -167,7 +167,7 @@ def test_ls_storage_locations(ldb_instance, workspace_path, data_dir):
         ),
         DatasetListing(
             data_object_hash="a2430513e897d5abcf62a55b8df81355",
-            data_object_path=path.join(
+            data_object_path=fsp.join(
                 UPDATES_DIR,
                 "diff_inference",
                 "00015.png",
@@ -177,7 +177,7 @@ def test_ls_storage_locations(ldb_instance, workspace_path, data_dir):
         ),
         DatasetListing(
             data_object_hash="def3cbcb30f3254a2a220e51ddf45375",
-            data_object_path=path.join(
+            data_object_path=fsp.join(
                 UPDATES_DIR,
                 "no_inference",
                 "00026.png",
@@ -187,7 +187,7 @@ def test_ls_storage_locations(ldb_instance, workspace_path, data_dir):
         ),
         DatasetListing(
             data_object_hash="e299594dc1f79f8e69c6d79a42699822",
-            data_object_path=path.join(
+            data_object_path=fsp.join(
                 UPDATES_DIR,
                 "diff_inference",
                 "00002.png",
@@ -213,7 +213,7 @@ def test_ls_data_objects(ldb_instance, workspace_path, index_original):
     expected = [
         DatasetListing(
             data_object_hash="1e0759182b328fd22fcdb5e6beb54adf",
-            data_object_path=path.join(
+            data_object_path=fsp.join(
                 ORIGINAL_DIR,
                 "data_objects_only",
                 "00014.png",
@@ -223,7 +223,7 @@ def test_ls_data_objects(ldb_instance, workspace_path, index_original):
         ),
         DatasetListing(
             data_object_hash="3c679fd1b8537dc7da1272a085e388e6",
-            data_object_path=path.join(
+            data_object_path=fsp.join(
                 ORIGINAL_DIR,
                 "data_objects_only",
                 "00036.png",
@@ -233,7 +233,7 @@ def test_ls_data_objects(ldb_instance, workspace_path, index_original):
         ),
         DatasetListing(
             data_object_hash="982814b9116dce7882dfc31636c3ff7a",
-            data_object_path=path.join(
+            data_object_path=fsp.join(
                 ORIGINAL_DIR,
                 "has_both",
                 "test",
@@ -244,7 +244,7 @@ def test_ls_data_objects(ldb_instance, workspace_path, index_original):
         ),
         DatasetListing(
             data_object_hash="ebbc6c0cebb66738942ee56513f9ee2f",
-            data_object_path=path.join(
+            data_object_path=fsp.join(
                 ORIGINAL_DIR,
                 "has_both",
                 "test",
@@ -262,7 +262,7 @@ def test_ls_datasets(ldb_instance, ds_a, ds_b):
     expected = [
         DatasetListing(
             data_object_hash="1e0759182b328fd22fcdb5e6beb54adf",
-            data_object_path=path.join(
+            data_object_path=fsp.join(
                 ORIGINAL_DIR,
                 "data_objects_only",
                 "00014.png",
@@ -272,7 +272,7 @@ def test_ls_datasets(ldb_instance, ds_a, ds_b):
         ),
         DatasetListing(
             data_object_hash="2f3533f1e35349602fbfaf0ec9b3ef3f",
-            data_object_path=path.join(
+            data_object_path=fsp.join(
                 ORIGINAL_DIR,
                 "data_objects_only",
                 "00017.png",
@@ -282,7 +282,7 @@ def test_ls_datasets(ldb_instance, ds_a, ds_b):
         ),
         DatasetListing(
             data_object_hash="3c679fd1b8537dc7da1272a085e388e6",
-            data_object_path=path.join(
+            data_object_path=fsp.join(
                 ORIGINAL_DIR,
                 "data_objects_only",
                 "00036.png",
@@ -292,7 +292,7 @@ def test_ls_datasets(ldb_instance, ds_a, ds_b):
         ),
         DatasetListing(
             data_object_hash="95789bb1ac140460cefc97a6e66a9ee8",
-            data_object_path=path.join(
+            data_object_path=fsp.join(
                 ORIGINAL_DIR,
                 "has_both",
                 "train",
@@ -303,7 +303,7 @@ def test_ls_datasets(ldb_instance, ds_a, ds_b):
         ),
         DatasetListing(
             data_object_hash="982814b9116dce7882dfc31636c3ff7a",
-            data_object_path=path.join(
+            data_object_path=fsp.join(
                 ORIGINAL_DIR,
                 "has_both",
                 "test",
@@ -314,7 +314,7 @@ def test_ls_datasets(ldb_instance, ds_a, ds_b):
         ),
         DatasetListing(
             data_object_hash="e1c3ef93e4e1cf108fa2a4c9d6e03af2",
-            data_object_path=path.join(
+            data_object_path=fsp.join(
                 ORIGINAL_DIR,
                 "data_objects_only",
                 "00011.png",
@@ -324,7 +324,7 @@ def test_ls_datasets(ldb_instance, ds_a, ds_b):
         ),
         DatasetListing(
             data_object_hash="ebbc6c0cebb66738942ee56513f9ee2f",
-            data_object_path=path.join(
+            data_object_path=fsp.join(
                 ORIGINAL_DIR,
                 "has_both",
                 "test",
@@ -373,7 +373,7 @@ def test_ls_root_dataset_query(before, after, num, ldb_instance, data_dir):
     expected = [
         DatasetListing(
             data_object_hash="31ed21a2633c6802e756dd06220b0b82",
-            data_object_path=path.join(
+            data_object_path=fsp.join(
                 UPDATES_DIR,
                 "no_inference",
                 "00028.png",
@@ -383,7 +383,7 @@ def test_ls_root_dataset_query(before, after, num, ldb_instance, data_dir):
         ),
         DatasetListing(
             data_object_hash="47149106168f7d88fcea9e168608f129",
-            data_object_path=path.join(
+            data_object_path=fsp.join(
                 UPDATES_DIR,
                 "same_inference",
                 "00029.png",
@@ -393,7 +393,7 @@ def test_ls_root_dataset_query(before, after, num, ldb_instance, data_dir):
         ),
         DatasetListing(
             data_object_hash="65383bee429980b89febc3f9b3349379",
-            data_object_path=path.join(
+            data_object_path=fsp.join(
                 UPDATES_DIR,
                 "no_inference",
                 "00010.png",
@@ -403,7 +403,7 @@ def test_ls_root_dataset_query(before, after, num, ldb_instance, data_dir):
         ),
         DatasetListing(
             data_object_hash="66e0373a2a989870fbc2c7791d8e6490",
-            data_object_path=path.join(
+            data_object_path=fsp.join(
                 UPDATES_DIR,
                 "no_inference",
                 "00021.png",
@@ -413,7 +413,7 @@ def test_ls_root_dataset_query(before, after, num, ldb_instance, data_dir):
         ),
         DatasetListing(
             data_object_hash="b5fba326c8247d9e62aa17a109146c02",
-            data_object_path=path.join(
+            data_object_path=fsp.join(
                 UPDATES_DIR,
                 "same_inference",
                 "00040.png",
@@ -423,7 +423,7 @@ def test_ls_root_dataset_query(before, after, num, ldb_instance, data_dir):
         ),
         DatasetListing(
             data_object_hash="def3cbcb30f3254a2a220e51ddf45375",
-            data_object_path=path.join(
+            data_object_path=fsp.join(
                 UPDATES_DIR,
                 "no_inference",
                 "00026.png",
