@@ -42,7 +42,7 @@ def init(
             )
     for subdir in INSTANCE_DIRS:
         (path / subdir).mkdir(parents=True)
-    with config.edit(get_default_instance_dir() / Filename.CONFIG) as cfg:
+    with config.edit(path / Filename.CONFIG) as cfg:
         cfg["core"] = {"read_any_cloud_location": read_any_cloud_location}
     print(f"Initialized LDB instance at {repr(os.fspath(path))}")
     return path
