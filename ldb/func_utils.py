@@ -1,4 +1,14 @@
-from typing import Any, Callable
+from typing import Any, Callable, overload
+
+
+@overload
+def apply_optional(func: Callable[[Any], Any], arg: None) -> None:
+    ...
+
+
+@overload
+def apply_optional(func: Callable[[Any], Any], arg: Any) -> Any:
+    ...
 
 
 def apply_optional(func: Callable[[Any], Any], arg: Any) -> Any:

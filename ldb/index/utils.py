@@ -26,13 +26,15 @@ from fsspec.utils import get_protocol
 
 from ldb.data_formats import Format
 from ldb.exceptions import IndexingException, NotAStorageLocationError
+from ldb.func_utils import apply_optional
 from ldb.storage import StorageLocation
 from ldb.typing import JSONDecoded
 from ldb.utils import (
     format_datetime,
+    get_file_hash,
     get_filetype,
+    get_first,
     get_fsspec_path_suffix,
-    hash_file,
     parse_datetime,
     timestamp_to_datetime,
     unique_id,
@@ -41,7 +43,10 @@ from ldb.utils import (
 ENDING_DOUBLE_STAR_RE = r"(?:/+\*\*)+/*$"
 
 AnnotationMeta = Dict[str, Union[str, int, None]]
-DataObjectMeta = Dict[str, Union[str, Dict[str, Union[str, int]]]]
+DataObjectMeta = Dict[
+    str,
+    Union[str, None, Dict[str, Union[str, List[str], int, None]]],
+]
 DataToWrite = Tuple[Path, bytes, bool]
 IndexingJob = Tuple["IndexingConfig", List[str]]
 IndexingJobMapping = Dict[AbstractFileSystem, List[IndexingJob]]
@@ -102,6 +107,8 @@ def expand_single_indexing_path(
     duplicate paths being included.
     """
     fs = fsspec.filesystem(get_protocol(path))
+    if fs.protocol == "file":
+        path = os.path.abspath(path)
     if is_hidden_fsspec_path(path):
         return fs, []
     # "path/**", "path/**/**" or "path/**/" are treated the same as just "path"
@@ -127,10 +134,14 @@ def expand_single_indexing_path(
         if path_match_globs
         else []
     )
-    # capture everything under any directories the `path` glob matches
-    for epath in fs.expand_path(path, recursive=True):
-        if not is_hidden_fsspec_path(epath) and fs.isfile(epath):
-            paths.append(epath)
+    protocol: str = (
+        fs.protocol if isinstance(fs.protocol, str) else fs.protocol[0]
+    )
+    if protocol not in ("http", "https"):
+        # capture everything under any directories the `path` glob matches
+        for epath in fs.expand_path(path, recursive=True):
+            if not is_hidden_fsspec_path(epath) and fs.isfile(epath):
+                paths.append(epath)
     return fs, paths
 
 
@@ -271,7 +282,7 @@ def copy_to_read_add_storage(
                 try:
                     data_object_hash = hashes[source_fs][path]
                 except KeyError:
-                    data_object_hash = hash_file(
+                    data_object_hash = get_file_hash(
                         source_fs,
                         path,
                     )
@@ -401,54 +412,82 @@ def in_storage_locations(
     return False
 
 
+def datetime_fs_info(
+    fs_info: Dict[str, Any],
+    *keys: str,
+) -> Optional[datetime]:
+    return apply_optional(timestamp_to_datetime, get_first(fs_info, *keys))
+
+
+def max_datetime_info(
+    *datetimes: Union[datetime, str, None],
+) -> Optional[datetime]:
+    return max(
+        (
+            parse_datetime(d) if isinstance(d, str) else d
+            for d in datetimes
+            if d is not None
+        ),
+        default=None,
+    )
+
+
 def construct_data_object_meta(
-    fs_path: FileSystemPath,
+    fs: AbstractFileSystem,
+    path: str,
     prev_meta: Dict[str, Any],
     current_timestamp: str,
 ) -> DataObjectMeta:
-    path = fs_path.path
-    fs_info = os.stat(path)  # TODO: use fsspec
+    # TODO: create dataclass for data object meta
+    fs_info = fs.info(path)
 
-    atime = timestamp_to_datetime(fs_info.st_atime)
-    mtime = timestamp_to_datetime(fs_info.st_mtime)
-    ctime = timestamp_to_datetime(fs_info.st_ctime)
+    last_indexed_by: str = getpass.getuser()
+    atime = datetime_fs_info(fs_info, "atime", "accessed", "time")
+    mtime = datetime_fs_info(fs_info, "mtime", "modified")
+    ctime = datetime_fs_info(fs_info, "ctime", "created")
+    size: int = fs_info.get("size", 0)
+    mode: int = fs_info.get("mode", 0)
+    uid: Optional[int] = fs_info.get("uid")
+    gid: Optional[int] = fs_info.get("gid")
+    filetype: str = get_filetype(path)
 
     if prev_meta:
         first_indexed = prev_meta["first_indexed"]
         tags = prev_meta["tags"]
         alternate_paths = prev_meta["alternate_paths"]
-
-        atime = max(atime, parse_datetime(prev_meta["fs"]["atime"]))
-        mtime = max(mtime, parse_datetime(prev_meta["fs"]["mtime"]))
-        ctime = max(ctime, parse_datetime(prev_meta["fs"]["ctime"]))
+        atime = max_datetime_info(atime, prev_meta["fs"]["atime"])
+        mtime = max_datetime_info(mtime, prev_meta["fs"]["mtime"])
+        ctime = max_datetime_info(ctime, prev_meta["fs"]["ctime"])
+        filetype = filetype or prev_meta["fs"]["type"]
     else:
         first_indexed = current_timestamp
         tags = []
         alternate_paths = []
 
+    protocol: Union[str, List[str]] = fs.protocol
     path_info = {
         "fs_id": "",
-        "protocol": "file",
+        "protocol": protocol,
         "path": path,
     }
     if path_info not in alternate_paths:
         alternate_paths.append(path_info)
     return {
-        "type": get_filetype(path),
+        "type": filetype,
         "first_indexed": first_indexed,
         "last_indexed": current_timestamp,
-        "last_indexed_by": getpass.getuser(),
+        "last_indexed_by": last_indexed_by,
         "tags": tags,
         "alternate_paths": alternate_paths,
         "fs": {
             **path_info,
-            "size": fs_info.st_size,
-            "mode": fs_info.st_mode,
-            "uid": fs_info.st_uid,
-            "gid": fs_info.st_gid,
-            "atime": format_datetime(atime),
-            "mtime": format_datetime(mtime),
-            "ctime": format_datetime(ctime),
+            "size": size,
+            "mode": mode,
+            "uid": uid,
+            "gid": gid,
+            "atime": apply_optional(format_datetime, atime),
+            "mtime": apply_optional(format_datetime, mtime),
+            "ctime": apply_optional(format_datetime, ctime),
         },
     }
 

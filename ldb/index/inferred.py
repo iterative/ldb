@@ -9,12 +9,12 @@ from funcy.objects import cached_property
 from ldb.data_formats import Format
 from ldb.exceptions import IndexingException
 from ldb.index.base import (
-    AnnotationMeta,
     DataObjectFileIndexingItem,
     PairIndexer,
     Preprocessor,
 )
 from ldb.index.utils import (
+    AnnotationMeta,
     FileSystemPath,
     FSPathsMapping,
     IndexingJobMapping,

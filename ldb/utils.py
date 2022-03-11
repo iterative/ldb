@@ -6,23 +6,65 @@ import re
 import stat
 import string
 from contextlib import contextmanager
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Iterator, Optional, Tuple, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Iterator,
+    Optional,
+    Tuple,
+    TypeVar,
+    Union,
+    overload,
+)
 
 from fsspec.spec import AbstractFileSystem
 
 from ldb.exceptions import LDBException
 
 if TYPE_CHECKING:
-    from _typeshed import SupportsRead
-
+    from _typeshed import SupportsGetItem, SupportsRead
 
 DATASET_PREFIX = "ds:"
 ROOT = "root"
 CHUNK_SIZE = 2 ** 20
 HASH_DIR_SPLIT_POINT = 3
 UNIQUE_ID_ALPHABET = string.ascii_lowercase + string.digits
+
+_KT_contra = TypeVar("_KT_contra", contravariant=True)
+_VT_co = TypeVar("_VT_co", covariant=True)
+_T = TypeVar("_T")
+
+
+@overload
+def get_first(
+    container: "SupportsGetItem[_KT_contra, _VT_co]",
+    *keys: _KT_contra,
+) -> Optional[_VT_co]:
+    ...
+
+
+@overload
+def get_first(
+    container: "SupportsGetItem[_KT_contra, _VT_co]",
+    *key: _KT_contra,
+    default: _T,
+) -> Union[_VT_co, _T]:
+    ...
+
+
+def get_first(
+    container: "SupportsGetItem[_KT_contra, _VT_co]",
+    *keys: _KT_contra,
+    default: Optional[_T] = None,
+) -> Union[_VT_co, Optional[_T]]:
+    for key in keys:
+        try:
+            return container[key]
+        except LookupError:
+            pass
+    return default
 
 
 def json_dumps(obj: Any, **kwargs: Any) -> str:
@@ -38,6 +80,26 @@ def write_data_file(
         file_path.parent.mkdir(parents=True, exist_ok=True)
         with file_path.open("wb") as file:
             file.write(data)
+
+
+def get_etag_md5_match(etag: str) -> str:
+    # The e-tag will be a json string, so look for double quotes
+    md5_hash_match = re.match(r"(?i)\"([a-f\d]{32})\"", etag)
+    if md5_hash_match is None:
+        return ""
+    return md5_hash_match.group(1)
+
+
+def get_file_hash(fs: AbstractFileSystem, path: str) -> str:
+    protocol: str = (
+        fs.protocol if isinstance(fs.protocol, str) else fs.protocol[0]
+    )
+    if protocol in ("s3", "s3a"):
+        return get_etag_md5_match(fs.info(path).get("ETag", "")) or hash_file(
+            fs,
+            path,
+        )
+    return hash_file(fs, path)
 
 
 def hash_file(fs: AbstractFileSystem, path: str) -> str:
@@ -71,19 +133,19 @@ def get_hash_path(base_dir: Path, hash_str: str) -> Path:
 
 
 def format_datetime(dt_obj: datetime) -> str:
-    return dt_obj.astimezone().isoformat(" ")
+    return dt_obj.astimezone(timezone.utc).isoformat(" ")
 
 
 def parse_datetime(dt_str: str) -> datetime:
-    return datetime.fromisoformat(dt_str)
+    return datetime.fromisoformat(dt_str).astimezone(timezone.utc)
 
 
 def timestamp_to_datetime(timestamp: float) -> datetime:
-    return datetime.fromtimestamp(timestamp).astimezone()
+    return datetime.fromtimestamp(timestamp, timezone.utc)
 
 
 def current_time() -> datetime:
-    return datetime.now().astimezone()
+    return datetime.now(timezone.utc)
 
 
 def load_data_file(path: Path) -> Any:

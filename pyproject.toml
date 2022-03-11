@@ -415,11 +415,15 @@ class-const-naming-style = 'UPPER_CASE'
 #class-const-rgx = ""
 
 # Naming style matching correct class names.
-class-naming-style = 'PascalCase'
+#class-naming-style = 'PascalCase'
 
 # Regular expression matching correct class names. Overrides class-naming-
 # style.
-#class-rgx = ""
+# This is PascalCase plus custom exceptions.
+# Note: PascalCase by itself would be:
+#   class-rgx='[^\W\da-z][^\W_]+$'
+# Includes TypeVar names like: _T _KT _T_co _T_contra
+class-rgx = '[^\W\da-z][^\W_]+$|(?:_[KV]?T(?:_co(?:ntra)?)?)$'
 
 # Naming style matching correct constant names.
 const-naming-style = 'UPPER_CASE'

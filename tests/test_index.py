@@ -64,7 +64,7 @@ def test_index_func_single_path(params, ldb_instance):
     for fmt, path, expected in params:
         results.append(
             IndexingNums.from_result(
-                index(ldb_instance, [DATA_DIR / path], False, fmt),
+                index(ldb_instance, [str(DATA_DIR / path)], False, fmt),
             ),
         )
         expected_results.append(IndexingNums(*expected))
@@ -78,7 +78,7 @@ def test_index_func_single_path_label_studio(
     result = IndexingNums.from_result(
         index(
             ldb_instance,
-            [DATA_DIR / label_studio_json_path],
+            [str(DATA_DIR / label_studio_json_path)],
             False,
             Format.LABEL_STUDIO,
         ),

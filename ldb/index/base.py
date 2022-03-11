@@ -1,4 +1,3 @@
-import os
 from abc import ABC
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -13,7 +12,6 @@ from typing import (
     Optional,
     Sequence,
     Tuple,
-    Union,
 )
 
 from fsspec.spec import AbstractFileSystem
@@ -24,6 +22,9 @@ from ldb.exceptions import IndexingException, LDBException
 from ldb.index.utils import (
     DEFAULT_CONFIG,
     INDEXED_EPHEMERAL_CONFIG,
+    AnnotationMeta,
+    DataObjectMeta,
+    DataToWrite,
     FileSystemPath,
     FSPathsMapping,
     IndexingJobMapping,
@@ -45,9 +46,9 @@ from ldb.typing import JSONDecoded, JSONObject
 from ldb.utils import (
     current_time,
     format_datetime,
+    get_file_hash,
     get_hash_path,
     hash_data,
-    hash_file,
     json_dumps,
     load_data_file,
     timestamp_to_datetime,
@@ -55,10 +56,6 @@ from ldb.utils import (
 )
 
 ENDING_DOUBLE_STAR_RE = r"(?:/+\*\*)+/*$"
-
-AnnotationMeta = Dict[str, Union[str, int, None]]
-DataObjectMeta = Dict[str, Union[str, Dict[str, Union[str, int]]]]
-DataToWrite = Tuple[Path, bytes, bool]
 
 
 class IndexedObjectResult(NamedTuple):
@@ -100,8 +97,7 @@ class IndexingResult:
 
 class Preprocessor:
     def __init__(self, paths: Sequence[str]) -> None:
-        # TODO only use abspath for local paths
-        self.paths = [os.path.abspath(p) for p in paths]
+        self.paths: List[str] = list(paths)
 
     def get_storage_files(self) -> FSPathsMapping:
         return expand_indexing_paths(
@@ -201,7 +197,7 @@ class PairIndexer(Indexer):
         for fs, paths in ephemeral_files.items():
             fs_hashes = self.hashes.setdefault(fs, {})
             for path in paths:
-                fs_hashes[path] = hash_file(fs, path)
+                fs_hashes[path] = get_file_hash(fs, path)
 
         existing_hashes = set(
             get_collection_dir_keys(
@@ -509,7 +505,10 @@ class DataObjectFileIndexingItem(IndexingItem):
         if fs_hashes is not None:
             hash_str = fs_hashes.get(self.data_object.path)
         if hash_str is None:
-            hash_str = hash_file(self.data_object.fs, self.data_object.path)
+            hash_str = get_file_hash(
+                self.data_object.fs,
+                self.data_object.path,
+            )
         return hash_str
 
     @cached_property
@@ -521,7 +520,7 @@ class DataObjectFileIndexingItem(IndexingItem):
             meta_contents["last_indexed"] = self.current_timestamp
         else:
             meta_contents = construct_data_object_meta(
-                self.data_object,
+                *self.data_object,
                 load_data_file(self.data_object_meta_file_path)
                 if self.data_object_meta_file_path.exists()
                 else {},
