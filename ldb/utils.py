@@ -22,6 +22,7 @@ from typing import (
 from fsspec.spec import AbstractFileSystem
 
 from ldb.exceptions import LDBException
+from ldb.fs.utils import first_protocol
 
 if TYPE_CHECKING:
     from _typeshed import SupportsGetItem, SupportsRead
@@ -91,10 +92,7 @@ def get_etag_md5_match(etag: str) -> str:
 
 
 def get_file_hash(fs: AbstractFileSystem, path: str) -> str:
-    protocol: str = (
-        fs.protocol if isinstance(fs.protocol, str) else fs.protocol[0]
-    )
-    if protocol in ("s3", "s3a"):
+    if first_protocol(fs.protocol) in ("s3", "s3a"):
         return get_etag_md5_match(fs.info(path).get("ETag", "")) or hash_file(
             fs,
             path,
