@@ -43,7 +43,3 @@ INSTANCE_DIRS = (
 class Filename:
     CONFIG = "config"
     STORAGE = "storage"
-
-
-def join(path: str, *paths: str, sep: str = "/") -> str:
-    return sep.join([path, *paths])

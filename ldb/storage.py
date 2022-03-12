@@ -2,12 +2,13 @@ import os
 from contextlib import contextmanager
 from dataclasses import asdict, dataclass, field
 from json import dump, load
-from pathlib import Path, PurePath
+from pathlib import Path
 from typing import Generator, Iterable, List
 
 from fsspec.implementations.local import make_path_posix
 
 from ldb.exceptions import LDBException, StorageConfigurationError
+from ldb.fs import posix_path as fsp
 from ldb.path import Filename
 
 
@@ -84,9 +85,9 @@ def add_storage(
         to_replace = None
         for loc in storage_config.locations:
             keep = True
-            if loc.fs_id == storage_location.fs_id:
-                old_path = PurePath(loc.path)
-                new_path = PurePath(storage_location.path)
+            if loc.protocol == storage_location.protocol:
+                old_path = loc.path
+                new_path = storage_location.path
                 if old_path == new_path:
                     if storage_location.read_and_add and not loc.read_and_add:
                         to_replace = loc
@@ -96,12 +97,12 @@ def add_storage(
                             "The storage location "
                             f"{repr(storage_location.path)} already exists",
                         )
-                elif old_path in new_path.parents:
+                elif fsp.isin(new_path, old_path):
                     raise LDBException(
                         f"{repr(storage_location.path)} is inside existing "
                         f"storage location {repr(loc.path)}",
                     )
-                elif new_path in old_path.parents:
+                elif fsp.isin(old_path, new_path):
                     children.append(loc)
                     keep = False
             if keep:
