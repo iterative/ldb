@@ -26,6 +26,8 @@ from fsspec.utils import get_protocol
 
 from ldb.data_formats import Format
 from ldb.exceptions import IndexingException, NotAStorageLocationError
+from ldb.fs import posix_path as fsp
+from ldb.fs.utils import first_protocol, has_protocol
 from ldb.func_utils import apply_optional
 from ldb.storage import StorageLocation
 from ldb.typing import JSONDecoded
@@ -134,9 +136,7 @@ def expand_single_indexing_path(
         if path_match_globs
         else []
     )
-    protocol: str = (
-        fs.protocol if isinstance(fs.protocol, str) else fs.protocol[0]
-    )
+    protocol = first_protocol(fs.protocol)
     if protocol not in ("http", "https"):
         # capture everything under any directories the `path` glob matches
         for epath in fs.expand_path(path, recursive=True):
@@ -399,7 +399,9 @@ def filter_storage_locations(
     storage_locations: Sequence[StorageLocation],
 ) -> List[StorageLocation]:
     # TODO use fs_id
-    return [s for s in storage_locations if s.protocol == fs.protocol]
+    return [
+        s for s in storage_locations if has_protocol(fs.protocol, s.protocol)
+    ]
 
 
 def in_storage_locations(
@@ -407,7 +409,7 @@ def in_storage_locations(
     storage_locations: Sequence[StorageLocation],
 ) -> bool:
     for loc in storage_locations:
-        if path.startswith(loc.path):
+        if fsp.isin(path, loc.path):
             return True
     return False
 

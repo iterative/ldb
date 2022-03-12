@@ -11,6 +11,7 @@ from funcy.objects import cached_property
 from ldb.data_formats import INSTANTIATE_FORMATS, Format
 from ldb.dataset import get_annotation
 from ldb.exceptions import LDBException
+from ldb.fs.utils import FSProtocol, first_protocol
 from ldb.path import InstanceDir, WorkspacePath
 from ldb.typing import JSONDecoded, JSONObject
 from ldb.utils import (
@@ -137,14 +138,8 @@ class InstItem:
         return self.base_dest + self.ext.lower()
 
     def copy_data_object(self) -> str:
-        protocols: Union[str, List[str]] = self.data_object_meta["fs"][
-            "protocol"
-        ]
-        if isinstance(protocols, str):
-            protocol: str = protocols
-        else:
-            protocol = protocols[0]
-        fs = fsspec.filesystem(protocol)
+        fs_protocol: FSProtocol = self.data_object_meta["fs"]["protocol"]
+        fs = fsspec.filesystem(first_protocol(fs_protocol))
         os.makedirs(os.path.split(self.data_object_dest)[0], exist_ok=True)
         dest = self.data_object_dest
         fs.get_file(self.data_object_meta["fs"]["path"], dest)

@@ -5,7 +5,8 @@ from json import dump, load
 from pathlib import Path
 from typing import Generator, Iterable, List
 
-from fsspec.implementations.local import make_path_posix
+import fsspec
+from fsspec.utils import get_protocol
 
 from ldb.exceptions import LDBException, StorageConfigurationError
 from ldb.fs import posix_path as fsp
@@ -50,13 +51,17 @@ def save_to_path(storage_config: StorageConfig, path: Path) -> None:
 
 def create_storage_location(
     path: str = "",
-    protocol: str = "file",
+    protocol: str = "",
     read_and_add: bool = False,
 ) -> StorageLocation:
+    if not protocol:
+        protocol = get_protocol(path)
+    fs = fsspec.filesystem(protocol)
     if protocol == "file":
         path = os.path.abspath(path)
+    path = fs._strip_protocol(path)  # pylint: disable=protected-access
     return StorageLocation(
-        path=make_path_posix(path),
+        path=path,
         protocol=protocol,
         read_access_verified=os.access(path, os.R_OK),
         write_access_verified=os.access(path, os.W_OK),
