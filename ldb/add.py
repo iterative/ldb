@@ -30,6 +30,7 @@ from ldb.exceptions import DataObjectNotFoundError, LDBException
 from ldb.index import index
 from ldb.index.utils import expand_indexing_paths
 from ldb.path import InstanceDir, WorkspacePath
+from ldb.storage import StorageLocation, get_storage_locations
 from ldb.utils import (
     DATASET_PREFIX,
     ROOT,
@@ -169,7 +170,7 @@ def data_object_for_add(
 
 def path_for_add(ldb_dir: Path, paths: Sequence[str]) -> AddInput:
     data_object_hash_iter, data_object_hash_iter2 = tee(
-        data_object_hashes_from_path(paths),
+        data_object_hashes_from_path(paths, get_storage_locations(ldb_dir)),
     )
     try:
         annotation_hashes = get_current_annotation_hashes(
@@ -311,18 +312,21 @@ def data_object_for_delete(
 
 
 def path_for_delete(
-    ldb_dir: Path,  # pylint: disable=unused-argument
+    ldb_dir: Path,
     paths: Sequence[str],
 ) -> List[str]:
-    return list(data_object_hashes_from_path(paths))
+    return list(
+        data_object_hashes_from_path(paths, get_storage_locations(ldb_dir)),
+    )
 
 
 def get_data_object_storage_files(
     paths: Iterable[str],
+    storage_locations: Iterable[StorageLocation],
 ) -> Iterator[Tuple[AbstractFileSystem, str]]:
     for fs, fs_paths in expand_indexing_paths(
         paths,
-        [],
+        storage_locations,
         default_format=False,
     ).items():
         for path in fs_paths:
@@ -330,8 +334,11 @@ def get_data_object_storage_files(
                 yield fs, path
 
 
-def data_object_hashes_from_path(paths: Sequence[str]) -> Iterator[str]:
-    for fs, path in get_data_object_storage_files(paths):
+def data_object_hashes_from_path(
+    paths: Iterable[str],
+    storage_locations: Iterable[StorageLocation],
+) -> Iterator[str]:
+    for fs, path in get_data_object_storage_files(paths, storage_locations):
         yield get_file_hash(fs, path)
 
 
@@ -409,7 +416,10 @@ def process_args_for_ls(
 
 def path_for_ls(ldb_dir: Path, paths: Sequence[str]) -> AddInput:
     hashes = []
-    for fs, path in get_data_object_storage_files(paths):
+    for fs, path in get_data_object_storage_files(
+        paths,
+        get_storage_locations(ldb_dir),
+    ):
         data_object_hash = get_file_hash(fs, path)
         try:
             annotation_hash = get_current_annotation_hash(
