@@ -28,9 +28,9 @@ from fsspec.utils import get_protocol
 from ldb.data_formats import Format
 from ldb.exceptions import IndexingException, NotAStorageLocationError
 from ldb.fs import posix_path as fsp
-from ldb.fs.utils import first_protocol, has_protocol
+from ldb.fs.utils import has_protocol
 from ldb.func_utils import apply_optional
-from ldb.storage import StorageLocation
+from ldb.storage import StorageLocation, get_filesystem
 from ldb.typing import JSONDecoded
 from ldb.utils import (
     format_datetime,
@@ -116,19 +116,8 @@ def expand_single_indexing_path(
     protocol = get_protocol(path)
     fs = fsspec.filesystem(protocol)
     path = fs._strip_protocol(path)  # pylint: disable=protected-access
-    storage_location = None
-    for loc in storage_locations:
-        if loc.protocol == protocol and fsp.isin(path, loc.path):
-            storage_location = loc
-            break
-
-    if storage_location is not None:
-        fs_options = storage_location.options
-    else:
-        fs_options = {}
-
-    fs = fsspec.filesystem(protocol, **fs_options)
-    if fs.protocol == "file":
+    fs = get_filesystem(path, protocol, storage_locations)
+    if protocol == "file":
         path = os.path.abspath(path)
     if is_hidden_fsspec_path(path):
         return fs, []
@@ -155,7 +144,6 @@ def expand_single_indexing_path(
         if path_match_globs
         else []
     )
-    protocol = first_protocol(fs.protocol)
     if protocol not in ("http", "https"):
         # capture everything under any directories the `path` glob matches
         for epath in fs.expand_path(path, recursive=True):

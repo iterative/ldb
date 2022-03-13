@@ -4,9 +4,10 @@ from copy import copy
 from dataclasses import asdict, dataclass, field
 from json import dump, load
 from pathlib import Path
-from typing import Dict, Generator, Iterable, List, Optional, Union
+from typing import Collection, Dict, Generator, Iterable, List, Optional, Union
 
 import fsspec
+from fsspec.spec import AbstractFileSystem
 from fsspec.utils import get_protocol
 
 from ldb.exceptions import LDBException, StorageConfigurationError
@@ -37,6 +38,31 @@ def get_storage_locations(ldb_dir: Path) -> List[StorageLocation]:
     if storage_path.is_file():
         return load_from_path(storage_path).locations
     return []
+
+
+def get_containing_storage_location(
+    path: str,
+    protocol: str,
+    storage_locations: Collection[StorageLocation],
+) -> Optional[StorageLocation]:
+    for loc in storage_locations:
+        if loc.protocol == protocol and fsp.isin(path, loc.path):
+            return loc
+    return None
+
+
+def get_filesystem(
+    path: str,
+    protocol: str,
+    storage_locations: Collection[StorageLocation],
+) -> AbstractFileSystem:
+    storage_location = get_containing_storage_location(
+        path,
+        protocol,
+        storage_locations,
+    )
+    fs_options = {} if storage_location is None else storage_location.options
+    return fsspec.filesystem(protocol, **fs_options)
 
 
 def load_from_path(path: Path) -> StorageConfig:
