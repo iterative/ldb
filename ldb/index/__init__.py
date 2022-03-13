@@ -7,6 +7,7 @@ from ldb.index.base import Indexer, IndexingResult, PairIndexer, Preprocessor
 from ldb.index.inferred import InferredIndexer, InferredPreprocessor
 from ldb.index.label_studio import LabelStudioIndexer, LabelStudioPreprocessor
 from ldb.index.utils import FSPathsMapping
+from ldb.storage import get_storage_locations
 
 
 def index(
@@ -18,8 +19,9 @@ def index(
     indexer: Indexer
     fmt = INDEX_FORMATS.get(fmt, fmt)
     print(f"Data format: {fmt}")
+    storage_locations = get_storage_locations(ldb_dir)
     if fmt in (Format.AUTO, Format.STRICT, Format.BARE, Format.ANNOT):
-        preprocessor = Preprocessor(paths)
+        preprocessor = Preprocessor(paths, storage_locations)
         if fmt == Format.AUTO:
             fmt = autodetect_format(
                 preprocessor.data_object_paths,
@@ -39,7 +41,7 @@ def index(
                 preprocessor,
             )
     elif fmt == Format.INFER:
-        preprocessor = InferredPreprocessor(paths)
+        preprocessor = InferredPreprocessor(paths, storage_locations)
         indexer = InferredIndexer(
             ldb_dir,
             preprocessor,
@@ -47,7 +49,7 @@ def index(
             fmt == Format.STRICT,
         )
     elif fmt == Format.LABEL_STUDIO:
-        preprocessor = LabelStudioPreprocessor(paths)
+        preprocessor = LabelStudioPreprocessor(paths, storage_locations)
         indexer = LabelStudioIndexer(
             ldb_dir,
             preprocessor,

@@ -1,16 +1,20 @@
 import os
 from contextlib import contextmanager
+from copy import copy
 from dataclasses import asdict, dataclass, field
 from json import dump, load
 from pathlib import Path
-from typing import Generator, Iterable, List
+from typing import Collection, Dict, Generator, Iterable, List, Optional, Union
 
 import fsspec
+from fsspec.spec import AbstractFileSystem
 from fsspec.utils import get_protocol
 
 from ldb.exceptions import LDBException, StorageConfigurationError
 from ldb.fs import posix_path as fsp
 from ldb.path import Filename
+
+FSOptions = Dict[str, Union[str, int, bool]]
 
 
 @dataclass
@@ -21,6 +25,7 @@ class StorageLocation:
     read_access_verified: bool = False
     write_access_verified: bool = False
     read_and_add: bool = False
+    options: FSOptions = field(default_factory=dict)
 
 
 @dataclass
@@ -33,6 +38,31 @@ def get_storage_locations(ldb_dir: Path) -> List[StorageLocation]:
     if storage_path.is_file():
         return load_from_path(storage_path).locations
     return []
+
+
+def get_containing_storage_location(
+    path: str,
+    protocol: str,
+    storage_locations: Collection[StorageLocation],
+) -> Optional[StorageLocation]:
+    for loc in storage_locations:
+        if loc.protocol == protocol and fsp.isin(path, loc.path):
+            return loc
+    return None
+
+
+def get_filesystem(
+    path: str,
+    protocol: str,
+    storage_locations: Collection[StorageLocation],
+) -> AbstractFileSystem:
+    storage_location = get_containing_storage_location(
+        path,
+        protocol,
+        storage_locations,
+    )
+    fs_options = {} if storage_location is None else storage_location.options
+    return fsspec.filesystem(protocol, **fs_options)
 
 
 def load_from_path(path: Path) -> StorageConfig:
@@ -53,6 +83,7 @@ def create_storage_location(
     path: str = "",
     protocol: str = "",
     read_and_add: bool = False,
+    options: Optional[FSOptions] = None,
 ) -> StorageLocation:
     if not protocol:
         protocol = get_protocol(path)
@@ -66,6 +97,7 @@ def create_storage_location(
         read_access_verified=os.access(path, os.R_OK),
         write_access_verified=os.access(path, os.W_OK),
         read_and_add=read_and_add,
+        options=options if options is not None else {},
     )
 
 
@@ -84,6 +116,7 @@ def add_storage(
     storage_location: StorageLocation,
     force: bool = False,
 ) -> None:
+    storage_location = copy(storage_location)
     with edit(storage_config_filepath) as storage_config:
         new_locations = []
         children = []
@@ -94,7 +127,11 @@ def add_storage(
                 old_path = loc.path
                 new_path = storage_location.path
                 if old_path == new_path:
-                    if storage_location.read_and_add and not loc.read_and_add:
+                    if (
+                        storage_location.read_and_add
+                        and not loc.read_and_add
+                        or storage_location.options != loc.options
+                    ):
                         to_replace = loc
                         keep = False
                     else:
@@ -112,8 +149,10 @@ def add_storage(
                     keep = False
             if keep:
                 new_locations.append(loc)
+        to_replace_list = []
         if to_replace is not None:
             output = get_update_output(to_replace, storage_location)
+            to_replace_list.append(to_replace)
         elif children:
             children_str = "\n".join(
                 [f"  {repr(loc.path)}" for loc in children],
@@ -130,8 +169,14 @@ def add_storage(
                 "Removed its children:\n"
                 f"{children_str}"
             )
+            to_replace_list.extend(children)
         else:
             output = f"Added storage location {repr(storage_location.path)}"
+
+        # When replacing a child, inherit any true read_and_add setting
+        for loc in to_replace_list:
+            if loc.read_and_add:
+                storage_location.read_and_add = True
 
         new_locations.append(storage_location)
         validate_storage_locations(new_locations)

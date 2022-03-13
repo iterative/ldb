@@ -13,6 +13,7 @@ from ldb.index.utils import (
     IndexingJobMapping,
     get_annotation_content,
 )
+from ldb.storage import StorageLocation
 from ldb.typing import JSONObject
 from ldb.utils import current_time
 
@@ -21,9 +22,10 @@ class LabelStudioPreprocessor(Preprocessor):
     def __init__(
         self,
         paths: Sequence[str],
+        storage_locations: Sequence[StorageLocation],
         url_key: str = "image",
     ) -> None:
-        super().__init__(paths)
+        super().__init__(paths, storage_locations)
         self.url_key = url_key
 
     @cached_property

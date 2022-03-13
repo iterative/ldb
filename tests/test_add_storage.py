@@ -29,6 +29,7 @@ def test_add_storage_command_default(global_base, tmp_path):
                 "read_access_verified": True,
                 "write_access_verified": True,
                 "read_and_add": False,
+                "options": {},
             },
             {
                 "path": make_path_posix(os.fspath(path2)),
@@ -37,6 +38,7 @@ def test_add_storage_command_default(global_base, tmp_path):
                 "read_access_verified": True,
                 "write_access_verified": True,
                 "read_and_add": False,
+                "options": {},
             },
         ],
     }
@@ -64,6 +66,7 @@ def test_add_storage_command_unnormalized(global_base, tmp_path):
                 "read_access_verified": True,
                 "write_access_verified": True,
                 "read_and_add": False,
+                "options": {},
             },
         ],
     }
@@ -89,6 +92,7 @@ def test_add_storage_command_add_update(global_base, tmp_path):
                 "read_access_verified": True,
                 "write_access_verified": True,
                 "read_and_add": True,
+                "options": {},
             },
         ],
     }
@@ -117,6 +121,7 @@ def test_add_storage_command_child(global_base, tmp_path):
                 "read_access_verified": True,
                 "write_access_verified": True,
                 "read_and_add": False,
+                "options": {},
             },
         ],
     }
@@ -145,6 +150,7 @@ def test_add_storage_command_parent(global_base, tmp_path):
                 "read_access_verified": True,
                 "write_access_verified": True,
                 "read_and_add": False,
+                "options": {},
             },
         ],
     }
@@ -176,6 +182,7 @@ def test_add_storage_command_force_parent(
                 "read_access_verified": True,
                 "write_access_verified": True,
                 "read_and_add": False,
+                "options": {},
             },
         ],
     }

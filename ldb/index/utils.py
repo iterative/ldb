@@ -7,6 +7,7 @@ from datetime import date, datetime
 from pathlib import Path
 from typing import (
     Any,
+    Collection,
     Dict,
     Iterable,
     List,
@@ -27,9 +28,9 @@ from fsspec.utils import get_protocol
 from ldb.data_formats import Format
 from ldb.exceptions import IndexingException, NotAStorageLocationError
 from ldb.fs import posix_path as fsp
-from ldb.fs.utils import first_protocol, has_protocol
+from ldb.fs.utils import has_protocol
 from ldb.func_utils import apply_optional
-from ldb.storage import StorageLocation
+from ldb.storage import StorageLocation, get_filesystem
 from ldb.typing import JSONDecoded
 from ldb.utils import (
     format_datetime,
@@ -71,12 +72,15 @@ INDEXED_EPHEMERAL_CONFIG = IndexingConfig(save_data_object_path_info=False)
 
 def expand_indexing_paths(
     paths: Iterable[str],
+    storage_locations: Iterable[StorageLocation],
     default_format: bool = False,
 ) -> Dict[AbstractFileSystem, List[str]]:
+    storage_locations = list(storage_locations)
     path_collections: Dict[AbstractFileSystem, Tuple[List[str], Set[str]]] = {}
     for indexing_path in paths:
         fs, paths_found = expand_single_indexing_path(
             indexing_path,
+            storage_locations,
             default_format=default_format,
         )
         try:
@@ -93,6 +97,7 @@ def expand_indexing_paths(
 
 def expand_single_indexing_path(
     path: str,
+    storage_locations: Collection[StorageLocation],
     default_format: bool = False,
 ) -> Tuple[AbstractFileSystem, List[str]]:
     """
@@ -108,8 +113,12 @@ def expand_single_indexing_path(
     The current implementation may result in some directory paths and some
     duplicate paths being included.
     """
-    fs = fsspec.filesystem(get_protocol(path))
-    if fs.protocol == "file":
+    # TODO: make sure path is in a storage location if necessary
+    protocol = get_protocol(path)
+    fs = fsspec.filesystem(protocol)
+    path = fs._strip_protocol(path)  # pylint: disable=protected-access
+    fs = get_filesystem(path, protocol, storage_locations)
+    if protocol == "file":
         path = os.path.abspath(path)
     if is_hidden_fsspec_path(path):
         return fs, []
@@ -136,7 +145,6 @@ def expand_single_indexing_path(
         if path_match_globs
         else []
     )
-    protocol = first_protocol(fs.protocol)
     if protocol not in ("http", "https"):
         # capture everything under any directories the `path` glob matches
         for epath in fs.expand_path(path, recursive=True):

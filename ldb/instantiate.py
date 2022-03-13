@@ -3,9 +3,17 @@ import shutil
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List, Mapping, NamedTuple, Optional, Tuple, Union, cast
+from typing import (
+    Collection,
+    List,
+    Mapping,
+    NamedTuple,
+    Optional,
+    Tuple,
+    Union,
+    cast,
+)
 
-import fsspec
 from funcy.objects import cached_property
 
 from ldb.data_formats import INSTANTIATE_FORMATS, Format
@@ -13,6 +21,7 @@ from ldb.dataset import get_annotation
 from ldb.exceptions import LDBException
 from ldb.fs.utils import FSProtocol, first_protocol
 from ldb.path import InstanceDir, WorkspacePath
+from ldb.storage import StorageLocation, get_filesystem, get_storage_locations
 from ldb.typing import JSONDecoded, JSONObject
 from ldb.utils import (
     get_hash_path,
@@ -105,6 +114,7 @@ class InstItem:
     ldb_dir: Path
     dest_dir: Union[str, Path]
     data_object_hash: str
+    storage_locations: Collection[StorageLocation]
 
     @cached_property
     def data_object_meta(self) -> JSONObject:
@@ -139,10 +149,12 @@ class InstItem:
 
     def copy_data_object(self) -> str:
         fs_protocol: FSProtocol = self.data_object_meta["fs"]["protocol"]
-        fs = fsspec.filesystem(first_protocol(fs_protocol))
+        protocol: str = first_protocol(fs_protocol)
+        path: str = self.data_object_meta["fs"]["path"]
+        fs = get_filesystem(path, protocol, self.storage_locations)
         os.makedirs(os.path.split(self.data_object_dest)[0], exist_ok=True)
         dest = self.data_object_dest
-        fs.get_file(self.data_object_meta["fs"]["path"], dest)
+        fs.get_file(path, dest)
         return dest
 
 
@@ -222,11 +234,13 @@ class LabelStudioInstItem(PairInstItem):
         ldb_dir: Path,
         dest_dir: Union[str, Path],
         annotation_content: List[JSONObject],
+        storage_locations: Collection[StorageLocation],
     ):
         super().__init__(
             ldb_dir,
             dest_dir,
             "",
+            storage_locations,
             "",
         )
         self._annotation_content = annotation_content
@@ -274,6 +288,7 @@ def copy_pairs(
             ldb_dir,
             dest_dir,
             data_object_hash,
+            get_storage_locations(ldb_dir),
             annotation_hash,
         )
         if annotation_hash:
@@ -304,6 +319,7 @@ def copy_annot(
                 ldb_dir,
                 dest_dir,
                 data_object_hash,
+                get_storage_locations(ldb_dir),
                 annotation_hash,
             ).copy_annotation()
             annot_paths.append(path)
@@ -336,6 +352,7 @@ def copy_infer(
             ldb_dir,
             dest_dir,
             data_object_hash,
+            get_storage_locations(ldb_dir),
             annotation_hash,
         ).copy_data_object()
         data_obj_paths.append(path)
@@ -377,6 +394,7 @@ def copy_label_studio(
         ldb_dir,
         dest_dir,
         annotations,
+        get_storage_locations(ldb_dir),
     ).copy_annotation()
     annot_paths.append(path)
     return InstantiateResult(
