@@ -218,7 +218,7 @@ def create_storage_path(
 ) -> str:
     if source_fs.protocol == "file":
         # handle windows drive
-        path = re.sub("^[A-Za-z]:", "", path)
+        path = re.sub("^([A-Za-z]):", r"\1", path)
     path = dest_fs.sep.join(
         [base_dir] + path.lstrip(source_fs.sep).split(source_fs.sep),
     )
