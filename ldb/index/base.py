@@ -41,7 +41,7 @@ from ldb.index.utils import (
     validate_locations_in_storage,
 )
 from ldb.path import InstanceDir
-from ldb.storage import get_storage_locations
+from ldb.storage import StorageLocation
 from ldb.typing import JSONDecoded, JSONObject
 from ldb.utils import (
     current_time,
@@ -96,12 +96,18 @@ class IndexingResult:
 
 
 class Preprocessor:
-    def __init__(self, paths: Sequence[str]) -> None:
+    def __init__(
+        self,
+        paths: Sequence[str],
+        storage_locations: Sequence[StorageLocation],
+    ) -> None:
         self.paths: List[str] = list(paths)
+        self.storage_locations = storage_locations
 
     def get_storage_files(self) -> FSPathsMapping:
         return expand_indexing_paths(
             self.paths,
+            self.storage_locations,
             default_format=True,
         )
 
@@ -180,7 +186,7 @@ class PairIndexer(Indexer):
     def process_files(
         self,
     ) -> Tuple[IndexingJobMapping, FSPathsMapping]:
-        storage_locations = get_storage_locations(self.ldb_dir)
+        storage_locations = self.preprocessor.storage_locations
         local_files, cloud_files = separate_local_and_cloud_files(
             self.preprocessor.data_object_paths,
         )

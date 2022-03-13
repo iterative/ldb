@@ -322,6 +322,7 @@ def get_data_object_storage_files(
 ) -> Iterator[Tuple[AbstractFileSystem, str]]:
     for fs, fs_paths in expand_indexing_paths(
         paths,
+        [],
         default_format=False,
     ).items():
         for path in fs_paths:

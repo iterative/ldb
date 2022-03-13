@@ -17,6 +17,7 @@ def add_storage_command(options: Namespace) -> None:
     storage_location = create_storage_location(
         path=options.path,
         read_and_add=options.read_add,
+        options=dict(options.fs_options),
     )
     add_storage(
         ldb_dir / Filename.STORAGE,
@@ -47,6 +48,16 @@ def add_parser(
         action="store_true",
         default=False,
         help="Replace a subdirectory with one of its parents",
+    )
+    parser.add_argument(
+        "-o",
+        "--option",
+        metavar=("<key>", "<value>"),
+        default=[],
+        action="append",
+        dest="fs_options",
+        nargs=2,
+        help="Additional filesystem option. May be used multiple times",
     )
     parser.add_argument(  # type: ignore[attr-defined]
         "path",

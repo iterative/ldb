@@ -7,6 +7,7 @@ from datetime import date, datetime
 from pathlib import Path
 from typing import (
     Any,
+    Collection,
     Dict,
     Iterable,
     List,
@@ -71,12 +72,14 @@ INDEXED_EPHEMERAL_CONFIG = IndexingConfig(save_data_object_path_info=False)
 
 def expand_indexing_paths(
     paths: Iterable[str],
+    storage_locations: Collection[StorageLocation],
     default_format: bool = False,
 ) -> Dict[AbstractFileSystem, List[str]]:
     path_collections: Dict[AbstractFileSystem, Tuple[List[str], Set[str]]] = {}
     for indexing_path in paths:
         fs, paths_found = expand_single_indexing_path(
             indexing_path,
+            storage_locations,
             default_format=default_format,
         )
         try:
@@ -93,6 +96,7 @@ def expand_indexing_paths(
 
 def expand_single_indexing_path(
     path: str,
+    storage_locations: Collection[StorageLocation],
     default_format: bool = False,
 ) -> Tuple[AbstractFileSystem, List[str]]:
     """
@@ -108,7 +112,22 @@ def expand_single_indexing_path(
     The current implementation may result in some directory paths and some
     duplicate paths being included.
     """
-    fs = fsspec.filesystem(get_protocol(path))
+    # TODO: make sure path is in a storage location if necessary
+    protocol = get_protocol(path)
+    fs = fsspec.filesystem(protocol)
+    path = fs._strip_protocol(path)  # pylint: disable=protected-access
+    storage_location = None
+    for loc in storage_locations:
+        if loc.protocol == protocol and fsp.isin(path, loc.path):
+            storage_location = loc
+            break
+
+    if storage_location is not None:
+        fs_options = storage_location.options
+    else:
+        fs_options = {}
+
+    fs = fsspec.filesystem(protocol, **fs_options)
     if fs.protocol == "file":
         path = os.path.abspath(path)
     if is_hidden_fsspec_path(path):
