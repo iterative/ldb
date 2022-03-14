@@ -247,7 +247,7 @@ class PairIndexer(Indexer):
 
             for fs, fs_paths in self.old_to_new_annot_files.items():
                 for _, new in fs_paths.items():
-                    annotation_paths[new.fs].append(new.path)
+                    annotation_paths.setdefault(new.fs, []).append(new.path)
             for fs, fs_paths in self.old_to_new_files.items():
                 for _, new in fs_paths.items():
                     files.setdefault(new.fs, []).append(new.path)
