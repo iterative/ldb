@@ -45,10 +45,10 @@ def cp_file_across_fs(
     dest_kwargs: Optional[Dict[str, Any]] = None,
 ) -> None:
     """
-    Transfer single file between two filesystems.
+    Transfer single file between any two filesystems.
 
-    These could both be remote, and the implementation combines parts
-    of:   fsspec.spec.AbstractFileSystem.put_file
+    This implementation combines code from:
+    fsspec.spec.AbstractFileSystem.put_file
     fsspec.spec.AbstractFileSystem.get_file
     """
     if source_fs.isdir(source_path):
