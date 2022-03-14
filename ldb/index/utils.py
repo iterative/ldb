@@ -21,14 +21,13 @@ from typing import (
 )
 
 import fsspec
-from fsspec.implementations.local import make_path_posix
 from fsspec.spec import AbstractFileSystem
 from fsspec.utils import get_protocol
 
 from ldb.data_formats import Format
 from ldb.exceptions import IndexingException, NotAStorageLocationError
 from ldb.fs import posix_path as fsp
-from ldb.fs.utils import has_protocol
+from ldb.fs.utils import cp_file_any_fs, has_protocol
 from ldb.func_utils import apply_optional
 from ldb.storage import StorageLocation, get_filesystem
 from ldb.typing import JSONDecoded
@@ -235,14 +234,18 @@ def copy_to_read_add_storage(
     Dict[AbstractFileSystem, Dict[str, FileSystemPath]],
     Dict[AbstractFileSystem, Dict[str, FileSystemPath]],
 ]:
-
-    dest_fs = fsspec.filesystem(read_add_location.protocol)
-    assert (
-        dest_fs.protocol == "file"
-    )  # until get_file below is replaced with transfer
+    dest_fs = fsspec.filesystem(
+        read_add_location.protocol,
+        **read_add_location.options,
+    )
+    read_add_path = (
+        dest_fs._strip_protocol(  # pylint: disable=protected-access
+            read_add_location.path,
+        )
+    )
     base_dir = dest_fs.sep.join(
         [
-            *make_path_posix(read_add_location.path).split("/"),
+            *read_add_path.split("/"),
             "ldb-autoimport",
             date.today().isoformat(),
             unique_id(),
@@ -278,13 +281,13 @@ def copy_to_read_add_storage(
                     exist_ok=True,
                 )
                 if annotation_dest is not None:
-                    # TODO: make transfer so this works with remote
-                    # read-add storage
-                    source_fs.get_file(
+                    cp_file_any_fs(
+                        source_fs,
                         annotation_path,
+                        dest_fs,
                         annotation_dest,
                     )
-                source_fs.get_file(path, dest)
+                cp_file_any_fs(source_fs, path, dest_fs, dest)
             except FileNotFoundError:
                 # Use hash instead of preserving path if path is too long
                 try:
@@ -302,11 +305,13 @@ def copy_to_read_add_storage(
                 )
                 if annotation_dest is not None:
                     annotation_dest = data_object_path_to_annotation_path(dest)
-                    source_fs.get_file(
+                    cp_file_any_fs(
+                        source_fs,
                         annotation_path,
+                        dest_fs,
                         annotation_dest,
                     )
-                source_fs.get_file(path, dest, protocol=dest_fs.protocol)
+                cp_file_any_fs(source_fs, path, dest_fs, dest)
             fs_old_to_new_paths[path] = FileSystemPath(dest_fs, dest)
             if annotation_dest is not None:
                 fs_old_to_new_annot_paths[annotation_path] = FileSystemPath(
