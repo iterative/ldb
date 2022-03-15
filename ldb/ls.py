@@ -61,9 +61,10 @@ def ls_collection(
     collection: Iterable[Tuple[str, Optional[str]]],
 ) -> List[DatasetListing]:
     result = []
+    data_object_info_path = ldb_dir / InstanceDir.DATA_OBJECT_INFO
     for data_object_hash, annotation_hash in collection:
         data_object_dir = get_hash_path(
-            ldb_dir / InstanceDir.DATA_OBJECT_INFO,
+            data_object_info_path,
             data_object_hash,
         )
         annotation_version = 0
