@@ -7,6 +7,8 @@ from ldb.dataset import Dataset, DatasetVersion
 from ldb.exceptions import LDBException
 from ldb.path import InstanceDir, WorkspacePath
 from ldb.utils import (
+    DATASET_PREFIX,
+    ROOT,
     current_time,
     format_dataset_identifier,
     get_hash_path,
@@ -28,6 +30,11 @@ def stage(
     workspace_path: Path,
     force: bool = False,
 ) -> None:
+    ds_name, ds_version_num = parse_dataset_identifier(dataset_identifier)
+    if ds_name == ROOT:
+        raise ValueError(
+            f"Cannot stage dataset named {DATASET_PREFIX}{ds_name}",
+        )
     workspace_path = Path(os.path.normpath(workspace_path))
     if workspace_path.is_dir():
         if not force:
@@ -51,7 +58,6 @@ def stage(
                         "overwrite them.",
                     )
         ensure_empty_workspace(workspace_path, force)
-    ds_name, ds_version_num = parse_dataset_identifier(dataset_identifier)
     workspace_ds_obj = WorkspaceDataset(
         dataset_name=ds_name,
         staged_time=current_time(),

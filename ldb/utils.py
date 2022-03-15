@@ -21,7 +21,6 @@ from typing import (
 
 from fsspec.spec import AbstractFileSystem
 
-from ldb.exceptions import LDBException
 from ldb.fs.utils import first_protocol
 
 if TYPE_CHECKING:
@@ -163,7 +162,7 @@ def parse_dataset_identifier(
         dataset_identifier,
     )
     if match is None:
-        raise LDBException(
+        raise ValueError(
             'dataset identifier must be in the form "ds:name" or '
             '"ds:name.vN"\n'
             'where "name" can contain characters in the group '
