@@ -114,8 +114,8 @@ def expand_single_indexing_path(
     """
     # TODO: make sure path is in a storage location if necessary
     protocol = get_protocol(path)
-    fs = fsspec.filesystem(protocol)
-    path = fs._strip_protocol(path)  # pylint: disable=protected-access
+    fs_cls = fsspec.get_filesystem_class(protocol)
+    path = fs_cls._strip_protocol(path)  # pylint: disable=protected-access
     fs = get_filesystem(path, protocol, storage_locations)
     if protocol == "file":
         path = os.path.abspath(path)
