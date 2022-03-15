@@ -128,6 +128,7 @@ def full_diff(
     ldb_dir: Path,
     simple_diff_items: Iterable[SimpleDiffItem],
 ) -> Iterator[DiffItem]:
+    data_object_info_path = ldb_dir / InstanceDir.DATA_OBJECT_INFO
     for item in simple_diff_items:
         annotation_version1 = get_annotation_version(
             ldb_dir,
@@ -144,7 +145,7 @@ def full_diff(
             )
         data_object_meta = load_data_file(
             get_hash_path(
-                ldb_dir / InstanceDir.DATA_OBJECT_INFO,
+                data_object_info_path,
                 item.data_object_hash,
             )
             / "meta",
