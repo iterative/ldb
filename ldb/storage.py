@@ -149,10 +149,16 @@ def add_storage(
                     keep = False
             if keep:
                 new_locations.append(loc)
-        to_replace_list = []
+
+        # When replacing any existing location, inherit any true
+        # read_and_add setting
+        to_replace_list = [to_replace] if to_replace is not None else children
+        for loc in to_replace_list:
+            if loc.read_and_add:
+                storage_location.read_and_add = True
+
         if to_replace is not None:
             output = get_update_output(to_replace, storage_location)
-            to_replace_list.append(to_replace)
         elif children:
             children_str = "\n".join(
                 [f"  {repr(loc.path)}" for loc in children],
@@ -169,14 +175,8 @@ def add_storage(
                 "Removed its children:\n"
                 f"{children_str}"
             )
-            to_replace_list.extend(children)
         else:
             output = f"Added storage location {repr(storage_location.path)}"
-
-        # When replacing a child, inherit any true read_and_add setting
-        for loc in to_replace_list:
-            if loc.read_and_add:
-                storage_location.read_and_add = True
 
         new_locations.append(storage_location)
         validate_storage_locations(new_locations)
