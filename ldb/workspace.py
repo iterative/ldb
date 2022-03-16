@@ -8,7 +8,13 @@ from typing import Any, Dict, Iterator, List, Optional, Union
 from ldb.dataset import get_collection, get_collection_dir_items
 from ldb.exceptions import WorkspaceDatasetNotFoundError, WorkspaceError
 from ldb.path import WorkspacePath
-from ldb.utils import format_datetime, load_data_file, parse_datetime
+from ldb.utils import (
+    DATASET_PREFIX,
+    ROOT,
+    format_datetime,
+    load_data_file,
+    parse_datetime,
+)
 
 
 @dataclass
@@ -52,7 +58,7 @@ def workspace_dataset_is_clean(
 
 def load_workspace_dataset(workspace_path: Path) -> WorkspaceDataset:
     try:
-        return WorkspaceDataset.parse(
+        workspace_ds = WorkspaceDataset.parse(
             load_data_file(workspace_path / WorkspacePath.DATASET),
         )
     except FileNotFoundError as exc:
@@ -60,6 +66,12 @@ def load_workspace_dataset(workspace_path: Path) -> WorkspaceDataset:
             "No workspace dataset staged at "
             f"{repr(os.fspath(workspace_path))}",
         ) from exc
+    if workspace_ds.dataset_name == ROOT:
+        raise ValueError(
+            "Invalid workspace dataset name: "
+            f"{DATASET_PREFIX}{workspace_ds.dataset_name}",
+        )
+    return workspace_ds
 
 
 def collection_dir_to_object(collection_dir: Path) -> Dict[str, Optional[str]]:

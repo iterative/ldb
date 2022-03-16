@@ -66,3 +66,11 @@ def test_stage_populated_directory(tmp_path, ldb_instance):
     ds_name = "my-new-dataset"
     with pytest.raises(WorkspaceError, match="Workspace is not empty"):
         stage(ldb_instance, f"ds:{ds_name}", workspace_path)
+
+
+@pytest.mark.parametrize("ds_name", ["root", "a:b"])
+def test_stage_invalid_dataset_name(tmp_path, ldb_instance, ds_name):
+    workspace_path = tmp_path / "workspace"
+    workspace_path.mkdir()
+    with pytest.raises(ValueError):
+        stage(ldb_instance, f"ds:{ds_name}", workspace_path)
