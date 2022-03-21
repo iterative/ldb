@@ -38,7 +38,7 @@ def test_add_root_dataset(
         (False, 23, 23),
     ],
 )
-def test_add_storage_location(index_first, objects, annots, workspace_path):
+def test_add_path(index_first, objects, annots, workspace_path):
     dir_to_add = os.fspath(DATA_DIR / "fashion-mnist/original")
     if index_first:
         ret = main(["index", "-m", "bare", dir_to_add])

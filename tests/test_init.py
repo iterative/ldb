@@ -1,6 +1,10 @@
 import os
 
+from tomlkit import document
+from tomlkit.toml_document import TOMLDocument
+
 from ldb import config
+from ldb.config import ConfigType
 from ldb.core import is_ldb_instance
 from ldb.main import main
 from ldb.path import Filename
@@ -9,13 +13,16 @@ from ldb.path import Filename
 def test_init_command_new_location(tmp_path, global_base):
     instance_dir = tmp_path / "some" / "location"
     ret = main(["init", os.fspath(instance_dir)])
-    cfg = config.load_from_path(
+    global_cfg = config.load_from_path(
         config.get_global_base() / Filename.CONFIG,
     )
-    ldb_dir = cfg["core"]["ldb_dir"]  # type: ignore[index]
+    ldb_dir = global_cfg["core"]["ldb_dir"]  # type: ignore[index]
+    cfg: TOMLDocument = config.load_first([ConfigType.INSTANCE]) or document()
     assert ret == 0
     assert is_ldb_instance(instance_dir)
     assert ldb_dir == os.fspath(instance_dir)
+    assert not cfg["core"]["read_any_cloud_location"]  # type: ignore[index]
+    assert not cfg["core"]["auto_index"]  # type: ignore[index]
 
 
 def test_init_command_rel_path(tmp_path, global_base):
