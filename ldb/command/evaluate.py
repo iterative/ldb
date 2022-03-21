@@ -17,7 +17,7 @@ def evaluate_command(options: Namespace) -> None:
         if not options.json_only:
             print(f"0x{data_object_hash}")
         for item in results:
-            print(json.dumps(item, indent=2))
+            print(json.dumps(item, indent=options.indent))
         if not options.json_only:
             print()
 
@@ -37,6 +37,12 @@ def add_parser(
         action="store_true",
         default=False,
         help="Show JSON output only instead of showing object hashes",
+    )
+    parser.add_argument(
+        "--indent",
+        default=None,
+        type=int,
+        help="Indentation for JSON output",
     )
     add_data_obj_params(parser, dest="query_args")
     parser.set_defaults(func=evaluate_command)

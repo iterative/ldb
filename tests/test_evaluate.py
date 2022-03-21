@@ -40,6 +40,36 @@ def test_cli_eval_counts_root_dataset(
     assert found_annots == annots
 
 
+def test_cli_eval_json_indent(
+    fashion_mnist_session,
+    capsys,
+):
+    main(
+        [
+            "eval",
+            f"{DATASET_PREFIX}{ROOT}",
+            "--query '[label, inference.label]'",
+            "--json",
+        ],
+    )
+    out_lines = capsys.readouterr().out
+    assert '{"inference": {"label": 1}, "label": 7}' in out_lines
+    main(
+        [
+            "eval",
+            f"{DATASET_PREFIX}{ROOT}",
+            "--query '[label, inference.label]'",
+            "--json",
+            "--indent=2",
+        ],
+    )
+    out_lines = capsys.readouterr().out
+    assert (
+        '{\n  "inference": {\n    "label": 1\n  },\n  "label": 7\n}'
+        in out_lines
+    )
+
+
 @pytest.mark.parametrize(
     "args",
     [
