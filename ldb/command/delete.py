@@ -19,7 +19,6 @@ def delete_command(options: Namespace) -> None:
                 "Must provide either a query or at least one path",
             )
     ldb_dir = get_ldb_instance()
-    ldb_dir = get_ldb_instance()
     if not query_args:
         data_object_hashes: Iterable[str] = process_args_for_delete(
             ldb_dir,
