@@ -3,8 +3,10 @@ import shutil
 
 import pytest
 
+from ldb import config
 from ldb.core import add_default_read_add_storage
 from ldb.main import main
+from ldb.path import Filename
 from ldb.utils import DATASET_PREFIX, ROOT
 
 from .data import QUERY_DATA
@@ -47,6 +49,19 @@ def test_add_path(index_first, objects, annots, workspace_path):
     assert ret == 0
     assert len(object_file_paths) == objects
     assert num_empty_files(object_file_paths) == annots
+
+
+def test_add_path_without_auto_index(
+    ldb_instance,
+    workspace_path,
+):
+    dir_to_add = os.fspath(DATA_DIR / "fashion-mnist/original")
+    with config.edit(ldb_instance / Filename.CONFIG) as cfg:
+        if "core" not in cfg:
+            cfg["core"] = {}
+        cfg["core"]["auto_index"] = False  # type: ignore[index]
+    ret = main(["add", dir_to_add])
+    assert ret == 1
 
 
 def test_add_data_objects(workspace_path, index_original):
