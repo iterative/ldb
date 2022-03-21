@@ -17,6 +17,8 @@ from typing import (
 from fsspec.core import get_fs_token_paths
 from fsspec.spec import AbstractFileSystem
 from fsspec.utils import get_protocol
+from tomlkit import document
+from tomlkit.toml_document import TOMLDocument
 
 from ldb import config
 from ldb.config import ConfigType
@@ -177,17 +179,22 @@ def path_for_add(ldb_dir: Path, paths: Sequence[str]) -> AddInput:
             ldb_dir,
             data_object_hash_iter,
         )
-    except DataObjectNotFoundError:
+    except DataObjectNotFoundError as exc:
+        cfg: TOMLDocument = (
+            config.load_first([ConfigType.INSTANCE]) or document()
+        )
+        auto_index: bool = cfg.get("core", {}).get("auto_index", False)
+        if not auto_index:
+            raise DataObjectNotFoundError(
+                f"{exc!s}\n"
+                f"Will not index new data: auto_index = {auto_index}",
+            ) from exc
+
         indexing_result = index(
             ldb_dir,
             paths,
             read_any_cloud_location=(
-                (
-                    config.load_first([ConfigType.INSTANCE])  # type: ignore[union-attr,call-overload] # noqa: E501
-                    or {}
-                )
-                .get("core", {})
-                .get("read_any_cloud_location", False)
+                cfg.get("core", {}).get("read_any_cloud_location", False)
             ),
         )
         data_object_hashes = indexing_result.data_object_hashes

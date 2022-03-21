@@ -100,7 +100,7 @@ def global_base(monkeypatch: MonkeyPatch, tmp_path: Path) -> Path:
 
 def make_ldb_instance(path: Path) -> Path:
     instance_dir = path / "ldb_instance"
-    init(instance_dir)
+    init(instance_dir, auto_index=True)
     set_default_instance(instance_dir, overwrite_existing=True)
     storage_location = create_storage_location(path=os.fspath(DATA_DIR))
     add_storage(instance_dir / Filename.STORAGE, storage_location)

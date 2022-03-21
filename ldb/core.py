@@ -15,6 +15,7 @@ def init(
     path: Path,
     force: bool = False,
     read_any_cloud_location: bool = False,
+    auto_index: bool = False,
 ) -> Path:
     """
     Create a new LDB instance.
@@ -43,7 +44,10 @@ def init(
     for subdir in INSTANCE_DIRS:
         (path / subdir).mkdir(parents=True)
     with config.edit(path / Filename.CONFIG) as cfg:
-        cfg["core"] = {"read_any_cloud_location": read_any_cloud_location}
+        cfg["core"] = {
+            "read_any_cloud_location": read_any_cloud_location,
+            "auto_index": auto_index,
+        }
     print(f"Initialized LDB instance at {repr(os.fspath(path))}")
     return path
 
@@ -53,6 +57,7 @@ def init_quickstart(force: bool = False) -> Path:
         get_default_instance_dir(),
         force=force,
         read_any_cloud_location=True,
+        auto_index=True,
     )
     add_default_read_add_storage(ldb_dir)
     return ldb_dir

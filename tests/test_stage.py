@@ -2,7 +2,11 @@ import os
 from pathlib import Path
 
 import pytest
+from tomlkit import document
+from tomlkit.toml_document import TOMLDocument
 
+from ldb import config
+from ldb.config import ConfigType
 from ldb.exceptions import WorkspaceError
 from ldb.main import main
 from ldb.path import WorkspacePath
@@ -35,9 +39,12 @@ def test_stage_cli_new_dataset(tmp_path, global_base):
         parent="",
         tags=[],
     )
+    cfg: TOMLDocument = config.load_first([ConfigType.INSTANCE]) or document()
     assert ret == 0
     assert is_workspace(workspace_path)
     assert workspace_ds == expected_workspace_ds
+    assert cfg["core"]["read_any_cloud_location"]  # type: ignore[index]
+    assert cfg["core"]["auto_index"]  # type: ignore[index]
 
 
 def test_stage_cli_populated_directory(tmp_path, global_base):
