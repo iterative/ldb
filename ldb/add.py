@@ -27,6 +27,7 @@ from ldb.dataset import (
     get_collection_dir_items,
     get_collection_dir_keys,
     get_collection_from_dataset_identifier,
+    iter_collection_dir,
 )
 from ldb.exceptions import DataObjectNotFoundError, LDBException
 from ldb.index import index
@@ -232,7 +233,6 @@ def add(
     collection_dir_path = workspace_path / WorkspacePath.COLLECTION
     collection_dir_path.mkdir(exist_ok=True)
 
-    num_data_objects = 0
     to_write = []
     for data_object_hash, annotation_hash in collection:
         to_write.append(
@@ -241,12 +241,22 @@ def add(
                 annotation_hash,
             ),
         )
-        num_data_objects += 1
 
+    num_data_objects = 0
     for collection_member_path, annotation_hash in to_write:
-        collection_member_path.parent.mkdir(exist_ok=True)
-        with collection_member_path.open("w") as file:
-            file.write(annotation_hash)
+        if collection_member_path.exists():
+            with collection_member_path.open("r+") as file:
+                existing_annotation_hash = file.read()
+                if annotation_hash != existing_annotation_hash:
+                    file.seek(0)
+                    file.write(annotation_hash)
+                    file.truncate()
+                    num_data_objects += 1
+        else:
+            collection_member_path.parent.mkdir(exist_ok=True)
+            with collection_member_path.open("w") as file:
+                file.write(annotation_hash)
+                num_data_objects += 1
     ds_ident = format_dataset_identifier(ds_name)
     print(f"Added {num_data_objects} data objects to {ds_ident}")
 
@@ -368,6 +378,7 @@ def delete(
     if not collection_dir_path.exists():
         return
 
+    ds_ident = format_dataset_identifier(ds_name)
     num_deleted = 0
     for data_object_hash in data_object_hashes:
         collection_member_path = get_hash_path(
@@ -375,6 +386,33 @@ def delete(
             data_object_hash,
         )
         if collection_member_path.exists():
+            collection_member_path.unlink()
+            try:
+                collection_member_path.parent.rmdir()
+            except OSError:
+                pass
+            num_deleted += 1
+    print(f"Deleted {num_deleted} data objects from {ds_ident}")
+
+
+def delete_missing(
+    workspace_path: Path,
+    data_object_hashes: Iterable[str],
+) -> None:
+    workspace_path = Path(os.path.normpath(workspace_path))
+    ds_name = load_workspace_dataset(workspace_path).dataset_name
+    collection_dir_path = workspace_path / WorkspacePath.COLLECTION
+    if not collection_dir_path.exists():
+        return
+
+    ds_ident = format_dataset_identifier(ds_name)
+    data_object_hash_set = set(data_object_hashes)
+    num_deleted = 0
+    for path in iter_collection_dir(collection_dir_path):
+        parent, name = os.path.split(path)
+        data_object_hash = os.path.basename(parent) + name
+        if data_object_hash not in data_object_hash_set:
+            collection_member_path = Path(path)  # TODO: don't use Path obj
             collection_member_path.unlink()
             try:
                 collection_member_path.parent.rmdir()
