@@ -17,6 +17,7 @@ from ldb.command import (
     ls,
     stage,
     status,
+    sync,
 )
 
 
@@ -65,4 +66,5 @@ def get_main_parser() -> ArgumentParser:
     ls.add_parser(subparsers, parents)
     stage.add_parser(subparsers, parents)
     status.add_parser(subparsers, parents)
+    sync.add_parser(subparsers, parents)
     return main_parser
