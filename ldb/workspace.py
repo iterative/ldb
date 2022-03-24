@@ -89,20 +89,30 @@ def iter_workspace_dir(
             yield entry
 
 
-def ensure_empty_workspace(
-    workspace_path: Union[str, Path],
+def ensure_path_is_empty_workspace(
+    path: Union[str, Path],
     force: bool = False,
 ) -> None:
-    if any(iter_workspace_dir(workspace_path)):
+    if any(iter_workspace_dir(path)):
+        try:
+            load_workspace_dataset(Path(path))
+        except WorkspaceDatasetNotFoundError as exc:
+            raise WorkspaceDatasetNotFoundError(
+                f"Not a workspace or an empty directory: {os.fspath(path)}",
+            ) from exc
         if force:
-            for entry in iter_workspace_dir(workspace_path):
-                if entry.is_dir():
-                    shutil.rmtree(entry)
-                else:
-                    os.remove(entry)
+            remove_workspace_contents(path)
         else:
             raise WorkspaceError(
                 "Workspace is not empty: "
-                f"{os.fspath(workspace_path)!r}\n"
+                f"{os.fspath(path)!r}\n"
                 "Use the --force option to delete workspace contents",
             )
+
+
+def remove_workspace_contents(workspace_path: Union[str, Path]) -> None:
+    for entry in iter_workspace_dir(workspace_path):
+        if entry.is_dir():
+            shutil.rmtree(entry)
+        else:
+            os.remove(entry)

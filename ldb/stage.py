@@ -19,7 +19,7 @@ from ldb.utils import (
 )
 from ldb.workspace import (
     WorkspaceDataset,
-    ensure_empty_workspace,
+    ensure_path_is_empty_workspace,
     workspace_dataset_is_clean,
 )
 
@@ -57,7 +57,7 @@ def stage(
                         "Commit changes or use the --force option to "
                         "overwrite them.",
                     )
-        ensure_empty_workspace(workspace_path, force)
+        ensure_path_is_empty_workspace(workspace_path, force)
     workspace_ds_obj = WorkspaceDataset(
         dataset_name=ds_name,
         staged_time=current_time(),
