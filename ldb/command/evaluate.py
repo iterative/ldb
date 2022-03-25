@@ -1,7 +1,8 @@
 import argparse
 import json
+import re
 from argparse import Namespace
-from typing import Iterable
+from typing import Iterable, Union
 
 from ldb.cli_utils import add_data_obj_params
 from ldb.core import get_ldb_instance
@@ -9,6 +10,7 @@ from ldb.evaluate import evaluate
 
 
 def evaluate_command(options: Namespace) -> None:
+    indent = get_indent_value(options.indent)
     for data_object_hash, *results in evaluate(
         get_ldb_instance(),
         options.paths,
@@ -17,9 +19,19 @@ def evaluate_command(options: Namespace) -> None:
         if not options.json_only:
             print(f"0x{data_object_hash}")
         for item in results:
-            print(json.dumps(item, indent=options.indent))
+            print(json.dumps(item, indent=indent))
         if not options.json_only:
             print()
+
+
+def get_indent_value(indent: str) -> Union[str, int, None]:
+    if indent == "none":
+        return None
+    if re.search(r"^\s*$", indent):
+        return indent
+    if re.search(r"^\d+$", indent):
+        return int(indent)
+    raise ValueError(f"Invalid indent string: {indent!r}")
 
 
 def add_parser(
@@ -40,8 +52,8 @@ def add_parser(
     )
     parser.add_argument(
         "--indent",
-        default=None,
-        type=int,
+        default="2",
+        type=str,
         help="Indentation for JSON output",
     )
     add_data_obj_params(parser, dest="query_args")
