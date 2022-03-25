@@ -150,3 +150,13 @@ def test_diff_workspace_and_other_dataset(
 ):
     diff_items = list(diff(ldb_instance, workspace_path, "ds:a"))
     assert diff_items == workspace_diff_setup
+
+
+def test_cli_diff_summary(
+    workspace_diff_setup,
+    capsys,
+):
+    main(["commit"])
+    capsys.readouterr()
+    main(["diff", "ds:a", "ds:b", "-s"])
+    assert len(capsys.readouterr().out.splitlines()) == 4
