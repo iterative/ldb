@@ -29,7 +29,10 @@ from ldb.utils import (
     load_data_file,
     write_data_file,
 )
-from ldb.workspace import collection_dir_to_object, ensure_empty_workspace
+from ldb.workspace import (
+    collection_dir_to_object,
+    ensure_path_is_empty_workspace,
+)
 
 
 class InstantiateResult(NamedTuple):
@@ -51,7 +54,7 @@ def instantiate(
     )
 
     # fail fast if workspace is not empty
-    ensure_empty_workspace(workspace_path, force)
+    ensure_path_is_empty_workspace(workspace_path, force)
 
     tmp_dir_base = workspace_path / WorkspacePath.TMP
     tmp_dir_base.mkdir(exist_ok=True)
@@ -66,7 +69,7 @@ def instantiate(
 
     # check again to make sure nothing was added while writing to the
     # temporary location
-    ensure_empty_workspace(workspace_path, force)
+    ensure_path_is_empty_workspace(workspace_path, force)
     for path in tmp_dir.iterdir():
         shutil.move(os.fspath(path), os.fspath(workspace_path))
 
