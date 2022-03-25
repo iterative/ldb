@@ -32,7 +32,8 @@ def diff_command(options: Namespace) -> None:
                 print(row)
     summary_items = summarize_diff(items)
     if any(summary_items):
-        print()
+        if not options.summary:
+            print()
         print(format_summary(*summary_items))
 
 

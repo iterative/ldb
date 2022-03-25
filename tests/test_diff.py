@@ -159,4 +159,4 @@ def test_cli_diff_summary(
     main(["commit"])
     capsys.readouterr()
     main(["diff", "ds:a", "ds:b", "-s"])
-    assert len(capsys.readouterr().out.splitlines()) == 4
+    assert len(capsys.readouterr().out.splitlines()) == 3
