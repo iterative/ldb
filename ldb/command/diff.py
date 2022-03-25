@@ -25,10 +25,11 @@ def diff_command(options: Namespace) -> None:
             options.dataset2,
         ),
     )
-    for diff_item in full_diff(ldb_dir, items):
-        row = format_diff_item(diff_item, options.verbose)
-        if row:
-            print(row)
+    if not options.summary:
+        for diff_item in full_diff(ldb_dir, items):
+            row = format_diff_item(diff_item, options.verbose)
+            if row:
+                print(row)
     summary_items = summarize_diff(items)
     if any(summary_items):
         print()
@@ -87,5 +88,12 @@ def add_parser(
         nargs="?",
         default="",
         help="Dataset to show changes for",
+    )
+    parser.add_argument(
+        "-s",
+        "--summary",
+        action="store_true",
+        default=False,
+        help="Show only the number of additions, deletions and modifications.",
     )
     parser.set_defaults(func=diff_command)
