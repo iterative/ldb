@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-from typing import List, Tuple
+from typing import List, Tuple, Union
 
 from ldb.main import main
 from ldb.utils import DATASET_PREFIX, ROOT
@@ -9,7 +9,7 @@ from ldb.workspace import iter_workspace_dir
 from .utils import DATA_DIR
 
 
-def get_workspace_counts(workspace_path: Path) -> Tuple[int, int]:
+def get_workspace_counts(workspace_path: Union[str, Path]) -> Tuple[int, int]:
     all_files: List[str] = []
     for entry in iter_workspace_dir(workspace_path):
         if entry.is_file():
@@ -25,6 +25,24 @@ def get_workspace_counts(workspace_path: Path) -> Tuple[int, int]:
 def test_instantiate_bare(staged_ds_fashion, workspace_path):
     main(["instantiate"])
     assert get_workspace_counts(workspace_path) == (32, 23)
+
+
+def test_instantiate_bare_path(tmp_path, staged_ds_fashion, workspace_path):
+    dest = os.fspath(tmp_path / "data")
+    ret = main(["instantiate", dest])
+    assert ret == 0
+    assert get_workspace_counts(dest) == (32, 23)
+
+
+def test_instantiate_bare_path_without_parents(
+    tmp_path,
+    staged_ds_fashion,
+    workspace_path,
+):
+    dest = os.fspath(tmp_path / "data/data")
+    ret = main(["instantiate", dest])
+    assert ret == 1
+    assert not os.path.exists(dest)
 
 
 def test_instantiate_strict(staged_ds_fashion, workspace_path):
