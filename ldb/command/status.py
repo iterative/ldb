@@ -61,6 +61,7 @@ def add_parser(
     )
     parser.add_argument(
         "dataset",
+        metavar="<dataset>",
         nargs="?",
         default="",
         help="Dataset to show status for",

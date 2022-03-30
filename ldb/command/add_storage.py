@@ -61,6 +61,7 @@ def add_parser(
     )
     parser.add_argument(  # type: ignore[attr-defined]
         "path",
+        metavar="<path>",
         help="The path to the location",
     ).complete = shtab.DIRECTORY
     parser.set_defaults(func=add_storage_command)

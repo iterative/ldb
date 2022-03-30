@@ -22,6 +22,7 @@ def add_parser(
     )
     parser.add_argument(
         "message",
+        metavar="<message>",
         nargs="?",
         default="",
         help="A message about this commit",

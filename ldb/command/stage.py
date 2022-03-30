@@ -38,10 +38,12 @@ def add_parser(
     )
     parser.add_argument(
         "dataset",
+        metavar="<dataset>",
         help="Name of the dataset to stage",
     )
     parser.add_argument(
         "workspace_path",
+        metavar="<workspace_path>",
         nargs="?",
         type=Path,
         default=".",
