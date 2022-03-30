@@ -54,6 +54,7 @@ def add_parser(
     )
     parser.add_argument(
         "path",
+        metavar="<path>",
         nargs="?",
         type=Path,
         default=".",
