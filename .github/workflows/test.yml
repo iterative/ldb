@@ -25,6 +25,12 @@ jobs:
         with:
           path: ./venv
           key: ${{ runner.os }}-python${{ steps.setup-python.outputs.python-version }}-venv-lint-${{ hashFiles('setup.cfg') }}
+      - name: pre-commit cache
+        id: pre-commit-cache
+        uses: actions/cache@v2
+        with:
+          path: ~/.cache/pre-commit
+          key: ${{ runner.os }}-python${{ steps.setup-python.outputs.python-version }}-pre-commit-${{ hashFiles('.pre-commit-config.yaml') }}
       - name: install dependencies
         if: steps.venv-cache.outputs.cache-hit != 'true'
         run: |
