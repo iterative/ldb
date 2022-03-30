@@ -63,13 +63,9 @@ def is_annotation_meta(file_path: Path) -> bool:
 
 
 def is_annotation(dir_path: Path) -> bool:
-    return (
-        tuple(
-            load_data_file(dir_path / "ldb"),
-        )
-        == ANNOTATION_LDB_KEYS
-        and bool(load_data_file(dir_path / "user"))
-    )
+    return tuple(
+        load_data_file(dir_path / "ldb"),
+    ) == ANNOTATION_LDB_KEYS and bool(load_data_file(dir_path / "user"))
 
 
 def get_data_object_meta_file_paths(ldb_instance: Path) -> List[Path]:
