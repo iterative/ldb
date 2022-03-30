@@ -20,6 +20,7 @@ def instantiate_command(options: Namespace) -> None:
     result = instantiate(
         ldb_dir,
         workspace_path,
+        options.path,
         fmt=options.format,
         force=options.force,
     )
@@ -50,5 +51,13 @@ def add_parser(
         action="store_true",
         default=False,
         help="Remove existing workspace contents",
+    )
+    parser.add_argument(
+        "path",
+        metavar="<path>",
+        nargs="?",
+        type=Path,
+        default=".",
+        help="Directory to instantiate in. Current directory by default.",
     )
     parser.set_defaults(func=instantiate_command)

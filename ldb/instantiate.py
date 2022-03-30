@@ -45,6 +45,7 @@ class InstantiateResult(NamedTuple):
 def instantiate(
     ldb_dir: Path,
     workspace_path: Path,
+    dest: Path,
     fmt: str = Format.BARE,
     force: bool = False,
 ) -> InstantiateResult:
@@ -54,26 +55,27 @@ def instantiate(
     )
 
     # fail fast if workspace is not empty
-    ensure_path_is_empty_workspace(workspace_path, force)
+    if dest.exists():
+        ensure_path_is_empty_workspace(dest, force)
+    dest.mkdir(exist_ok=True)
 
     tmp_dir_base = workspace_path / WorkspacePath.TMP
     tmp_dir_base.mkdir(exist_ok=True)
-    tmp_dir = Path(tempfile.mkdtemp(dir=tmp_dir_base))
+    with tempfile.TemporaryDirectory(dir=tmp_dir_base) as tmp_dir:
+        result = instantiate_collection(
+            ldb_dir,
+            collection,
+            tmp_dir,
+            fmt,
+        )
 
-    result = instantiate_collection(
-        ldb_dir,
-        collection,
-        tmp_dir,
-        fmt,
-    )
+        # check again to make sure nothing was added while writing to the
+        # temporary location
+        ensure_path_is_empty_workspace(dest, force)
+        dest_str = os.fspath(dest)
+        for path in Path(tmp_dir).iterdir():
+            shutil.move(os.fspath(path), dest_str)
 
-    # check again to make sure nothing was added while writing to the
-    # temporary location
-    ensure_path_is_empty_workspace(workspace_path, force)
-    for path in tmp_dir.iterdir():
-        shutil.move(os.fspath(path), os.fspath(workspace_path))
-
-    tmp_dir.rmdir()
     return result
 
 
