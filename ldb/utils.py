@@ -28,7 +28,7 @@ if TYPE_CHECKING:
 
 DATASET_PREFIX = "ds:"
 ROOT = "root"
-CHUNK_SIZE = 2 ** 20
+CHUNK_SIZE = 2**20
 HASH_DIR_SPLIT_POINT = 3
 UNIQUE_ID_ALPHABET = string.ascii_lowercase + string.digits
 
