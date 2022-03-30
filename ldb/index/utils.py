@@ -473,7 +473,7 @@ def construct_data_object_meta(
         atime = max_datetime_info(atime, prev_meta["fs"]["atime"])
         mtime = max_datetime_info(mtime, prev_meta["fs"]["mtime"])
         ctime = max_datetime_info(ctime, prev_meta["fs"]["ctime"])
-        filetype = filetype or prev_meta["fs"]["type"]
+        filetype = filetype or prev_meta["type"]
     else:
         first_indexed = current_timestamp
         tags = []

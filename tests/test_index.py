@@ -71,6 +71,20 @@ def test_index_func_single_path(params, ldb_instance):
     assert results == expected_results
 
 
+@pytest.mark.parametrize(
+    "path,counts",
+    [
+        ("fashion-mnist/original", (23, 23, 10)),
+        ("cases/same-obj-without-ext", (1, 2, 2)),
+    ],
+)
+def test_cli_index_default(path, counts, ldb_instance, data_dir):
+    ret = main(["index", os.fspath(data_dir / path)])
+    real_counts = tuple(map(len, get_indexed_data_paths(ldb_instance)))
+    assert ret == 0
+    assert real_counts == counts
+
+
 def test_index_func_single_path_label_studio(
     label_studio_json_path,
     ldb_instance,
