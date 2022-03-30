@@ -52,9 +52,13 @@ def add_parser(
     )
     parser.add_argument(
         "--indent",
+        metavar="<value>",
         default="2",
         type=str,
-        help="Indentation for JSON output",
+        help=(
+            "Indentation for JSON output as a whitespace string or an "
+            "integer specifying the number of spaces"
+        ),
     )
     add_data_obj_params(parser, dest="query_args")
     parser.set_defaults(func=evaluate_command)

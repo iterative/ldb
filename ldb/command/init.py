@@ -32,6 +32,7 @@ def add_parser(
     )
     parser.add_argument(  # type: ignore[attr-defined]
         "path",
+        metavar="<path>",
         type=Path,
         help="Directory in which to initialize new instance",
     ).complete = shtab.DIRECTORY

@@ -46,17 +46,17 @@ def add_base_data_object_options(parser: ArgumentParser, dest: str) -> None:
         default=[],
         dest=dest,
         action=AppendConstValuesAction,
-        help="JMESPath query applied to file attributes",
+        help="JMESPath query applied to data object file attributes",
     )
     parser.add_argument(
         "--limit",
-        metavar="<num>",
+        metavar="<n>",
         const=OpType.LIMIT,
         default=[],
         dest=dest,
         action=AppendConstValuesAction,
         type=int,
-        help="Take the first num items",
+        help="Take the first n items",
     )
     parser.add_argument(
         "--sample",
@@ -66,7 +66,10 @@ def add_base_data_object_options(parser: ArgumentParser, dest: str) -> None:
         dest=dest,
         action=AppendConstValuesAction,
         type=float,
-        help="Each item will have the given probability of being selected",
+        help=(
+            "Each item will have the given probability of being selected. "
+            "Must be a float between 0.0 and 1.0 inclusive"
+        ),
     )
     parser.add_argument(
         "--pipe",
