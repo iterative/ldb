@@ -22,6 +22,7 @@ from ldb.dataset import get_annotation
 from ldb.exceptions import LDBException
 from ldb.fs.utils import FSProtocol, first_protocol
 from ldb.path import InstanceDir, WorkspacePath
+from ldb.progress import get_progressbar
 from ldb.storage import StorageLocation, get_filesystem, get_storage_locations
 from ldb.typing import JSONDecoded, JSONObject
 from ldb.utils import (
@@ -153,13 +154,16 @@ class InstItem:
     def data_object_dest(self) -> str:
         return self.base_dest + self.ext.lower()
 
-    def copy_data_object(self) -> str:
+    def copy_data_object(
+        self,
+    ) -> str:
         fs_protocol: FSProtocol = self.data_object_meta["fs"]["protocol"]
         protocol: str = first_protocol(fs_protocol)
         path: str = self.data_object_meta["fs"]["path"]
         fs = get_filesystem(path, protocol, self.storage_locations)
         os.makedirs(os.path.split(self.data_object_dest)[0], exist_ok=True)
         dest = self.data_object_dest
+
         fs.get_file(path, dest)
         return dest
 
@@ -305,11 +309,15 @@ def copy_pairs(
         items.append(item)
 
     with ThreadPoolExecutor(max_workers=4 * (os.cpu_count() or 1)) as pool:
+        with get_progressbar(transient=True) as progress:
+            task = progress.add_task("Instantiate", total=len(items))
 
-        def worker(item: PairInstItem) -> str:
-            return item.copy_data_object()
+            def worker(item: PairInstItem) -> str:
+                result = item.copy_data_object()
+                progress.update(task, advance=1)
+                return result
 
-        data_obj_paths = list(pool.map(worker, items))
+            data_obj_paths = list(pool.map(worker, items))
 
     return InstantiateResult(
         data_obj_paths,
