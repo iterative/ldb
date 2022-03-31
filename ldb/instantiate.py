@@ -1,6 +1,7 @@
 import os
 import shutil
 import tempfile
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
 from typing import (
@@ -279,8 +280,8 @@ def copy_pairs(
     dest_dir: Union[str, Path],
     strict: bool = False,
 ) -> InstantiateResult:
-    items = []
-    data_obj_paths = []
+    items: List[PairInstItem] = []
+    data_obj_paths: List[str] = []
     annot_paths = []
     num_annotations = 0
     # annotations are small and stored in ldb; copy them first
@@ -302,8 +303,14 @@ def copy_pairs(
         else:
             annot_paths.append("")
         items.append(item)
-    for item in items:
-        data_obj_paths.append(item.copy_data_object())
+
+    with ThreadPoolExecutor(max_workers=4 * (os.cpu_count() or 1)) as pool:
+
+        def worker(item: PairInstItem) -> str:
+            return item.copy_data_object()
+
+        data_obj_paths = list(pool.map(worker, items))
+
     return InstantiateResult(
         data_obj_paths,
         annot_paths,
