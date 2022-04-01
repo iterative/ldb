@@ -153,7 +153,7 @@ def expand_single_indexing_path(
 
 
 def is_hidden_fsspec_path(path: str) -> bool:
-    return re.search(r"^\.|/\.", path) is not None
+    return re.search(r"(?:/|^)\.(?!/|$)", path) is not None
 
 
 def group_indexing_paths_by_type(
@@ -188,11 +188,12 @@ def expand_dir_paths(
 
     path_sets: Dict[AbstractFileSystem, Set[str]] = {}
     for path in paths:
-        fs = fsspec.filesystem(get_protocol(path))
-        fs_paths = path_sets.setdefault(fs, set())
-        for p in fs.expand_path(paths):
-            if fs.isdir(p):
-                fs_paths.add(p)
+        if not is_hidden_fsspec_path(path):
+            fs = fsspec.filesystem(get_protocol(path))
+            fs_paths = path_sets.setdefault(fs, set())
+            for p in fs.expand_path(paths):
+                if not is_hidden_fsspec_path(p) and fs.isdir(p):
+                    fs_paths.add(p)
     path_lists: Dict[AbstractFileSystem, List[str]] = {}
     for fs, fs_path_set in path_sets.items():
         paths = sorted(fs_path_set)

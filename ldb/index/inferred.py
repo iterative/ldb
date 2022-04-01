@@ -20,6 +20,7 @@ from ldb.index.utils import (
     IndexingJobMapping,
     construct_annotation_meta,
     expand_dir_paths,
+    is_hidden_fsspec_path,
 )
 from ldb.typing import JSONDecoded, JSONObject
 from ldb.utils import current_time, load_data_file
@@ -35,7 +36,11 @@ class InferredPreprocessor(Preprocessor):
         for fs, dir_paths in dir_path_lists.items():
             fs_seq: Dict[str, List[str]] = file_seqs.setdefault(fs, {})
             for p in dir_paths:
-                file_paths: List[str] = fs.find(p.rstrip("/"))
+                file_paths: List[str] = [
+                    p
+                    for p in fs.find(p.rstrip("/"))
+                    if not is_hidden_fsspec_path(p)
+                ]
                 if file_paths:
                     fs_seq[p] = file_paths
         return file_seqs
