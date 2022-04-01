@@ -16,6 +16,7 @@ INSTANTIATE_FORMATS = {
     Format.INFER: Format.INFER,
     "annot": Format.ANNOT,
     Format.ANNOT: Format.ANNOT,
+    Format.LABEL_STUDIO: Format.LABEL_STUDIO,
 }
 INDEX_FORMATS = {
     "auto": Format.AUTO,
