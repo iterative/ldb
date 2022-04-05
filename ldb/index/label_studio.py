@@ -1,6 +1,8 @@
+import json
 from pathlib import Path
-from typing import List, Sequence, Tuple
+from typing import List, Sequence, Set, Tuple
 
+import jmespath
 from fsspec.utils import get_protocol
 from funcy.objects import cached_property
 
@@ -18,43 +20,60 @@ from ldb.typing import JSONObject
 from ldb.utils import current_time, get_file_hash
 
 
-def set_data_object_id(annot: JSONObject, hash_str: str) -> None:
-    try:
-        annot["data_object_id"]["md5"] = hash_str
-    except KeyError:
-        annot["data_object_id"] = {"md5": hash_str}
-
-
 class LabelStudioPreprocessor(Preprocessor):
     def __init__(
         self,
         paths: Sequence[str],
         storage_locations: Sequence[StorageLocation],
-        url_key: str = "image",
+        path_key: str = "",
     ) -> None:
         super().__init__(paths, storage_locations)
-        self.url_key = url_key
+        self.path_key = path_key
 
     @cached_property
     def data_object_path_and_annotation_pairs(
         self,
     ) -> List[Tuple[FileSystemPath, JSONObject]]:
         result = []
-        for fs, paths in self.annotation_paths.items():
-            for path in paths:
-                annotations = get_annotation_content(fs, path)
+        for annot_fs, annot_paths in self.annotation_paths.items():
+            for annot_path in annot_paths:
+                annotations = get_annotation_content(annot_fs, annot_path)
                 if not isinstance(annotations, list):
                     raise IndexingException(
                         "Annotation file must contain a JSON array for "
                         "label-studio format. Incorrectly formatted file: "
-                        f"{path}",
+                        f"{annot_path}",
                     )
                 for annot in annotations:
-                    path = annot["data"][self.url_key]
+                    data = annot["data"]
+                    data_object_info = data.setdefault("data-object-info", {})
+
+                    path_key = data.get("path_key")
+                    if path_key is None:
+                        if self.path_key:
+                            path_key = self.path_key
+                        else:
+                            path_key = infer_data_object_path_key(annot)
+                            self.path_key = path_key
+                            print(f"Inferred data object path key: {path_key}")
+                        data_object_info["path_key"] = path_key
+                    try:
+                        path = jmespath.search(path_key, annot)
+                        assert isinstance(path, str)
+                    except Exception as exc:
+                        raise IndexingException(
+                            f"Invalid data object path key: {path_key}",
+                        ) from exc
+
                     protocol = get_protocol(path)
-                    fs = get_filesystem(path, protocol, self.storage_locations)
-                    set_data_object_id(annot["data"], get_file_hash(fs, path))
-                    result.append((FileSystemPath(fs, path), annot))
+                    obj_fs = get_filesystem(
+                        path,
+                        protocol,
+                        self.storage_locations,
+                    )
+                    if "md5" not in data_object_info:
+                        data_object_info["md5"] = get_file_hash(obj_fs, path)
+                    result.append((FileSystemPath(obj_fs, path), annot))
         return result
 
     @cached_property
@@ -111,3 +130,22 @@ class LabelStudioIndexer(PairIndexer):
                         next(annot_iter),
                     ).index_data()
                     self.result.append(obj_result)
+
+
+def infer_data_object_path_key(annot: JSONObject) -> str:
+    try:
+        data = annot["data"]
+    except KeyError as exc:
+        raise IndexingException(
+            "Cannot infer data object path key. "
+            'Missing top-level "data" key',
+        ) from exc
+    data_keys: Set[str] = data.keys() - {"data-object-info"}
+    if len(data_keys) != 1:
+        raise IndexingException(
+            "Cannot infer data object path key. "
+            "Found multiple possible keys under top-level "
+            f'"data" key: {data_keys}',
+        )
+    subkey = json.dumps(data_keys.pop())
+    return f'"data".{subkey}'
