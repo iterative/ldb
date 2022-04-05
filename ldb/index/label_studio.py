@@ -58,18 +58,21 @@ class LabelStudioPreprocessor(Preprocessor):
                             print(f"Inferred data object path key: {path_key}")
                         data_object_info["path_key"] = path_key
                     try:
-                        path = jmespath.search(path_key, annot)
-                        assert isinstance(path, str)
+                        orig_path = jmespath.search(path_key, annot)
+                        assert isinstance(orig_path, str)
                     except Exception as exc:
                         raise IndexingException(
                             f"Invalid data object path key: {path_key}",
                         ) from exc
 
-                    protocol = get_protocol(path)
+                    protocol = get_protocol(orig_path)
                     obj_fs = get_filesystem(
-                        path,
+                        orig_path,
                         protocol,
                         self.storage_locations,
+                    )
+                    path: str = obj_fs._strip_protocol(  # pylint: disable=protected-access # noqa: E501
+                        orig_path,
                     )
                     if "md5" not in data_object_info:
                         data_object_info["md5"] = get_file_hash(obj_fs, path)
