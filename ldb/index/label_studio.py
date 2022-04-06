@@ -37,12 +37,17 @@ class LabelStudioPreprocessor(Preprocessor):
         result = []
         for annot_fs, annot_paths in self.annotation_paths.items():
             for annot_path in annot_paths:
-                annotations = get_annotation_content(annot_fs, annot_path)
-                if not isinstance(annotations, list):
+                orig_annot = get_annotation_content(annot_fs, annot_path)
+                annotations: List[JSONObject]
+                if isinstance(orig_annot, list):
+                    annotations = orig_annot
+                elif isinstance(orig_annot, dict):
+                    annotations = [orig_annot]
+                else:
                     raise IndexingException(
-                        "Annotation file must contain a JSON array for "
-                        "label-studio format. Incorrectly formatted file: "
-                        f"{annot_path}",
+                        "Annotation file must contain a JSON array or JSON "
+                        "object for label-studio format. Incorrectly "
+                        f"formatted file: {annot_path}",
                     )
                 for annot in annotations:
                     data = annot["data"]
