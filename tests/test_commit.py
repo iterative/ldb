@@ -138,7 +138,7 @@ def test_commit_empty_workspace_dataset(
 ):
     ret = main(["commit", "create a new dataset"])
     assert ret == 0
-    assert list((ldb_instance / InstanceDir.DATASETS).iterdir()) == []
+    assert not list((ldb_instance / InstanceDir.DATASETS).iterdir())
 
 
 def test_commit_no_changes(data_dir, ldb_instance, workspace_path):
@@ -157,4 +157,4 @@ def test_commit_without_workspace_dataset(tmp_path, data_dir, ldb_instance):
     os.chdir(workspace_path)
     ret = main(["commit", "create a new dataset"])
     assert ret == 1
-    assert list((ldb_instance / InstanceDir.DATASETS).iterdir()) == []
+    assert not list((ldb_instance / InstanceDir.DATASETS).iterdir())
