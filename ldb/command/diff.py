@@ -1,5 +1,4 @@
-import argparse
-from argparse import Namespace
+from argparse import ArgumentParser, Namespace, _SubParsersAction
 from pathlib import Path
 from typing import Iterable
 
@@ -68,8 +67,8 @@ def annotation_version_str(annotation_version: int) -> str:
 
 
 def add_parser(
-    subparsers: argparse._SubParsersAction,
-    parents: Iterable[argparse.ArgumentParser],
+    subparsers: _SubParsersAction[ArgumentParser],
+    parents: Iterable[ArgumentParser],
 ) -> None:
     parser = subparsers.add_parser(
         "diff",

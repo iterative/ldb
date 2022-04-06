@@ -1,5 +1,4 @@
-import argparse
-from argparse import Namespace
+from argparse import ArgumentParser, Namespace, _SubParsersAction
 from typing import Iterable
 
 import shtab
@@ -19,7 +18,7 @@ def index_command(options: Namespace) -> None:
         options.paths,
         read_any_cloud_location=(
             (
-                config.load_first([ConfigType.INSTANCE])  # type: ignore[union-attr,call-overload] # noqa: E501
+                config.load_first([ConfigType.INSTANCE])  # type: ignore[call-overload] # noqa: E501
                 or {}
             )
             .get("core", {})
@@ -31,8 +30,8 @@ def index_command(options: Namespace) -> None:
 
 
 def add_parser(
-    subparsers: argparse._SubParsersAction,
-    parents: Iterable[argparse.ArgumentParser],
+    subparsers: _SubParsersAction[ArgumentParser],
+    parents: Iterable[ArgumentParser],
 ) -> None:
     parser = subparsers.add_parser(
         "index",

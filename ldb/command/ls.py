@@ -1,5 +1,4 @@
-import argparse
-from argparse import Namespace
+from argparse import ArgumentParser, Namespace, _SubParsersAction
 from typing import Iterable
 
 from ldb.cli_utils import add_data_obj_params
@@ -25,8 +24,8 @@ def ls_command(options: Namespace) -> None:
 
 
 def add_parser(
-    subparsers: argparse._SubParsersAction,
-    parents: Iterable[argparse.ArgumentParser],
+    subparsers: _SubParsersAction[ArgumentParser],
+    parents: Iterable[ArgumentParser],
 ) -> None:
     parser = subparsers.add_parser(
         "list",

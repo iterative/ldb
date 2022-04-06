@@ -1,7 +1,6 @@
-import argparse
 import json
 import re
-from argparse import Namespace
+from argparse import ArgumentParser, Namespace, _SubParsersAction
 from typing import Iterable, Union
 
 from ldb.cli_utils import add_data_obj_params
@@ -35,8 +34,8 @@ def get_indent_value(indent: str) -> Union[str, int, None]:
 
 
 def add_parser(
-    subparsers: argparse._SubParsersAction,
-    parents: Iterable[argparse.ArgumentParser],
+    subparsers: _SubParsersAction[ArgumentParser],
+    parents: Iterable[ArgumentParser],
 ) -> None:
     parser = subparsers.add_parser(
         "eval",
