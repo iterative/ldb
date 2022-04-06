@@ -1,6 +1,6 @@
-from argparse import ArgumentParser, Namespace, _SubParsersAction
+from argparse import ArgumentParser, Namespace
 from pathlib import Path
-from typing import Iterable
+from typing import TYPE_CHECKING, Iterable
 
 from ldb.core import get_ldb_instance
 from ldb.diff import (
@@ -12,6 +12,9 @@ from ldb.diff import (
     summarize_diff,
 )
 from ldb.string_utils import left_truncate
+
+if TYPE_CHECKING:
+    from argparse import _SubParsersAction
 
 
 def diff_command(options: Namespace) -> None:
@@ -67,7 +70,7 @@ def annotation_version_str(annotation_version: int) -> str:
 
 
 def add_parser(
-    subparsers: _SubParsersAction[ArgumentParser],
+    subparsers: "_SubParsersAction[ArgumentParser]",
     parents: Iterable[ArgumentParser],
 ) -> None:
     parser = subparsers.add_parser(

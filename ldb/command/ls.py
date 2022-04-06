@@ -1,9 +1,12 @@
-from argparse import ArgumentParser, Namespace, _SubParsersAction
-from typing import Iterable
+from argparse import ArgumentParser, Namespace
+from typing import TYPE_CHECKING, Iterable
 
 from ldb.cli_utils import add_data_obj_params
 from ldb.core import get_ldb_instance
 from ldb.ls import ls, print_dataset_listings
+
+if TYPE_CHECKING:
+    from argparse import _SubParsersAction
 
 
 def ls_command(options: Namespace) -> None:
@@ -24,7 +27,7 @@ def ls_command(options: Namespace) -> None:
 
 
 def add_parser(
-    subparsers: _SubParsersAction[ArgumentParser],
+    subparsers: "_SubParsersAction[ArgumentParser]",
     parents: Iterable[ArgumentParser],
 ) -> None:
     parser = subparsers.add_parser(

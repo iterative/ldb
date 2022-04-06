@@ -1,11 +1,14 @@
-from argparse import ArgumentParser, Namespace, _SubParsersAction
+from argparse import ArgumentParser, Namespace
 from pathlib import Path
-from typing import Iterable
+from typing import TYPE_CHECKING, Iterable
 
 import shtab
 
 from ldb.config import set_default_instance
 from ldb.core import init
+
+if TYPE_CHECKING:
+    from argparse import _SubParsersAction
 
 
 def init_command(options: Namespace) -> None:
@@ -14,7 +17,7 @@ def init_command(options: Namespace) -> None:
 
 
 def add_parser(
-    subparsers: _SubParsersAction[ArgumentParser],
+    subparsers: "_SubParsersAction[ArgumentParser]",
     parents: Iterable[ArgumentParser],
 ) -> None:
     parser = subparsers.add_parser(

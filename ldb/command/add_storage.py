@@ -1,5 +1,5 @@
-from argparse import ArgumentParser, Namespace, _SubParsersAction
-from typing import Iterable
+from argparse import ArgumentParser, Namespace
+from typing import TYPE_CHECKING, Iterable
 
 import shtab
 
@@ -7,6 +7,9 @@ from ldb.config import get_ldb_dir
 from ldb.core import init
 from ldb.path import Filename
 from ldb.storage import add_storage, create_storage_location
+
+if TYPE_CHECKING:
+    from argparse import _SubParsersAction
 
 
 def add_storage_command(options: Namespace) -> None:
@@ -26,7 +29,7 @@ def add_storage_command(options: Namespace) -> None:
 
 
 def add_parser(
-    subparsers: _SubParsersAction[ArgumentParser],
+    subparsers: "_SubParsersAction[ArgumentParser]",
     parents: Iterable[ArgumentParser],
 ) -> None:
     parser = subparsers.add_parser(
