@@ -1,9 +1,11 @@
-import argparse
-from argparse import Namespace
-from typing import Iterable
+from argparse import ArgumentParser, Namespace
+from typing import TYPE_CHECKING, Iterable
 
 from ldb.core import get_ldb_instance
 from ldb.ds import ds, print_ds_listings
+
+if TYPE_CHECKING:
+    from argparse import _SubParsersAction
 
 
 def ds_command(options: Namespace) -> None:  # pylint: disable=unused-argument
@@ -15,8 +17,8 @@ def ds_command(options: Namespace) -> None:  # pylint: disable=unused-argument
 
 
 def add_parser(
-    subparsers: argparse._SubParsersAction,
-    parents: Iterable[argparse.ArgumentParser],
+    subparsers: "_SubParsersAction[ArgumentParser]",
+    parents: Iterable[ArgumentParser],
 ) -> None:
     parser = subparsers.add_parser(
         "ds",

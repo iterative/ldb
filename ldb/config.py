@@ -165,5 +165,5 @@ def set_default_instance(path: Path, overwrite_existing: bool = False) -> None:
         else:
             cfg["core"] = {}
         new_value = os.fspath(path)
-        cfg["core"]["ldb_dir"] = new_value  # type: ignore[index,assignment]
+        cfg["core"]["ldb_dir"] = new_value  # type: ignore[index]
     print(f"Set core.ldb_dir to {repr(new_value)}")

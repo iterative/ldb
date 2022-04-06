@@ -1,11 +1,13 @@
-import argparse
-from argparse import Namespace
+from argparse import ArgumentParser, Namespace
 from pathlib import Path
-from typing import Iterable
+from typing import TYPE_CHECKING, Iterable
 
 from ldb.config import get_ldb_dir
 from ldb.core import init_quickstart
 from ldb.stage import stage
+
+if TYPE_CHECKING:
+    from argparse import _SubParsersAction
 
 
 def stage_command(options: Namespace) -> None:
@@ -21,8 +23,8 @@ def stage_command(options: Namespace) -> None:
 
 
 def add_parser(
-    subparsers: argparse._SubParsersAction,
-    parents: Iterable[argparse.ArgumentParser],
+    subparsers: "_SubParsersAction[ArgumentParser]",
+    parents: Iterable[ArgumentParser],
 ) -> None:
     parser = subparsers.add_parser(
         "stage",

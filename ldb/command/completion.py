@@ -1,8 +1,10 @@
-import argparse
-from argparse import Namespace
-from typing import Iterable
+from argparse import ArgumentParser, Namespace
+from typing import TYPE_CHECKING, Iterable
 
 import shtab
+
+if TYPE_CHECKING:
+    from argparse import _SubParsersAction
 
 
 def completion_command(options: Namespace) -> None:
@@ -16,8 +18,8 @@ def completion_command(options: Namespace) -> None:
 
 
 def add_parser(
-    subparsers: argparse._SubParsersAction,
-    parents: Iterable[argparse.ArgumentParser],
+    subparsers: "_SubParsersAction[ArgumentParser]",
+    parents: Iterable[ArgumentParser],
 ) -> None:
     parser = subparsers.add_parser(
         "completion",

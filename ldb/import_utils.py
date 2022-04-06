@@ -20,6 +20,6 @@ def import_path(path: str, name: str = "") -> ModuleType:
     if spec is None or spec.loader is None:
         raise ImportError("Could not load module with args: {name=}, {path=}")
     module = importlib.util.module_from_spec(spec)
-    loader: importlib.abc.Loader = spec.loader  # type: ignore[assignment]
+    loader: importlib.abc.Loader = spec.loader
     loader.exec_module(module)
     return module

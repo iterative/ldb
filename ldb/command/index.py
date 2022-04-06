@@ -1,6 +1,5 @@
-import argparse
-from argparse import Namespace
-from typing import Iterable
+from argparse import ArgumentParser, Namespace
+from typing import TYPE_CHECKING, Iterable
 
 import shtab
 
@@ -11,6 +10,9 @@ from ldb.core import get_ldb_instance
 from ldb.data_formats import INDEX_FORMATS, Format
 from ldb.index import index
 
+if TYPE_CHECKING:
+    from argparse import _SubParsersAction
+
 
 def index_command(options: Namespace) -> None:
     ldb_dir = get_ldb_instance()
@@ -19,7 +21,7 @@ def index_command(options: Namespace) -> None:
         options.paths,
         read_any_cloud_location=(
             (
-                config.load_first([ConfigType.INSTANCE])  # type: ignore[union-attr,call-overload] # noqa: E501
+                config.load_first([ConfigType.INSTANCE])  # type: ignore[call-overload] # noqa: E501
                 or {}
             )
             .get("core", {})
@@ -31,8 +33,8 @@ def index_command(options: Namespace) -> None:
 
 
 def add_parser(
-    subparsers: argparse._SubParsersAction,
-    parents: Iterable[argparse.ArgumentParser],
+    subparsers: "_SubParsersAction[ArgumentParser]",
+    parents: Iterable[ArgumentParser],
 ) -> None:
     parser = subparsers.add_parser(
         "index",

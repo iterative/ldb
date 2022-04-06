@@ -1,8 +1,7 @@
-import argparse
 import os
-from argparse import Namespace
+from argparse import ArgumentParser, Namespace
 from pathlib import Path
-from typing import Iterable
+from typing import TYPE_CHECKING, Iterable
 
 from ldb.core import get_ldb_instance
 from ldb.dataset import get_collection_size
@@ -11,6 +10,9 @@ from ldb.path import WorkspacePath
 from ldb.status import status
 from ldb.utils import format_dataset_identifier
 from ldb.workspace import load_workspace_dataset
+
+if TYPE_CHECKING:
+    from argparse import _SubParsersAction
 
 
 def status_command(options: Namespace) -> None:
@@ -51,8 +53,8 @@ def status_command(options: Namespace) -> None:
 
 
 def add_parser(
-    subparsers: argparse._SubParsersAction,
-    parents: Iterable[argparse.ArgumentParser],
+    subparsers: "_SubParsersAction[ArgumentParser]",
+    parents: Iterable[ArgumentParser],
 ) -> None:
     parser = subparsers.add_parser(
         "status",

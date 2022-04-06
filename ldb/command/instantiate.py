@@ -1,7 +1,6 @@
-import argparse
-from argparse import Namespace
+from argparse import ArgumentParser, Namespace
 from pathlib import Path
-from typing import Iterable
+from typing import TYPE_CHECKING, Iterable
 
 from ldb.cli_utils import add_data_format_arguments
 from ldb.core import get_ldb_instance
@@ -32,8 +31,8 @@ def instantiate_command(options: Namespace) -> None:
 
 
 def add_parser(
-    subparsers: argparse._SubParsersAction,
-    parents: Iterable[argparse.ArgumentParser],
+    subparsers: "_SubParsersAction[ArgumentParser]",
+    parents: Iterable[ArgumentParser],
 ) -> None:
     parser = subparsers.add_parser(
         "instantiate",
@@ -61,3 +60,7 @@ def add_parser(
         help="Directory to instantiate in. Current directory by default.",
     )
     parser.set_defaults(func=instantiate_command)
+
+
+if TYPE_CHECKING:
+    from argparse import _SubParsersAction
