@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-from typing import Iterable, List, Optional, Sequence, Tuple
+from typing import Iterable, List, Sequence, Tuple
 
 from ldb.add import process_args_for_ls
 from ldb.dataset import OpDef, apply_queries
@@ -26,7 +26,11 @@ def pull(
         annotation_hashes,
         collection_ops,
     )
-    updates = update_collection_annotations(ldb_dir, collection)
+    data_object_hashes = (d for d, _ in collection)
+    updates = get_collection_with_updated_annotations(
+        ldb_dir,
+        data_object_hashes,
+    )
     return update_annotation_versions(workspace_path, updates)
 
 
@@ -36,24 +40,41 @@ def get_hash_annot_pair_version(
     return hash_annot_pair[1]["version"]  # type: ignore[no-any-return]
 
 
-def update_collection_annotations(
+def get_annotation_version_hash(
     ldb_dir: Path,
-    collection: Iterable[Tuple[str, Optional[str]]],
+    data_object_hash: str,
+    version: int,
+) -> str:
+    data_object_dir = get_hash_path(
+        ldb_dir / InstanceDir.DATA_OBJECT_INFO,
+        data_object_hash,
+    )
+    if (data_object_dir / "annotations").is_dir():
+        annotation_metas = [
+            (f.name, load_data_file(f))
+            for f in (data_object_dir / "annotations").iterdir()
+        ]
+        annotation_metas.sort(key=get_hash_annot_pair_version)
+        try:
+            return annotation_metas[version][0]
+        except IndexError:
+            pass
+    return ""
+
+
+def get_collection_with_updated_annotations(
+    ldb_dir: Path,
+    data_object_hashes: Iterable[str],
+    version: int = -1,
 ) -> List[Tuple[str, str]]:
     result = []
-    data_object_info_path = ldb_dir / InstanceDir.DATA_OBJECT_INFO
-    for data_object_hash, _ in collection:
-        data_object_dir = get_hash_path(
-            data_object_info_path,
+    for data_object_hash in data_object_hashes:
+        new_annotation_hash = get_annotation_version_hash(
+            ldb_dir,
             data_object_hash,
+            version,
         )
-        if (data_object_dir / "annotations").is_dir():
-            annotation_metas = [
-                (f.name, load_data_file(f))
-                for f in (data_object_dir / "annotations").iterdir()
-            ]
-            annotation_metas.sort(key=get_hash_annot_pair_version)
-            new_annotation_hash = annotation_metas[-1][0]
+        if new_annotation_hash:
             result.append((data_object_hash, new_annotation_hash))
     return result
 
