@@ -1,9 +1,13 @@
 import os
 from pathlib import Path
-from typing import Iterable, List, Sequence, Tuple
+from typing import Iterable, Iterator, List, Sequence, Tuple
 
 from ldb.add import process_args_for_ls
-from ldb.dataset import OpDef, apply_queries
+from ldb.dataset import (
+    OpDef,
+    apply_queries_to_collection,
+    get_collection_dir_keys,
+)
 from ldb.path import InstanceDir, WorkspacePath
 from ldb.typing import JSONObject
 from ldb.utils import format_dataset_identifier, get_hash_path, load_data_file
@@ -15,23 +19,46 @@ def pull(
     workspace_path: Path,
     paths: Sequence[str],
     collection_ops: Iterable[OpDef],
+    version: int,
 ) -> None:
+    version_msg = "latest version" if version == -1 else f"v{version}"
+    ds_name = load_workspace_dataset(workspace_path).dataset_name
+    ds_ident = format_dataset_identifier(ds_name)
+    ws_data_object_hashes = set(
+        get_collection_dir_keys(workspace_path / WorkspacePath.COLLECTION),
+    )
     data_object_hashes, annotation_hashes, _ = process_args_for_ls(
         ldb_dir,
         paths,
     )
-    collection = apply_queries(
+    collection: Iterator[Tuple[str, str]] = (
+        (d, a)
+        for d, a in zip(data_object_hashes, annotation_hashes)
+        if d in ws_data_object_hashes
+    )
+    collection = apply_queries_to_collection(
         ldb_dir,
-        data_object_hashes,
-        annotation_hashes,
+        collection,
         collection_ops,
     )
     data_object_hashes = (d for d, _ in collection)
-    updates = get_collection_with_updated_annotations(
+    print(f"Updating to {version_msg}")
+    updates, num_missing = get_collection_with_updated_annotations(
         ldb_dir,
         data_object_hashes,
+        version,
     )
-    return update_annotation_versions(workspace_path, updates)
+    num_updated_annots, num_already_updated = update_annotation_versions(
+        workspace_path,
+        updates,
+    )
+    print(
+        "\n"
+        f"{ds_ident}\n"
+        f"  Already up-to-date: {num_already_updated:8d}\n"
+        f"  New updates:        {num_updated_annots:8d}\n"
+        f"  Missing version:    {num_missing:8d}\n",
+    )
 
 
 def get_hash_annot_pair_version(
@@ -50,15 +77,13 @@ def get_annotation_version_hash(
         data_object_hash,
     )
     if (data_object_dir / "annotations").is_dir():
-        annotation_metas = [
-            (f.name, load_data_file(f))
-            for f in (data_object_dir / "annotations").iterdir()
-        ]
-        annotation_metas.sort(key=get_hash_annot_pair_version)
-        try:
-            return annotation_metas[version][0]
-        except IndexError:
-            pass
+        files = list((data_object_dir / "annotations").iterdir())
+        if version == -1:
+            version = len(files)
+        for file in files:
+            annot = load_data_file(file)
+            if annot["version"] == version:
+                return file.name
     return ""
 
 
@@ -66,8 +91,9 @@ def get_collection_with_updated_annotations(
     ldb_dir: Path,
     data_object_hashes: Iterable[str],
     version: int = -1,
-) -> List[Tuple[str, str]]:
+) -> Tuple[List[Tuple[str, str]], int]:
     result = []
+    num_missing = 0
     for data_object_hash in data_object_hashes:
         new_annotation_hash = get_annotation_version_hash(
             ldb_dir,
@@ -76,15 +102,16 @@ def get_collection_with_updated_annotations(
         )
         if new_annotation_hash:
             result.append((data_object_hash, new_annotation_hash))
-    return result
+        else:
+            num_missing += 1
+    return result, num_missing
 
 
 def update_annotation_versions(
     workspace_path: Path,
     collection: Iterable[Tuple[str, str]],
-) -> None:
+) -> Tuple[int, int]:
     workspace_path = Path(os.path.normpath(workspace_path))
-    ds_name = load_workspace_dataset(workspace_path).dataset_name
     collection_dir_path = workspace_path / WorkspacePath.COLLECTION
 
     to_write = []
@@ -97,13 +124,15 @@ def update_annotation_versions(
         )
 
     num_updated_annots = 0
+    num_already_updated = 0
     for collection_member_path, annotation_hash in to_write:
         with collection_member_path.open("r+") as file:
             existing_annotation_hash = file.read()
-            if annotation_hash != existing_annotation_hash:
+            if annotation_hash == existing_annotation_hash:
+                num_already_updated += 1
+            else:
                 file.seek(0)
                 file.write(annotation_hash)
                 file.truncate()
                 num_updated_annots += 1
-    ds_ident = format_dataset_identifier(ds_name)
-    print(f"Pulled {num_updated_annots} annotations for {ds_ident}")
+    return num_updated_annots, num_already_updated

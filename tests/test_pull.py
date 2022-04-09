@@ -76,10 +76,35 @@ UPDATED_COLLECTION = {
     "ec27abb9c90f3f86f75eda4323a17ade": "99b649a813e82a9d55344f274a9f106d",
     "eea5f6cb86d2c3bc9928c808c9229dda": "87c29a25dc81ee78c511c50b158b8c4d",
 }
+DATA_OBJ_HASHES = [
+    "1e0759182b328fd22fcdb5e6beb54adf",
+    "218f6c2347471a309163301f9110ee23",
+    "a2430513e897d5abcf62a55b8df81355",
+    "e299594dc1f79f8e69c6d79a42699822",
+    "ec27abb9c90f3f86f75eda4323a17ade",
+]
+ANNOT_VERSION_HASHES = [
+    ("9daeeb2b07054600c12e97149136147c",),
+    ("9daeeb2b07054600c12e97149136147c", "5bd583e12fd78ccc9dc61a36debd985f"),
+    (
+        "0279eae0bcea653151c2569335eeeb6d",
+        "268daa854dde9f160c2b2ffe1d2ed74b",
+        "8d68100832b01b8b8470a14b467d2f63",
+    ),
+    (
+        "d773d40dbabda031a781180265eef357",
+        "46fa5381b9cd9433f03670ca9d7828dc",
+        "3ee7b8de6da6d440c43f7afecaf590ef",
+    ),
+    (
+        "99b649a813e82a9d55344f274a9f106d",
+        "d3735bac9773c15e1bf3aa891f05c9da",
+    ),
+]
 
 
 @pytest.mark.parametrize("args,data_objs,annots", QUERY_DATA)
-def test_pull_root_dataset(
+def test_pull_query_data(
     args,
     data_objs,
     annots,  # pylint: disable=unused-argument
@@ -104,3 +129,38 @@ def test_pull_root_dataset(
     assert ret == 0
     assert updated_counts == data_objs
     assert original_counts == 32 - data_objs
+
+
+@pytest.mark.parametrize(
+    "args,annot_indices",
+    [
+        (["v1"], [0, 0, 0, 0, 0]),
+        (["v2"], [0, 1, 1, 1, 1]),
+        (["v3"], [0, 0, 2, 2, 0]),
+        ([], [0, 1, 2, 2, 1]),
+        (["--query", "contains([`0`, `2`], label)", "v2"], [0, 0, 0, 1, 1]),
+        (["--query", "contains([`0`, `2`], label)"], [0, 0, 0, 2, 1]),
+    ],
+)
+def test_pull_specific_version(
+    args,
+    annot_indices,
+    ldb_instance,
+    workspace_path,
+):
+    main(["index", str(DATA_DIR / "predictions")])
+    main(["add", *[f"0x{h}" for h in DATA_OBJ_HASHES]])
+    main(["index", str(DATA_DIR / "fashion-mnist/original")])
+    main(["index", str(DATA_DIR / "fashion-mnist/updates")])
+    ret = main(["pull", *args])
+    ws_collection = collection_dir_to_object(
+        workspace_path / WorkspacePath.COLLECTION,
+    )
+    expected = dict(
+        zip(
+            DATA_OBJ_HASHES,
+            [a[i] for a, i in zip(ANNOT_VERSION_HASHES, annot_indices)],
+        ),
+    )
+    assert ret == 0
+    assert ws_collection == expected
