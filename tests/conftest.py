@@ -7,14 +7,19 @@ import pytest
 from pytest import MonkeyPatch, TempPathFactory
 
 from ldb.config import get_global_base, set_default_instance
-from ldb.core import init
+from ldb.core import get_ldb_instance, init
 from ldb.env import Env
 from ldb.main import main
 from ldb.path import Filename
 from ldb.storage import add_storage, create_storage_location
 from ldb.utils import DATASET_PREFIX, ROOT
 
-from .utils import DATA_DIR, add_user_filter, stage_new_workspace
+from .utils import (
+    DATA_DIR,
+    add_user_filter,
+    index_fashion_mnist,
+    stage_new_workspace,
+)
 
 
 def pytest_addoption(parser):
@@ -190,7 +195,7 @@ def ds_b(workspace_path: Path, index_original: Path) -> str:
 def staged_ds_fashion(workspace_path: Path) -> str:
     ds_identifier = f"{DATASET_PREFIX}fashion"
     main(["stage", ds_identifier])
-    main(["index", "-m", "bare", os.fspath(DATA_DIR / "fashion-mnist")])
+    index_fashion_mnist(get_ldb_instance())
     main(["add", f"{DATASET_PREFIX}{ROOT}"])
     return ds_identifier
 
@@ -219,9 +224,5 @@ def label_studio_json_path(tmp_path: Path) -> Path:
 
 @pytest.fixture(scope="session")
 def fashion_mnist_session(ldb_instance_session: Path) -> Path:
-    for path_obj in (
-        DATA_DIR / "fashion-mnist/original",
-        DATA_DIR / "fashion-mnist/updates",
-    ):
-        main(["index", "-m", "bare", os.fspath(path_obj)])
+    index_fashion_mnist(ldb_instance_session)
     return ldb_instance_session

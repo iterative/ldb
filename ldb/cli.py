@@ -15,6 +15,7 @@ from ldb.command import (
     init,
     instantiate,
     ls,
+    pull,
     stage,
     status,
     sync,
@@ -64,6 +65,7 @@ def get_main_parser() -> ArgumentParser:
     init.add_parser(subparsers, parents)
     instantiate.add_parser(subparsers, parents)
     ls.add_parser(subparsers, parents)
+    pull.add_parser(subparsers, parents)
     stage.add_parser(subparsers, parents)
     status.add_parser(subparsers, parents)
     sync.add_parser(subparsers, parents)

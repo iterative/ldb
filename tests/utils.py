@@ -4,6 +4,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
+from ldb.main import main
 from ldb.path import InstanceDir, WorkspacePath
 from ldb.stage import stage_workspace
 from ldb.utils import chmod_minus_x, current_time, load_data_file
@@ -136,3 +137,13 @@ def add_user_filter(ldb_dir: Path) -> None:
         shutil.copy2(SORT_DIR / "reverse.bat", dest)
     else:
         shutil.copy2(SORT_DIR / "reverse", dest)
+
+
+def index_fashion_mnist(  # pylint: disable=unused-argument
+    ldb_instance: Path,
+) -> None:
+    for path_obj in (
+        DATA_DIR / "fashion-mnist/original",
+        DATA_DIR / "fashion-mnist/updates",
+    ):
+        main(["index", "-m", "bare", os.fspath(path_obj)])
