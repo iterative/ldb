@@ -514,8 +514,16 @@ def apply_queries(
     annotation_hashes: Iterable[str],
     op_defs: Iterable[OpDef],
 ) -> Iterator[Tuple[str, str]]:
+    collection = zip(data_object_hashes, annotation_hashes)
+    return apply_queries_to_collection(ldb_dir, collection, op_defs)
+
+
+def apply_queries_to_collection(
+    ldb_dir: Path,
+    collection: Iterable[Tuple[str, str]],
+    op_defs: Iterable[OpDef],
+) -> Iterator[Tuple[str, str]]:
     """
     Filter the given collection by the operations in `collection_ops`.
     """
-    collection = zip(data_object_hashes, annotation_hashes)
     return Pipeline.from_defs(ldb_dir, op_defs).run(collection)
