@@ -453,6 +453,7 @@ def construct_data_object_meta(
     path: str,
     prev_meta: Dict[str, Any],
     current_timestamp: str,
+    tags: Collection[str] = (),
 ) -> DataObjectMeta:
     # TODO: create dataclass for data object meta
     fs_info = fs.info(path)
@@ -477,7 +478,7 @@ def construct_data_object_meta(
         filetype = filetype or prev_meta["type"]
     else:
         first_indexed = current_timestamp
-        tags = []
+        tags = list(tags)
         alternate_paths = []
 
     protocol: Union[str, List[str]] = fs.protocol
@@ -493,7 +494,7 @@ def construct_data_object_meta(
         "first_indexed": first_indexed,
         "last_indexed": current_timestamp,
         "last_indexed_by": last_indexed_by,
-        "tags": tags,
+        "tags": tags,  # type: ignore[dict-item]
         "alternate_paths": alternate_paths,
         "fs": {
             **path_info,
