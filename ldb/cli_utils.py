@@ -49,6 +49,26 @@ def add_base_data_object_options(parser: ArgumentParser, dest: str) -> None:
         help="JMESPath query applied to data object file attributes",
     )
     parser.add_argument(
+        "--tag",
+        metavar="<tag>",
+        nargs="+",
+        const=OpType.TAG_QUERY,
+        default=[],
+        dest=dest,
+        action=AppendConstValuesAction,
+        help="Select only data objects that contain at least one of these tags",
+    )
+    parser.add_argument(
+        "--no-tag",
+        metavar="<tag>",
+        nargs="+",
+        const=OpType.NO_TAG_QUERY,
+        default=[],
+        dest=dest,
+        action=AppendConstValuesAction,
+        help="Select only data objects where at least one of these tags is missing",
+    )
+    parser.add_argument(
         "--limit",
         metavar="<n>",
         const=OpType.LIMIT,
