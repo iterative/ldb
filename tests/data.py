@@ -8,14 +8,16 @@ FILE_Q1 = ["--file", "fs.size > `400`"]
 ANNOT_Q1 = ["--query", "@ == `null` || inference.label != `null`"]
 BASIC_QUERIES = [*FILE_Q1, *ANNOT_Q1]
 # args,data_objs,annots
-QUERY_DATA = {
+PIPE_QUERY_DATA = {
+    "pipe": (["--pipe=reverse", "--limit", "12", "--query", "@"], 11, 11),
+}
+SIMPLE_QUERY_DATA = {
     "no-args": ([], 32, 23),
     "sample1": (["--sample", "1.0"], 32, 23),
     "sample0": (["--sample", "0.0"], 0, 0),
     "limit12": (["--limit", "12"], 12, 7),
     "limit-sort": (["--limit", "12", *SORT_Q1, "--query", "@"], 7, 7),
     "sort-limit": ([*SORT_Q1, "--limit", "12", "--query", "@"], 11, 11),
-    "pipe": (["--pipe=reverse", "--limit", "12", "--query", "@"], 11, 11),
     "file@": (["--file", "@"], 32, 23),
     "query@": (["--query", "@"], 23, 23),
     "fsize": (["--file", "fs.size > `400`"], 26, 20),
@@ -46,4 +48,8 @@ QUERY_DATA = {
         3,
         3,
     ),
+}
+QUERY_DATA = {
+    **SIMPLE_QUERY_DATA,
+    **PIPE_QUERY_DATA,
 }
