@@ -63,17 +63,17 @@ def get_bool_search_func(
     return search
 
 
-def get_tag_func(tag: str) -> BoolSearchFunc:
+def get_tag_func(tags: Collection[str]) -> BoolSearchFunc:
     def search(objects: Iterable[Collection[str]]) -> Iterator[bool]:
         for obj in objects:
-            yield tag in obj
+            yield any(t in obj for t in tags)
 
     return search  # type: ignore[return-value]
 
 
-def get_no_tag_func(tag: str) -> BoolSearchFunc:
+def get_no_tag_func(tags: Collection[str]) -> BoolSearchFunc:
     def search(objects: Iterable[Collection[str]]) -> Iterator[bool]:
         for obj in objects:
-            yield tag not in obj
+            yield any(t not in obj for t in tags)
 
     return search  # type: ignore[return-value]

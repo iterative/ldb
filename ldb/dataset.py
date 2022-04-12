@@ -2,7 +2,7 @@ import json
 import os
 import random
 from abc import ABC
-from collections import defaultdict
+from collections import abc, defaultdict
 from dataclasses import asdict, dataclass, fields
 from datetime import datetime
 from glob import iglob
@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import (
     Any,
     Callable,
+    Collection,
     DefaultDict,
     Dict,
     Iterable,
@@ -480,10 +481,10 @@ class PipelineBuilder:
                 assert isinstance(arg, str)
                 op = self.file_query(arg)
             elif op_type == OpType.TAG_QUERY:
-                assert isinstance(arg, str)
+                assert isinstance(arg, abc.Collection)
                 op = self.tag_query(arg)
             elif op_type == OpType.NO_TAG_QUERY:
-                assert isinstance(arg, str)
+                assert isinstance(arg, abc.Collection)
                 op = self.no_tag_query(arg)
             elif op_type == OpType.LIMIT:
                 assert isinstance(arg, int)
@@ -513,14 +514,14 @@ class PipelineBuilder:
             get_bool_search_func(search),
         ).apply
 
-    def tag_query(self, tag: str) -> CollectionFunc:
+    def tag_query(self, tag: Collection[str]) -> CollectionFunc:
         return TagQuery(
             self.ldb_dir,
             self.data.data_object_metas,
             get_tag_func(tag),
         ).apply
 
-    def no_tag_query(self, tag: str) -> CollectionFunc:
+    def no_tag_query(self, tag: Collection[str]) -> CollectionFunc:
         return TagQuery(
             self.ldb_dir,
             self.data.data_object_metas,

@@ -1,9 +1,27 @@
+import json
+import re
 from argparse import Action, ArgumentParser, Namespace
-from typing import Any, Iterable, Optional, Sequence, Union
+from typing import Any, Iterable, List, Optional, Sequence, Union
 
 import shtab
 
 from ldb.op_type import OpType
+
+TAG_PATTERN = r"^[^\s,]+$"
+
+
+def tag_list(value: str) -> List[str]:
+    result = []
+    for item in value.split(","):
+        item = item.strip()
+        item_match = re.search(TAG_PATTERN, item)
+        if item_match is None:
+            raise ValueError(
+                f"Invalid tag: {json.dumps(item)}\n"
+                "Tags may not contain commas or whitespace characters",
+            )
+        result.append(item_match.group())
+    return result
 
 
 class AppendConstValuesAction(Action):
@@ -54,8 +72,11 @@ def add_base_data_object_options(parser: ArgumentParser, dest: str) -> None:
         const=OpType.TAG_QUERY,
         default=[],
         dest=dest,
+        type=tag_list,
         action=AppendConstValuesAction,
-        help="Select only data objects that contain this tag",
+        help=(
+            "Select only data objects that contain at least one of these tags"
+        ),
     )
     parser.add_argument(
         "--no-tag",
@@ -63,8 +84,12 @@ def add_base_data_object_options(parser: ArgumentParser, dest: str) -> None:
         const=OpType.NO_TAG_QUERY,
         default=[],
         dest=dest,
+        type=tag_list,
         action=AppendConstValuesAction,
-        help="Select only data objects that do not contain this tag",
+        help=(
+            "Select only data objects where at least one of these tags is "
+            "missing"
+        ),
     )
     parser.add_argument(
         "--limit",
