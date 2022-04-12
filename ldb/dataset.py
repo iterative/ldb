@@ -2,7 +2,7 @@ import json
 import os
 import random
 from abc import ABC
-from collections import abc, defaultdict
+from collections import defaultdict
 from dataclasses import asdict, dataclass, fields
 from datetime import datetime
 from glob import iglob
@@ -11,7 +11,6 @@ from pathlib import Path
 from typing import (
     Any,
     Callable,
-    Collection,
     DefaultDict,
     Dict,
     Iterable,
@@ -29,7 +28,12 @@ from ldb.exceptions import DatasetNotFoundError, LDBException
 from ldb.iter_utils import take
 from ldb.op_type import OpType
 from ldb.path import InstanceDir
-from ldb.query.search import BoolSearchFunc, get_bool_search_func
+from ldb.query.search import (
+    BoolSearchFunc,
+    get_bool_search_func,
+    get_no_tag_func,
+    get_tag_func,
+)
 from ldb.typing import JSONDecoded, JSONObject
 from ldb.utils import (
     format_dataset_identifier,
@@ -406,7 +410,7 @@ class Query(CollectionOperation):
     def get_search_input(
         self,
         collection: Iterable[Tuple[str, str]],
-    ) -> Iterable[bool]:
+    ) -> Iterable[JSONDecoded]:
         raise NotImplementedError
 
 
@@ -432,9 +436,9 @@ class TagQuery(FileQuery):
     def get_search_input(
         self,
         collection: Iterable[Tuple[str, str]],
-    ) -> Iterator[JSONDecoded]:
+    ) -> Iterator[List[str]]:
         for data_obj_meta in super().get_search_input(collection):
-            yield data_obj_meta["tags"]
+            yield data_obj_meta["tags"]  # type: ignore[index,call-overload,misc] # noqa: E501
 
 
 class PipelineData:
@@ -476,10 +480,10 @@ class PipelineBuilder:
                 assert isinstance(arg, str)
                 op = self.file_query(arg)
             elif op_type == OpType.TAG_QUERY:
-                assert isinstance(arg, abc.Collection)
+                assert isinstance(arg, str)
                 op = self.tag_query(arg)
             elif op_type == OpType.NO_TAG_QUERY:
-                assert isinstance(arg, abc.Collection)
+                assert isinstance(arg, str)
                 op = self.no_tag_query(arg)
             elif op_type == OpType.LIMIT:
                 assert isinstance(arg, int)
@@ -509,35 +513,19 @@ class PipelineBuilder:
             get_bool_search_func(search),
         ).apply
 
-    def tag_query(self, tags: Collection[str]) -> CollectionFunc:
+    def tag_query(self, tag: str) -> CollectionFunc:
         return TagQuery(
             self.ldb_dir,
             self.data.data_object_metas,
-            get_tag_func(tags),
+            get_tag_func(tag),
         ).apply
 
-    def no_tag_query(self, tags: Collection[str]) -> CollectionFunc:
+    def no_tag_query(self, tag: str) -> CollectionFunc:
         return TagQuery(
             self.ldb_dir,
             self.data.data_object_metas,
-            get_no_tag_func(tags),
+            get_no_tag_func(tag),
         ).apply
-
-
-def get_tag_func(tags):
-    def search(objects: Iterable[JSONDecoded]) -> Iterator[JSONDecoded]:
-        for obj in objects:
-            yield any(t in obj for t in tags)
-
-    return search
-
-
-def get_no_tag_func(tags):
-    def search(objects: Iterable[JSONDecoded]) -> Iterator[JSONDecoded]:
-        for obj in objects:
-            yield any(t not in obj for t in tags)
-
-    return search
 
 
 class Pipeline:

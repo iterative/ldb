@@ -1,4 +1,4 @@
-from typing import Callable, Iterable, Iterator
+from typing import Callable, Collection, Iterable, Iterator
 
 import jmespath
 from jmespath.exceptions import JMESPathTypeError, ParseError
@@ -61,3 +61,19 @@ def get_bool_search_func(
             yield result  # type: ignore[misc]
 
     return search
+
+
+def get_tag_func(tag: str) -> BoolSearchFunc:
+    def search(objects: Iterable[Collection[str]]) -> Iterator[bool]:
+        for obj in objects:
+            yield tag in obj
+
+    return search  # type: ignore[return-value]
+
+
+def get_no_tag_func(tag: str) -> BoolSearchFunc:
+    def search(objects: Iterable[Collection[str]]) -> Iterator[bool]:
+        for obj in objects:
+            yield tag not in obj
+
+    return search  # type: ignore[return-value]

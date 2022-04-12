@@ -51,22 +51,20 @@ def add_base_data_object_options(parser: ArgumentParser, dest: str) -> None:
     parser.add_argument(
         "--tag",
         metavar="<tag>",
-        nargs="+",
         const=OpType.TAG_QUERY,
         default=[],
         dest=dest,
         action=AppendConstValuesAction,
-        help="Select only data objects that contain at least one of these tags",
+        help="Select only data objects that contain this tag",
     )
     parser.add_argument(
         "--no-tag",
         metavar="<tag>",
-        nargs="+",
         const=OpType.NO_TAG_QUERY,
         default=[],
         dest=dest,
         action=AppendConstValuesAction,
-        help="Select only data objects where at least one of these tags is missing",
+        help="Select only data objects that do not contain this tag",
     )
     parser.add_argument(
         "--limit",
