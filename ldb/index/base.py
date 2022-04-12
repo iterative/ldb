@@ -4,6 +4,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import (
     Any,
+    Collection,
     Dict,
     Iterable,
     List,
@@ -136,9 +137,11 @@ class Indexer(ABC):
         self,
         ldb_dir: Path,
         preprocessor: Preprocessor,
+        tags: Collection[str] = (),
     ) -> None:
         self.ldb_dir = ldb_dir
         self.preprocessor = preprocessor
+        self.tags = tags
         self.result = IndexingResult()
         self.hashes: Dict[AbstractFileSystem, Dict[str, str]] = {}
 
@@ -163,8 +166,9 @@ class PairIndexer(Indexer):
         preprocessor: Preprocessor,
         read_any_cloud_location: bool,
         strict_format: bool,
+        tags: Collection[str] = (),
     ) -> None:
-        super().__init__(ldb_dir, preprocessor)
+        super().__init__(ldb_dir, preprocessor, tags)
         self.read_any_cloud_location = read_any_cloud_location
         self.strict_format = strict_format
         self.old_to_new_files: Dict[
@@ -287,6 +291,7 @@ class PairIndexer(Indexer):
                             data_object_path,
                             config.save_data_object_path_info,
                             annotation_path,
+                            self.tags,
                         )
                         self.result.append(obj_result)
 
@@ -296,10 +301,12 @@ class PairIndexer(Indexer):
         data_object_path: str,
         save_data_object_path_info: bool,
         annotation_path: str,
+        tags: Collection[str],
     ) -> IndexedObjectResult:
         return PairIndexingItem(
             self.ldb_dir,
             current_time(),
+            tags,
             FileSystemPath(fs, data_object_path),
             save_data_object_path_info,
             self.hashes,
@@ -315,6 +322,7 @@ class IndexingItem(ABC):
         init=False,
         default_factory=list,
     )
+    tags: Collection[str]
 
     @cached_property
     def current_timestamp(self) -> str:
@@ -524,6 +532,9 @@ class DataObjectFileIndexingItem(IndexingItem):
                 self.data_object_meta_file_path,
             )
             meta_contents["last_indexed"] = self.current_timestamp
+            meta_contents["tags"] = sorted(  # type: ignore[assignment]
+                set(self.tags),
+            )
         else:
             meta_contents = construct_data_object_meta(
                 *self.data_object,
@@ -531,6 +542,7 @@ class DataObjectFileIndexingItem(IndexingItem):
                 if self.data_object_meta_file_path.exists()
                 else {},
                 self.current_timestamp,
+                tags=self.tags,
             )
         return meta_contents
 

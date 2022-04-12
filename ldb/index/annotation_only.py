@@ -24,6 +24,7 @@ class AnnotationOnlyIndexer(Indexer):
                 item = AnnotationOnlyIndexingItem(
                     self.ldb_dir,
                     current_time(),
+                    self.tags,
                     FileSystemPath(fs, path),
                 )
                 self.result.append(item.index_data())
@@ -57,6 +58,10 @@ class AnnotationOnlyIndexingItem(AnnotationFileIndexingItem):
             self.data_object_meta_file_path,
         )
         meta_content["last_indexed"] = self.current_timestamp
+        meta_content["tags"] = sorted(  # type: ignore[assignment]
+            set(meta_content["tags"])  # type: ignore[arg-type]
+            | set(self.tags),
+        )
         return meta_content
 
     @cached_property
@@ -71,8 +76,8 @@ class AnnotationOnlyIndexingItem(AnnotationFileIndexingItem):
             )
 
         new_annotation = not self.annotation_meta_file_path.is_file()
+        self.enqueue_data(self.data_object_to_write())
         self.enqueue_data(self.annotation_to_write())
-
         self.write_data()
         return IndexedObjectResult(
             found_data_object=False,

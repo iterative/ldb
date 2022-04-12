@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from itertools import chain
 from pathlib import Path
-from typing import Dict, List, Tuple, Union
+from typing import Collection, Dict, List, Tuple, Union
 
 from fsspec.spec import AbstractFileSystem
 from funcy.objects import cached_property
@@ -82,6 +82,7 @@ class InferredIndexer(PairIndexer):
         preprocessor: InferredPreprocessor,
         read_any_cloud_location: bool,
         strict_format: bool,
+        tags: Collection[str] = (),
     ) -> None:
         self.preprocessor: InferredPreprocessor
         super().__init__(
@@ -89,6 +90,7 @@ class InferredIndexer(PairIndexer):
             preprocessor,
             read_any_cloud_location,
             strict_format,
+            tags,
         )
 
     def infer_annotations(
@@ -129,6 +131,7 @@ class InferredIndexer(PairIndexer):
         self.index_inferred_files(
             indexing_jobs,
             annotations_by_data_object_path,
+            self.tags,
         )
 
     def index_inferred_files(
@@ -138,6 +141,7 @@ class InferredIndexer(PairIndexer):
             Tuple[AbstractFileSystem, str],
             JSONObject,
         ],
+        tags: Collection[str],
     ) -> None:
         for fs, jobs in indexing_jobs.items():
             for config, path_seq in jobs:
@@ -145,6 +149,7 @@ class InferredIndexer(PairIndexer):
                     item = InferredIndexingItem(
                         self.ldb_dir,
                         current_time(),
+                        tags,
                         FileSystemPath(fs, data_object_path),
                         config.save_data_object_path_info,
                         self.hashes,

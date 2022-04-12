@@ -28,6 +28,7 @@ def index_command(options: Namespace) -> None:
             .get("read_any_cloud_location", False)
         ),
         fmt=options.format,
+        tags=options.tags,
     )
     print(result.summary())
 
@@ -46,9 +47,17 @@ def add_parser(
         default=Format.AUTO,
         formats=INDEX_FORMATS,
     )
+    parser.add_argument(
+        "--add-tag",
+        metavar="<tag>",
+        dest="tags",
+        action="append",
+        default=[],
+        help="Tag to add to data objects",
+    )
     parser.add_argument(  # type: ignore[attr-defined]
         "paths",
-        metavar="path",
+        metavar="<path>",
         nargs="+",
         help="File, directory, or path prefix. Supports glob syntax.",
     ).complete = shtab.FILE

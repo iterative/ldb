@@ -470,7 +470,7 @@ def construct_data_object_meta(
 
     if prev_meta:
         first_indexed = prev_meta["first_indexed"]
-        tags = prev_meta["tags"]
+        new_tags = sorted(set(prev_meta["tags"]) | set(tags))
         alternate_paths = prev_meta["alternate_paths"]
         atime = max_datetime_info(atime, prev_meta["fs"]["atime"])
         mtime = max_datetime_info(mtime, prev_meta["fs"]["mtime"])
@@ -478,7 +478,7 @@ def construct_data_object_meta(
         filetype = filetype or prev_meta["type"]
     else:
         first_indexed = current_timestamp
-        tags = list(tags)
+        new_tags = sorted(set(tags))
         alternate_paths = []
 
     protocol: Union[str, List[str]] = fs.protocol
@@ -494,7 +494,7 @@ def construct_data_object_meta(
         "first_indexed": first_indexed,
         "last_indexed": current_timestamp,
         "last_indexed_by": last_indexed_by,
-        "tags": tags,  # type: ignore[dict-item]
+        "tags": new_tags,  # type: ignore[dict-item]
         "alternate_paths": alternate_paths,
         "fs": {
             **path_info,
