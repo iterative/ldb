@@ -2,7 +2,7 @@ import os
 import shutil
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional, Tuple
+from typing import Any, Collection, Dict, Iterable, List, Optional, Tuple
 
 from ldb.main import main
 from ldb.path import InstanceDir, WorkspacePath
@@ -42,6 +42,10 @@ ANNOTATION_META_KEYS = (
 ANNOTATION_LDB_KEYS = (
     "schema_version",
     "user_version",
+)
+DEFAULT_TAG_SEQS = (
+    ("a", "b", "c"),
+    ("b", "d"),
 )
 
 
@@ -141,9 +145,12 @@ def add_user_filter(ldb_dir: Path) -> None:
 
 def index_fashion_mnist(  # pylint: disable=unused-argument
     ldb_instance: Path,
+    tags_seqs: Tuple[Collection[str], Collection[str]] = DEFAULT_TAG_SEQS,
 ) -> None:
-    for path_obj in (
+    paths = (
         DATA_DIR / "fashion-mnist/original",
         DATA_DIR / "fashion-mnist/updates",
-    ):
-        main(["index", "-m", "bare", os.fspath(path_obj)])
+    )
+    for path_obj, tags in zip(paths, tags_seqs):
+        tag_args = ["--add-tags", ",".join(tags)] if tags else []
+        main(["index", "-m", "bare", *tag_args, os.fspath(path_obj)])

@@ -103,7 +103,11 @@ ANNOT_VERSION_HASHES = [
 ]
 
 
-@pytest.mark.parametrize("args,data_objs,annots", QUERY_DATA)
+@pytest.mark.parametrize(
+    "args,data_objs,annots",
+    QUERY_DATA.values(),
+    ids=QUERY_DATA.keys(),
+)
 def test_pull_query_data(
     args,
     data_objs,

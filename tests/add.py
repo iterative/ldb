@@ -29,7 +29,11 @@ class AddCommandBase:
 
     COMMAND = ""
 
-    @pytest.mark.parametrize("args,data_objs,annots", QUERY_DATA)
+    @pytest.mark.parametrize(
+        "args,data_objs,annots",
+        QUERY_DATA.values(),
+        ids=QUERY_DATA.keys(),
+    )
     def test_add_root_dataset(
         self,
         args,

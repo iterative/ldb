@@ -99,7 +99,11 @@ def sorted_ls(
     )
 
 
-@pytest.mark.parametrize("args,data_objs,annots", QUERY_DATA)
+@pytest.mark.parametrize(
+    "args,data_objs,annots",
+    QUERY_DATA.values(),
+    ids=QUERY_DATA.keys(),
+)
 def test_cli_ls_root_dataset(
     args,
     data_objs,
