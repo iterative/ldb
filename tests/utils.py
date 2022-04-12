@@ -2,7 +2,16 @@ import os
 import shutil
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Collection, Dict, Iterable, List, Optional, Tuple
+from typing import (
+    Any,
+    Collection,
+    Dict,
+    Iterable,
+    List,
+    Optional,
+    Sequence,
+    Tuple,
+)
 
 from ldb.main import main
 from ldb.path import InstanceDir, WorkspacePath
@@ -97,6 +106,10 @@ def get_indexed_data_paths(
         get_annotation_meta_file_paths(ldb_dir),
         get_annotation_dir_paths(ldb_dir),
     )
+
+
+def get_obj_tags(paths: Sequence[Path]) -> List[List[str]]:
+    return [load_data_file(p)["tags"] for p in paths]
 
 
 def stage_new_workspace(
