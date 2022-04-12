@@ -1,6 +1,6 @@
 import json
 from pathlib import Path
-from typing import List, Sequence, Set, Tuple
+from typing import Collection, List, Sequence, Set, Tuple
 
 import jmespath
 from fsspec.utils import get_protocol
@@ -103,6 +103,7 @@ class LabelStudioIndexer(PairIndexer):
         preprocessor: LabelStudioPreprocessor,
         read_any_cloud_location: bool,
         strict_format: bool,
+        tags: Collection[str] = (),
     ) -> None:
         self.preprocessor: LabelStudioPreprocessor
         super().__init__(
@@ -110,6 +111,7 @@ class LabelStudioIndexer(PairIndexer):
             preprocessor,
             read_any_cloud_location,
             strict_format,
+            tags,
         )
 
     def _index(self) -> None:
@@ -117,12 +119,14 @@ class LabelStudioIndexer(PairIndexer):
         self.index_label_studio_files(
             indexing_jobs,
             self.preprocessor.annotations,
+            self.tags,
         )
 
     def index_label_studio_files(
         self,
         indexing_jobs: IndexingJobMapping,
         annotations: List[JSONObject],
+        tags: Collection[str],
     ) -> None:
         annot_iter = iter(annotations)
 
@@ -132,6 +136,7 @@ class LabelStudioIndexer(PairIndexer):
                     obj_result = InferredIndexingItem(
                         self.ldb_dir,
                         current_time(),
+                        tags,
                         FileSystemPath(fs, data_object_path),
                         config.save_data_object_path_info,
                         self.hashes,

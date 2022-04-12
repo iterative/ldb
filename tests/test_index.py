@@ -17,6 +17,7 @@ from ldb.utils import chdir, load_data_file
 from .utils import (
     DATA_DIR,
     get_indexed_data_paths,
+    get_obj_tags,
     is_annotation,
     is_annotation_meta,
     is_data_object_meta,
@@ -102,7 +103,7 @@ def test_index_func_single_path_label_studio(
 
 def test_index_bare(ldb_instance, data_dir):
     path = os.fspath(data_dir / "fashion-mnist" / "original")
-    ret = main(["index", "-m", "bare", path])
+    ret = main(["index", "-m", "bare", "--add-tag=img", path])
     (
         data_object_meta_paths,
         annotation_meta_paths,
@@ -115,6 +116,7 @@ def test_index_bare(ldb_instance, data_dir):
         p for p in annotation_meta_paths if not is_annotation_meta(p)
     ]
     non_annotation = [p for p in annotation_paths if not is_annotation(p)]
+    tag_seqs = get_obj_tags(data_object_meta_paths)
 
     assert ret == 0
     assert len(data_object_meta_paths) == 32
@@ -123,35 +125,40 @@ def test_index_bare(ldb_instance, data_dir):
     assert non_data_object_meta == []
     assert non_annotation_meta == []
     assert non_annotation == []
+    assert tag_seqs == [["img"]] * len(tag_seqs)
 
 
 def test_index_twice(ldb_instance, data_dir):
     path1 = os.fspath(data_dir / "fashion-mnist" / "original")
     path2 = os.fspath(data_dir / "fashion-mnist" / "updates")
-    ret1 = main(["index", "-m", "bare", path1])
-    ret2 = main(["index", "-m", "bare", path2])
+    ret1 = main(["index", "-m", "bare", "--add-tags=a,b", path1])
+    ret2 = main(["index", "-m", "bare", "--add-tags=c", path2])
     (
         data_object_meta_paths,
         annotation_meta_paths,
         annotation_paths,
     ) = get_indexed_data_paths(ldb_instance)
+    tag_seqs = get_obj_tags(data_object_meta_paths)
+    unique_tag_seqs = set(map(tuple, tag_seqs))  # type: ignore[arg-type]
 
     assert ret1 == 0
     assert ret2 == 0
     assert len(data_object_meta_paths) == 32
     assert len(annotation_meta_paths) == 27
     assert len(annotation_paths) == 14
+    assert unique_tag_seqs == {("a", "b"), ("a", "b", "c")}
 
 
 def test_index_same_location_twice(ldb_instance, data_dir):
     path = os.fspath(data_dir / "fashion-mnist" / "original")
-    ret1 = main(["index", "-m", "bare", path])
+    ret1 = main(["index", "-m", "bare", "--add-tag=img", path])
     paths1 = get_indexed_data_paths(ldb_instance)
     data_object_meta1 = load_data_file(paths1[0][0])
 
     ret2 = main(["index", "-m", "bare", path])
     paths2 = get_indexed_data_paths(ldb_instance)
     data_object_meta2 = load_data_file(paths1[0][0])
+    tag_seqs = get_obj_tags(paths2[0])
     assert ret1 == 0
     assert ret2 == 0
     assert paths1 == paths2
@@ -162,23 +169,26 @@ def test_index_same_location_twice(ldb_instance, data_dir):
     assert (
         data_object_meta2["last_indexed"] > data_object_meta1["last_indexed"]
     )
+    assert tag_seqs == [["img"]] * len(tag_seqs)
 
 
 def test_index_annotation_file(ldb_instance, data_dir):
     path = os.fspath(
         data_dir / "fashion-mnist/original/has_both/train/00002.json",
     )
-    ret = main(["index", "-m", "bare", path])
+    ret = main(["index", "-m", "bare", "--add-tag=img", path])
     (
         data_object_meta_paths,
         annotation_meta_paths,
         annotation_paths,
     ) = get_indexed_data_paths(ldb_instance)
+    tag_seqs = get_obj_tags(data_object_meta_paths)
 
     assert ret == 0
     assert len(data_object_meta_paths) == 1
     assert len(annotation_meta_paths) == 1
     assert len(annotation_paths) == 1
+    assert tag_seqs == [["img"]] * len(tag_seqs)
 
 
 def test_index_annotation_file_without_data_object(ldb_instance, data_dir):
@@ -191,58 +201,66 @@ def test_index_annotation_file_without_data_object(ldb_instance, data_dir):
         annotation_meta_paths,
         annotation_paths,
     ) = get_indexed_data_paths(ldb_instance)
+    tag_seqs = get_obj_tags(data_object_meta_paths)
 
     assert ret == 0
     assert len(data_object_meta_paths) == 0
     assert len(annotation_meta_paths) == 0
     assert len(annotation_paths) == 0
+    assert tag_seqs == [["img"]] * len(tag_seqs)
 
 
 def test_index_data_object_file(ldb_instance, data_dir):
     path = os.fspath(
         data_dir / "fashion-mnist/original/has_both/train/00002.png",
     )
-    ret = main(["index", "-m", "bare", path])
+    ret = main(["index", "-m", "bare", "--add-tag=img", path])
     (
         data_object_meta_paths,
         annotation_meta_paths,
         annotation_paths,
     ) = get_indexed_data_paths(ldb_instance)
+    tag_seqs = get_obj_tags(data_object_meta_paths)
 
     assert ret == 0
     assert len(data_object_meta_paths) == 1
     assert len(annotation_meta_paths) == 1
     assert len(annotation_paths) == 1
+    assert tag_seqs == [["img"]] * len(tag_seqs)
 
 
 def test_index_annotation_file_glob(ldb_instance, data_dir):
     path = os.fspath(data_dir / "fashion-mnist/original/*/t*/000[0-1]*.json")
-    ret = main(["index", "-m", "bare", path])
+    ret = main(["index", "-m", "bare", "--add-tag=img", path])
     (
         data_object_meta_paths,
         annotation_meta_paths,
         annotation_paths,
     ) = get_indexed_data_paths(ldb_instance)
+    tag_seqs = get_obj_tags(data_object_meta_paths)
 
     assert ret == 0
     assert len(data_object_meta_paths) == 10
     assert len(annotation_meta_paths) == 10
     assert len(annotation_paths) == 6
+    assert tag_seqs == [["img"]] * len(tag_seqs)
 
 
 def test_index_glob_dir_path(ldb_instance, data_dir):
     path = os.fspath(data_dir / "fashion-mnist/original/*/t*/")
-    ret = main(["index", "-m", "bare", path])
+    ret = main(["index", "-m", "bare", "--add-tag=img", path])
     (
         data_object_meta_paths,
         annotation_meta_paths,
         annotation_paths,
     ) = get_indexed_data_paths(ldb_instance)
+    tag_seqs = get_obj_tags(data_object_meta_paths)
 
     assert ret == 0
     assert len(data_object_meta_paths) == 23
     assert len(annotation_meta_paths) == 23
     assert len(annotation_paths) == 10
+    assert tag_seqs == [["img"]] * len(tag_seqs)
 
 
 def test_index_hidden_paths(ldb_instance, data_dir, tmp_path):
@@ -271,10 +289,12 @@ def test_index_hidden_paths(ldb_instance, data_dir, tmp_path):
         annotation_meta_paths,
         annotation_paths,
     ) = get_indexed_data_paths(ldb_instance)
+    tag_seqs = get_obj_tags(data_object_meta_paths)
     assert ret == 0
     assert len(data_object_meta_paths) == 1
     assert len(annotation_meta_paths) == 1
     assert len(annotation_paths) == 1
+    assert tag_seqs == [[]] * len(tag_seqs)
 
 
 def test_index_ephemeral_location(ldb_instance, data_dir, tmp_path):
@@ -290,7 +310,7 @@ def test_index_ephemeral_location(ldb_instance, data_dir, tmp_path):
         ),
     )
 
-    ret = main(["index", "-m", "bare", storage_path])
+    ret = main(["index", "-m", "bare", "--add-tags=img", storage_path])
 
     read_add_index_base = list(read_add_path.glob("ldb-autoimport/*/*"))[0]
     num_read_add_annotation_files = len(
@@ -311,6 +331,7 @@ def test_index_ephemeral_location(ldb_instance, data_dir, tmp_path):
         p for p in annotation_meta_paths if not is_annotation_meta(p)
     ]
     non_annotation = [p for p in annotation_paths if not is_annotation(p)]
+    tag_seqs = get_obj_tags(data_object_meta_paths)
 
     assert ret == 0
     assert len(data_object_meta_paths) == 23
@@ -321,12 +342,13 @@ def test_index_ephemeral_location(ldb_instance, data_dir, tmp_path):
     assert non_annotation == []
     assert num_read_add_data_object_files == 23
     assert num_read_add_annotation_files == 23
+    assert tag_seqs == [["img"]] * len(tag_seqs)
 
 
 def test_index_relative_path(ldb_instance, data_dir):
     path = os.fspath(data_dir / "fashion-mnist" / "original")
     with chdir(path):
-        ret = main(["index", "-m", "bare", "."])
+        ret = main(["index", "-m", "bare", "--add-tag=img", "."])
 
     (
         data_object_meta_paths,
@@ -340,6 +362,7 @@ def test_index_relative_path(ldb_instance, data_dir):
         p for p in annotation_meta_paths if not is_annotation_meta(p)
     ]
     non_annotation = [p for p in annotation_paths if not is_annotation(p)]
+    tag_seqs = get_obj_tags(data_object_meta_paths)
 
     assert ret == 0
     assert len(data_object_meta_paths) == 32
@@ -348,11 +371,12 @@ def test_index_relative_path(ldb_instance, data_dir):
     assert non_data_object_meta == []
     assert non_annotation_meta == []
     assert non_annotation == []
+    assert tag_seqs == [["img"]] * len(tag_seqs)
 
 
 def test_index_strict(ldb_instance, data_dir):
     path = os.fspath(data_dir / "fashion-mnist" / "original")
-    ret = main(["index", "-m", "strict", path])
+    ret = main(["index", "-m", "strict", "--add-tags=img", path])
     (
         data_object_meta_paths,
         annotation_meta_paths,
@@ -365,6 +389,7 @@ def test_index_strict(ldb_instance, data_dir):
         p for p in annotation_meta_paths if not is_annotation_meta(p)
     ]
     non_annotation = [p for p in annotation_paths if not is_annotation(p)]
+    tag_seqs = get_obj_tags(data_object_meta_paths)
 
     assert ret == 0
     assert len(data_object_meta_paths) == 23
@@ -373,12 +398,27 @@ def test_index_strict(ldb_instance, data_dir):
     assert non_data_object_meta == []
     assert non_annotation_meta == []
     assert non_annotation == []
+    assert tag_seqs == [["img"]] * len(tag_seqs)
 
 
 def test_index_annotation_only(ldb_instance, data_dir):
-    main(["index", "-m", "bare", os.fspath(data_dir / "data-object-only")])
+    main(
+        [
+            "index",
+            "-m",
+            "bare",
+            "--add-tag=test",
+            os.fspath(data_dir / "data-object-only"),
+        ],
+    )
     ret = main(
-        ["index", "-m", "annot", os.fspath(data_dir / "annotation-only")],
+        [
+            "index",
+            "-m",
+            "annot",
+            "--add-tag=img",
+            os.fspath(data_dir / "annotation-only"),
+        ],
     )
     (
         data_object_meta_paths,
@@ -392,6 +432,8 @@ def test_index_annotation_only(ldb_instance, data_dir):
         p for p in annotation_meta_paths if not is_annotation_meta(p)
     ]
     non_annotation = [p for p in annotation_paths if not is_annotation(p)]
+    tag_seqs = get_obj_tags(data_object_meta_paths)
+    unique_tag_seqs = set(map(tuple, tag_seqs))  # type: ignore[arg-type]
 
     assert ret == 0
     assert len(data_object_meta_paths) == 32
@@ -400,11 +442,18 @@ def test_index_annotation_only(ldb_instance, data_dir):
     assert non_data_object_meta == []
     assert non_annotation_meta == []
     assert non_annotation == []
+    assert unique_tag_seqs == {("test",), ("img", "test")}
 
 
 def test_index_inferred(ldb_instance, data_dir):
     ret = main(
-        ["index", "-m", "infer", os.fspath(data_dir / "inferred/multilevel")],
+        [
+            "index",
+            "-m",
+            "infer",
+            "--add-tag=img",
+            os.fspath(data_dir / "inferred/multilevel"),
+        ],
     )
     (
         data_object_meta_paths,
@@ -418,6 +467,7 @@ def test_index_inferred(ldb_instance, data_dir):
         p for p in annotation_meta_paths if not is_annotation_meta(p)
     ]
     non_annotation = [p for p in annotation_paths if not is_annotation(p)]
+    tag_seqs = get_obj_tags(data_object_meta_paths)
 
     annot_hashes = get_current_annotation_hashes(
         ldb_instance,
@@ -439,3 +489,4 @@ def test_index_inferred(ldb_instance, data_dir):
     assert non_annotation_meta == []
     assert non_annotation == []
     assert annotations == expected_annotations
+    assert tag_seqs == [["img"]] * len(tag_seqs)

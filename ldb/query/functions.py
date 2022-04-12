@@ -2,7 +2,7 @@ import operator
 import re
 from typing import Iterable, List, Optional, Union
 
-from ldb.typing import JMESPathValue, JSONBinFunc
+from ldb.typing import JMESPathValue, JSONBinFunc, JSONDecoded
 
 NumVec = Union[int, float, List[Union[int, float]]]
 Arg = Union[JMESPathValue, NumVec]
@@ -55,6 +55,20 @@ def neg(x: NumVec) -> NumVec:
     return -x
 
 
+def contains_all(
+    subject: Union[List[JSONDecoded], str],
+    searches: List[JSONDecoded],
+) -> bool:
+    return all(s in subject for s in searches)
+
+
+def contains_any(
+    subject: Union[List[JSONDecoded], str],
+    searches: List[JSONDecoded],
+) -> bool:
+    return any(s in subject for s in searches)
+
+
 CUSTOM_FUNCTIONS = {
     "regex": (regex, ["string", "string"]),
     "regex_match": (regex_match, ["string", "string"]),
@@ -63,4 +77,6 @@ CUSTOM_FUNCTIONS = {
     "mul": (mul, ["number|array", "number|array"]),
     "div": (div, ["number|array", "number|array"]),
     "neg": (neg, ["number|array"]),
+    "contains_all": (contains_all, ["array|string", "array"]),
+    "contains_any": (contains_any, ["array|string", "array"]),
 }

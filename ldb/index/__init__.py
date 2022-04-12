@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Sequence
+from typing import Collection, Sequence
 
 from ldb.data_formats import INDEX_FORMATS, Format
 from ldb.index.annotation_only import AnnotationOnlyIndexer
@@ -15,6 +15,7 @@ def index(
     paths: Sequence[str],
     read_any_cloud_location: bool = False,
     fmt: str = Format.AUTO,
+    tags: Collection[str] = (),
 ) -> IndexingResult:
     indexer: Indexer
     fmt = INDEX_FORMATS.get(fmt, fmt)
@@ -34,11 +35,13 @@ def index(
                 preprocessor,
                 read_any_cloud_location,
                 fmt == Format.STRICT,
+                tags=tags,
             )
         elif fmt == Format.ANNOT:
             indexer = AnnotationOnlyIndexer(
                 ldb_dir,
                 preprocessor,
+                tags=tags,
             )
     elif fmt == Format.INFER:
         preprocessor = InferredPreprocessor(paths, storage_locations)
@@ -47,6 +50,7 @@ def index(
             preprocessor,
             read_any_cloud_location,
             fmt == Format.STRICT,
+            tags=tags,
         )
     elif fmt == Format.LABEL_STUDIO:
         preprocessor = LabelStudioPreprocessor(paths, storage_locations)
@@ -55,6 +59,7 @@ def index(
             preprocessor,
             read_any_cloud_location,
             fmt == Format.STRICT,
+            tags=tags,
         )
     else:
         raise ValueError(f"Not a valid indexing format: {fmt}")

@@ -23,6 +23,8 @@ from tomlkit.toml_document import TOMLDocument
 from ldb import config
 from ldb.config import ConfigType
 from ldb.dataset import (
+    OpDef,
+    apply_queries,
     combine_collections,
     get_collection_dir_items,
     get_collection_dir_keys,
@@ -497,3 +499,28 @@ LS_FUNCTIONS: Dict[ArgType, Callable[[Path, Sequence[str]], AddInput]] = {
     ArgType.DATA_OBJECT: data_object_for_add,
     ArgType.PATH: path_for_ls,
 }
+
+
+def select_data_object_hashes(
+    ldb_dir: Path,
+    paths: Sequence[str],
+    query_args: Iterable[OpDef],
+) -> Iterable[str]:
+    if not query_args:
+        data_object_hashes: Iterable[str] = process_args_for_delete(
+            ldb_dir,
+            paths,
+        )
+    else:
+        data_object_hashes, annotation_hashes, _ = process_args_for_ls(
+            ldb_dir,
+            paths,
+        )
+        collection = apply_queries(
+            ldb_dir,
+            data_object_hashes,
+            annotation_hashes,
+            query_args,
+        )
+        data_object_hashes = (d for d, _ in collection)
+    return data_object_hashes

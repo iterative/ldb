@@ -2,7 +2,7 @@ import json
 import os
 import random
 from abc import ABC
-from collections import defaultdict
+from collections import abc, defaultdict
 from dataclasses import asdict, dataclass, fields
 from datetime import datetime
 from glob import iglob
@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import (
     Any,
     Callable,
+    Collection,
     DefaultDict,
     Dict,
     Iterable,
@@ -28,7 +29,12 @@ from ldb.exceptions import DatasetNotFoundError, LDBException
 from ldb.iter_utils import take
 from ldb.op_type import OpType
 from ldb.path import InstanceDir
-from ldb.query.search import BoolSearchFunc, get_bool_search_func
+from ldb.query.search import (
+    BoolSearchFunc,
+    get_bool_search_func,
+    get_no_tag_func,
+    get_tag_func,
+)
 from ldb.typing import JSONDecoded, JSONObject
 from ldb.utils import (
     format_dataset_identifier,
@@ -383,15 +389,13 @@ class Query(CollectionOperation):
     def __init__(
         self,
         ldb_dir: Path,
-        cache: LDBMappingCache[Any, Any],
+        cache: LDBMappingCache[str, Any],
         search: BoolSearchFunc,
     ) -> None:
         self.ldb_dir = ldb_dir
         self.cache = cache
         self.search = search
 
-
-class AnnotationQuery(Query):
     def apply(
         self,
         collection: Iterable[Tuple[str, str]],
@@ -399,24 +403,43 @@ class AnnotationQuery(Query):
         collection1, collection2 = tee(collection)
         for (data_object_hash, annotation_hash), keep in zip(
             collection1,
-            self.search(self.cache[a] for _, a in collection2),
+            self.search(self.get_search_input(collection2)),
         ):
             if keep:
                 yield data_object_hash, annotation_hash
+
+    def get_search_input(
+        self,
+        collection: Iterable[Tuple[str, str]],
+    ) -> Iterable[JSONDecoded]:
+        raise NotImplementedError
+
+
+class AnnotationQuery(Query):
+    def get_search_input(
+        self,
+        collection: Iterable[Tuple[str, str]],
+    ) -> Iterator[JSONDecoded]:
+        for _, annot_hash in collection:
+            yield self.cache[annot_hash]
 
 
 class FileQuery(Query):
-    def apply(
+    def get_search_input(
         self,
         collection: Iterable[Tuple[str, str]],
-    ) -> Iterator[Tuple[str, str]]:
-        collection1, collection2 = tee(collection)
-        for (data_object_hash, annotation_hash), keep in zip(
-            collection1,
-            self.search(self.cache[d] for d, _ in collection2),
-        ):
-            if keep:
-                yield data_object_hash, annotation_hash
+    ) -> Iterator[JSONDecoded]:
+        for data_obj_hash, _ in collection:
+            yield self.cache[data_obj_hash]
+
+
+class TagQuery(FileQuery):
+    def get_search_input(
+        self,
+        collection: Iterable[Tuple[str, str]],
+    ) -> Iterator[List[str]]:
+        for data_obj_meta in super().get_search_input(collection):
+            yield data_obj_meta["tags"]  # type: ignore[index,call-overload,misc] # noqa: E501
 
 
 class PipelineData:
@@ -457,6 +480,12 @@ class PipelineBuilder:
             elif op_type == OpType.FILE_QUERY:
                 assert isinstance(arg, str)
                 op = self.file_query(arg)
+            elif op_type == OpType.TAG_QUERY:
+                assert isinstance(arg, abc.Collection)
+                op = self.tag_query(arg)
+            elif op_type == OpType.NO_TAG_QUERY:
+                assert isinstance(arg, abc.Collection)
+                op = self.no_tag_query(arg)
             elif op_type == OpType.LIMIT:
                 assert isinstance(arg, int)
                 op = Limit(arg).apply
@@ -483,6 +512,20 @@ class PipelineBuilder:
             self.ldb_dir,
             self.data.data_object_metas,
             get_bool_search_func(search),
+        ).apply
+
+    def tag_query(self, tag: Collection[str]) -> CollectionFunc:
+        return TagQuery(
+            self.ldb_dir,
+            self.data.data_object_metas,
+            get_tag_func(tag),
+        ).apply
+
+    def no_tag_query(self, tag: Collection[str]) -> CollectionFunc:
+        return TagQuery(
+            self.ldb_dir,
+            self.data.data_object_metas,
+            get_no_tag_func(tag),
         ).apply
 
 

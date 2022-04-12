@@ -16,7 +16,11 @@ from .utils import (
 )
 
 
-@pytest.mark.parametrize("args,data_objs,annots", QUERY_DATA)
+@pytest.mark.parametrize(
+    "args,data_objs,annots",
+    QUERY_DATA.values(),
+    ids=QUERY_DATA.keys(),
+)
 def test_del_root_dataset(
     args,
     data_objs,

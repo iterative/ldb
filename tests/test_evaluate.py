@@ -15,7 +15,11 @@ from .data import QUERY_DATA
 from .utils import is_data_object_meta_obj, stage_new_workspace
 
 
-@pytest.mark.parametrize("args,data_objs,annots", QUERY_DATA)
+@pytest.mark.parametrize(
+    "args,data_objs,annots",
+    QUERY_DATA.values(),
+    ids=QUERY_DATA.keys(),
+)
 def test_cli_eval_counts_root_dataset(
     args,
     data_objs,

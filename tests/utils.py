@@ -2,7 +2,16 @@ import os
 import shutil
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional, Tuple
+from typing import (
+    Any,
+    Collection,
+    Dict,
+    Iterable,
+    List,
+    Optional,
+    Sequence,
+    Tuple,
+)
 
 from ldb.main import main
 from ldb.path import InstanceDir, WorkspacePath
@@ -42,6 +51,10 @@ ANNOTATION_META_KEYS = (
 ANNOTATION_LDB_KEYS = (
     "schema_version",
     "user_version",
+)
+DEFAULT_TAG_SEQS = (
+    ("a", "b", "c"),
+    ("b", "d"),
 )
 
 
@@ -95,6 +108,10 @@ def get_indexed_data_paths(
     )
 
 
+def get_obj_tags(paths: Sequence[Path]) -> List[List[str]]:
+    return [load_data_file(p)["tags"] for p in paths]
+
+
 def stage_new_workspace(
     path: Path,
     name: str = "my-dataset",
@@ -141,9 +158,12 @@ def add_user_filter(ldb_dir: Path) -> None:
 
 def index_fashion_mnist(  # pylint: disable=unused-argument
     ldb_instance: Path,
+    tags_seqs: Tuple[Collection[str], Collection[str]] = DEFAULT_TAG_SEQS,
 ) -> None:
-    for path_obj in (
+    paths = (
         DATA_DIR / "fashion-mnist/original",
         DATA_DIR / "fashion-mnist/updates",
-    ):
-        main(["index", "-m", "bare", os.fspath(path_obj)])
+    )
+    for path_obj, tags in zip(paths, tags_seqs):
+        tag_args = ["--add-tags", ",".join(tags)] if tags else []
+        main(["index", "-m", "bare", *tag_args, os.fspath(path_obj)])
