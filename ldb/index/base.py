@@ -533,7 +533,8 @@ class DataObjectFileIndexingItem(IndexingItem):
             )
             meta_contents["last_indexed"] = self.current_timestamp
             meta_contents["tags"] = sorted(  # type: ignore[assignment]
-                set(self.tags),
+                set(meta_contents["tags"])  # type: ignore[arg-type]
+                | set(self.tags),
             )
         else:
             meta_contents = construct_data_object_meta(

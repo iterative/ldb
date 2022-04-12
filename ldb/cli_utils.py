@@ -75,7 +75,8 @@ def add_base_data_object_options(parser: ArgumentParser, dest: str) -> None:
         type=tag_list,
         action=AppendConstValuesAction,
         help=(
-            "Select only data objects that contain at least one of these tags"
+            "Comma-separated list of tags. Select only data objects that "
+            "contain at least one."
         ),
     )
     parser.add_argument(
@@ -87,8 +88,8 @@ def add_base_data_object_options(parser: ArgumentParser, dest: str) -> None:
         type=tag_list,
         action=AppendConstValuesAction,
         help=(
-            "Select only data objects where at least one of these tags is "
-            "missing"
+            "Comma-separated list of tags. Select only data objects where at "
+            "least one of these tags is missing."
         ),
     )
     parser.add_argument(

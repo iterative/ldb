@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Iterable
 import shtab
 
 from ldb import config
-from ldb.cli_utils import add_data_format_arguments
+from ldb.cli_utils import add_data_format_arguments, tag_list
 from ldb.config import ConfigType
 from ldb.core import get_ldb_instance
 from ldb.data_formats import INDEX_FORMATS, Format
@@ -15,6 +15,7 @@ if TYPE_CHECKING:
 
 
 def index_command(options: Namespace) -> None:
+    tags = [t for lst in options.tags for t in lst]
     ldb_dir = get_ldb_instance()
     result = index(
         ldb_dir,
@@ -28,7 +29,7 @@ def index_command(options: Namespace) -> None:
             .get("read_any_cloud_location", False)
         ),
         fmt=options.format,
-        tags=options.tags,
+        tags=tags,
     )
     print(result.summary())
 
@@ -48,12 +49,13 @@ def add_parser(
         formats=INDEX_FORMATS,
     )
     parser.add_argument(
-        "--add-tag",
-        metavar="<tag>",
+        "--add-tags",
+        metavar="<tags>",
         dest="tags",
-        action="append",
         default=[],
-        help="Tag to add to data objects",
+        type=tag_list,
+        action="append",
+        help="Comma-separated list of tags to add to indexed data objects",
     )
     parser.add_argument(  # type: ignore[attr-defined]
         "paths",
