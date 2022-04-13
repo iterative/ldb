@@ -139,7 +139,7 @@ def workspace_diff_setup(tmp_path, ldb_instance, workspace_path, data_dir):
 
 def test_diff_two_datasets(ldb_instance, workspace_path, workspace_diff_setup):
     main(["commit"])
-    diff_items = list(diff(ldb_instance, workspace_path, "ds:a", "ds:b"))
+    diff_items = list(diff(ldb_instance, "ds:a", "ds:b"))
     assert diff_items == workspace_diff_setup
 
 
@@ -148,7 +148,9 @@ def test_diff_workspace_and_other_dataset(
     workspace_path,
     workspace_diff_setup,
 ):
-    diff_items = list(diff(ldb_instance, workspace_path, "ds:a"))
+    diff_items = list(
+        diff(ldb_instance, "ds:a", workspace_path=os.fspath(workspace_path)),
+    )
     assert diff_items == workspace_diff_setup
 
 

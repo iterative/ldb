@@ -1,12 +1,14 @@
 from dataclasses import dataclass
 from enum import IntEnum
 from pathlib import Path
-from typing import Dict, Iterable, Iterator, Optional, Tuple
+from typing import Dict, Iterable, Iterator, Optional, Tuple, Union
 
 from ldb.dataset import Dataset, get_collection
 from ldb.exceptions import LDBException
 from ldb.path import InstanceDir, WorkspacePath
 from ldb.utils import (
+    DATASET_PREFIX,
+    WORKSPACE_DATASET_PREFIX,
     format_dataset_identifier,
     get_hash_path,
     load_data_file,
@@ -37,53 +39,60 @@ class DiffItem(SimpleDiffItem):
     annotation_version2: int
 
 
+def get_diff_collection(
+    ldb_dir: Path,
+    dataset: str,
+) -> Dict[str, Optional[str]]:
+    if dataset.startswith(DATASET_PREFIX):
+        return get_collection(
+            ldb_dir,
+            get_dataset_version_hash(ldb_dir, dataset),
+        )
+    if dataset.startswith(WORKSPACE_DATASET_PREFIX):
+        return collection_dir_to_object(
+            Path(dataset[len(WORKSPACE_DATASET_PREFIX) :])  # noqa: E203
+            / WorkspacePath.COLLECTION,
+        )
+    return get_collection(ldb_dir, dataset)
+
+
 def get_diff_collections(
     ldb_dir: Path,
-    workspace_path: Path,
     dataset1: str = "",
     dataset2: str = "",
+    workspace_path: Union[str, Path] = ".",
 ) -> Tuple[Dict[str, Optional[str]], Dict[str, Optional[str]]]:
-    if dataset1.startswith("ds:"):
-        collection1 = get_collection(
-            ldb_dir,
-            get_dataset_version_hash(ldb_dir, dataset1),
-        )
-    elif dataset1:
-        collection1 = get_collection(
-            ldb_dir,
-            dataset1,
-        )
+    if dataset1:
+        collection1 = get_diff_collection(ldb_dir, dataset1)
+        if dataset2:
+            return collection1, get_diff_collection(ldb_dir, dataset2)
+    elif dataset2:
+        raise Exception
     else:
-        workspace_dataset = load_workspace_dataset(workspace_path)
+        workspace_dataset = load_workspace_dataset(Path(workspace_path))
         if workspace_dataset.parent:
             collection1 = get_collection(ldb_dir, workspace_dataset.parent)
         else:
             collection1 = {}
-    if dataset2:
-        collection2 = get_collection(
-            ldb_dir,
-            get_dataset_version_hash(ldb_dir, dataset2),
-        )
-    else:
-        collection2 = collection_dir_to_object(
-            workspace_path / WorkspacePath.COLLECTION,
-        )
+    collection2 = collection_dir_to_object(
+        Path(workspace_path) / WorkspacePath.COLLECTION,
+    )
     return collection1, collection2
 
 
 def diff(
     ldb_dir: Path,
-    workspace_path: Path,
     dataset1: str = "",
     dataset2: str = "",
+    workspace_path: Union[str, Path] = ".",
 ) -> Iterator[DiffItem]:
     return full_diff(
         ldb_dir,
         simple_diff(
             ldb_dir,
-            workspace_path,
             dataset1,
             dataset2,
+            workspace_path,
         ),
     )
 
@@ -181,15 +190,15 @@ def get_annotation_version(
 
 def simple_diff(
     ldb_dir: Path,
-    workspace_path: Path,
     dataset1: str = "",
     dataset2: str = "",
+    workspace_path: Union[str, Path] = ".",
 ) -> Iterator[SimpleDiffItem]:
     collection1, collection2 = get_diff_collections(
         ldb_dir,
-        workspace_path,
         dataset1,
         dataset2,
+        workspace_path,
     )
     return simple_diff_on_collections(collection1, collection2)
 
