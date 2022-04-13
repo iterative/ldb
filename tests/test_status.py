@@ -5,11 +5,15 @@ from ldb.status import WorkspaceStatus, status
 from ldb.utils import chdir
 
 
-def test_add_storage_location(data_dir, ldb_instance, workspace_path):
+def test_status_added_storage_location(
+    data_dir,
+    fashion_mnist_session,
+    global_workspace_path,
+):
+    ldb_instance = fashion_mnist_session
     dir_to_add = os.fspath(data_dir / "fashion-mnist/original")
-    main(["index", "-m", "bare", dir_to_add])
-    main(["add", dir_to_add])
-    with chdir(workspace_path):
+    with chdir(global_workspace_path):
+        main(["add", dir_to_add])
         ws_status = status(ldb_instance, "")
     expected_ws_status = WorkspaceStatus(
         dataset_name="my-dataset",

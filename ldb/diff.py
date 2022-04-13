@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from enum import IntEnum
 from pathlib import Path
-from typing import Dict, Iterable, Iterator, Optional, Tuple, Union
+from typing import Dict, Iterable, Iterator, Optional, Tuple
 
 from ldb.dataset import Dataset, get_collection
 from ldb.exceptions import LDBException
@@ -60,7 +60,7 @@ def get_diff_collections(
     ldb_dir: Path,
     dataset1: str = "",
     dataset2: str = "",
-    workspace_path: Union[str, Path] = ".",
+    workspace_path: str = ".",
 ) -> Tuple[Dict[str, Optional[str]], Dict[str, Optional[str]]]:
     if dataset1:
         collection1 = get_diff_collection(ldb_dir, dataset1)
@@ -84,7 +84,7 @@ def diff(
     ldb_dir: Path,
     dataset1: str = "",
     dataset2: str = "",
-    workspace_path: Union[str, Path] = ".",
+    workspace_path: str = ".",
 ) -> Iterator[DiffItem]:
     return full_diff(
         ldb_dir,
@@ -192,7 +192,7 @@ def simple_diff(
     ldb_dir: Path,
     dataset1: str = "",
     dataset2: str = "",
-    workspace_path: Union[str, Path] = ".",
+    workspace_path: str = ".",
 ) -> Iterator[SimpleDiffItem]:
     collection1, collection2 = get_diff_collections(
         ldb_dir,

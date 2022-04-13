@@ -8,7 +8,7 @@ from ldb.dataset import get_collection_size
 from ldb.diff import format_summary, simple_diff, summarize_diff
 from ldb.path import WorkspacePath
 from ldb.status import status
-from ldb.utils import format_dataset_identifier
+from ldb.utils import WORKSPACE_DATASET_PREFIX, format_dataset_identifier
 from ldb.workspace import load_workspace_dataset
 
 if TYPE_CHECKING:
@@ -37,7 +37,11 @@ def status_command(options: Namespace) -> None:
         workspace_ds = load_workspace_dataset(workspace_path)
         if workspace_ds.parent:
             summary_items = summarize_diff(
-                simple_diff(ldb_dir, workspace_path, workspace_ds.parent),
+                simple_diff(
+                    ldb_dir,
+                    f"{WORKSPACE_DATASET_PREFIX}{os.fspath(workspace_path)}",
+                    workspace_ds.parent,
+                ),
             )
         else:
             collection_size = get_collection_size(
