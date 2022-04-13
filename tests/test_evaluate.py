@@ -9,7 +9,7 @@ from ldb.evaluate import evaluate
 from ldb.main import main
 from ldb.op_type import OpType
 from ldb.typing import JSONDecoded
-from ldb.utils import DATASET_PREFIX, ROOT, chdir
+from ldb.utils import DATASET_PREFIX, ROOT, WORKSPACE_DATASET_PREFIX, chdir
 
 from .data import QUERY_DATA
 from .utils import is_data_object_meta_obj, stage_new_workspace
@@ -330,11 +330,12 @@ def test_evaluate_another_workspace(
     )
     with chdir(other_workspace_path):
         main(["add", f"{DATASET_PREFIX}{ROOT}"])
+    ws_ident = f"{WORKSPACE_DATASET_PREFIX}{os.fspath(other_workspace_path)}"
     with chdir(workspace_path):
         result = list(
             evaluate(
                 ldb_instance,
-                [os.fspath(other_workspace_path)],
+                [ws_ident],
                 [(OpType.ANNOTATION_QUERY, "[label, inference.label]")],
             ),
         )

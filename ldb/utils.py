@@ -27,6 +27,7 @@ if TYPE_CHECKING:
     from _typeshed import SupportsGetItem, SupportsRead
 
 DATASET_PREFIX = "ds:"
+WORKSPACE_DATASET_PREFIX = "ws:"
 ROOT = "root"
 CHUNK_SIZE = 2**20
 HASH_DIR_SPLIT_POINT = 3

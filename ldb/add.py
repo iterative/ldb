@@ -1,4 +1,5 @@
 import os
+import re
 from enum import Enum, unique
 from itertools import tee
 from pathlib import Path
@@ -39,6 +40,7 @@ from ldb.storage import StorageLocation, get_storage_locations
 from ldb.utils import (
     DATASET_PREFIX,
     ROOT,
+    WORKSPACE_DATASET_PREFIX,
     format_dataset_identifier,
     get_file_hash,
     get_hash_path,
@@ -68,10 +70,10 @@ def get_arg_type(paths: Sequence[str]) -> ArgType:
         return ArgType.ROOT_DATASET
     if any(p.startswith(DATASET_PREFIX) for p in paths):
         return ArgType.DATASET
+    if any(p.startswith(WORKSPACE_DATASET_PREFIX) for p in paths):
+        return ArgType.WORKSPACE_DATASET
     if any(p.startswith("0x") for p in paths):
         return ArgType.DATA_OBJECT
-    if any(expands_to_workspace(p) for p in paths):
-        return ArgType.WORKSPACE_DATASET
     return ArgType.PATH
 
 
@@ -138,6 +140,7 @@ def dataset_for_add(ldb_dir: Path, paths: Sequence[str]) -> AddInput:
 
 
 def workspace_dataset_for_add(ldb_dir: Path, paths: Sequence[str]) -> AddInput:
+    paths = [re.sub(r"^ws:", "", p) for p in paths]
     collections = [
         collection_dir_to_object(
             Path(path) / WorkspacePath.COLLECTION,
