@@ -13,7 +13,7 @@ from ldb.ls import DatasetListing, ls, ls_collection
 from ldb.main import main
 from ldb.op_type import OpType
 from ldb.path import WorkspacePath
-from ldb.utils import DATASET_PREFIX, ROOT, chdir
+from ldb.utils import DATASET_PREFIX, ROOT, WORKSPACE_DATASET_PREFIX, chdir
 from ldb.workspace import collection_dir_to_object
 
 from .data import QUERY_DATA
@@ -466,7 +466,10 @@ def test_ls_another_workspace(
     with chdir(other_workspace_path):
         main(["add", f"{DATASET_PREFIX}{ROOT}"])
     with chdir(workspace_path):
-        listings = sorted_ls(ldb_instance, [os.fspath(other_workspace_path)])
+        listings = sorted_ls(
+            ldb_instance,
+            [f"{WORKSPACE_DATASET_PREFIX}{os.fspath(other_workspace_path)}"],
+        )
     assert listings == UPDATES_DIR_LISTINGS
 
 

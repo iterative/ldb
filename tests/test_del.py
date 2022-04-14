@@ -5,7 +5,7 @@ import pytest
 
 from ldb.core import add_default_read_add_storage
 from ldb.main import main
-from ldb.utils import DATASET_PREFIX, ROOT
+from ldb.utils import DATASET_PREFIX, ROOT, WORKSPACE_DATASET_PREFIX
 
 from .data import QUERY_DATA
 from .utils import (
@@ -144,7 +144,12 @@ def test_del_another_workspace(
         ["add", os.fspath(DATA_DIR / "fashion-mnist/original/has_both/train")],
     )
     os.chdir(workspace_path)
-    ret = main(["del", os.fspath(other_workspace_path)])
+    ret = main(
+        [
+            "del",
+            f"{WORKSPACE_DATASET_PREFIX}{os.fspath(other_workspace_path)}",
+        ],
+    )
 
     object_file_paths = get_staged_object_file_paths(workspace_path)
     assert ret == 0

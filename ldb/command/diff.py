@@ -1,5 +1,4 @@
 from argparse import ArgumentParser, Namespace
-from pathlib import Path
 from typing import TYPE_CHECKING, Iterable
 
 from ldb.core import get_ldb_instance
@@ -22,9 +21,9 @@ def diff_command(options: Namespace) -> None:
     items = list(
         simple_diff(
             ldb_dir,
-            Path("."),
             options.dataset1,
             options.dataset2,
+            ".",
         ),
     )
     if not options.summary:

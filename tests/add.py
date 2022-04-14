@@ -7,7 +7,7 @@ from ldb import config
 from ldb.core import add_default_read_add_storage
 from ldb.main import main
 from ldb.path import Filename
-from ldb.utils import DATASET_PREFIX, ROOT
+from ldb.utils import DATASET_PREFIX, ROOT, WORKSPACE_DATASET_PREFIX
 
 from .data import QUERY_DATA
 from .utils import (
@@ -168,7 +168,12 @@ class AddCommandBase:
             main(["index", "-m", "bare", dir_to_add])
         main(["add", dir_to_add])
         os.chdir(workspace_path)
-        ret = main([self.COMMAND, os.fspath(other_workspace_path)])
+        ret = main(
+            [
+                self.COMMAND,
+                f"{WORKSPACE_DATASET_PREFIX}{os.fspath(other_workspace_path)}",
+            ],
+        )
 
         object_file_paths = get_staged_object_file_paths(workspace_path)
         assert ret == 0
