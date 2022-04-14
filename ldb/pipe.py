@@ -57,12 +57,16 @@ def sort_collection(
 
 
 @contextmanager
-def open_proc(proc_args: Sequence[str]) -> Iterator[StrPopen]:
+def open_proc(
+    proc_args: Sequence[str],
+    cwd: Optional[str] = None,
+) -> Iterator[StrPopen]:
     with Popen(
         proc_args,
         stdout=subprocess.PIPE,
         stdin=subprocess.PIPE,
         text=True,
+        cwd=cwd,
     ) as proc:
         yield proc
 
@@ -70,28 +74,36 @@ def open_proc(proc_args: Sequence[str]) -> Iterator[StrPopen]:
 @contextmanager
 def open_plugin(
     proc_args: Sequence[str],
-    paths: Optional[Sequence[str]] = None,
+    paths: Sequence[str] = (),
+    set_cwd: bool = False,
 ) -> Iterator[StrPopen]:
     proc_path, other_args = proc_args[0], proc_args[1:]
-    if paths is not None and not os.path.split(proc_path)[0]:
+    cwd = None
+    if paths and not os.path.split(proc_path)[0]:
         for path in paths:
             full_path = shutil.which(proc_path, path=path)
             if full_path is not None:
                 try:
-                    with open_proc([full_path, *other_args]) as proc:
+                    if set_cwd:
+                        cwd = full_path
+                    with open_proc([full_path, *other_args], cwd=cwd) as proc:
                         yield proc
                 except OSError:
                     pass
                 else:
                     return
-    with open_proc(proc_args) as proc:
+    if set_cwd:
+        cwd = shutil.which(proc_path)
+        if cwd is not None:
+            proc_path = cwd
+    with open_proc([proc_path, *other_args], cwd=cwd) as proc:
         yield proc
 
 
 def run_sort_process(
-    proc_args: List[str],
+    proc_args: Sequence[str],
     data: str,
-    paths: Optional[Sequence[str]] = None,
+    paths: Sequence[str] = (),
 ) -> Iterator[str]:
     with open_plugin(proc_args, paths) as proc:
         stdin: IO[str] = proc.stdin  # type: ignore[assignment]

@@ -1,4 +1,6 @@
+import json
 import os
+import sys
 from pathlib import Path
 from typing import List, Tuple, Union
 
@@ -6,7 +8,7 @@ from ldb.main import main
 from ldb.utils import DATASET_PREFIX, ROOT
 from ldb.workspace import iter_workspace_dir
 
-from .utils import DATA_DIR
+from .utils import DATA_DIR, SORT_DIR
 
 
 def get_workspace_counts(workspace_path: Union[str, Path]) -> Tuple[int, int]:
@@ -23,7 +25,8 @@ def get_workspace_counts(workspace_path: Union[str, Path]) -> Tuple[int, int]:
 
 
 def test_instantiate_bare(staged_ds_fashion, workspace_path):
-    main(["instantiate"])
+    ret = main(["instantiate"])
+    assert ret == 0
     assert get_workspace_counts(workspace_path) == (32, 23)
 
 
@@ -32,6 +35,50 @@ def test_instantiate_bare_path(tmp_path, staged_ds_fashion, workspace_path):
     ret = main(["instantiate", dest])
     assert ret == 0
     assert get_workspace_counts(dest) == (32, 23)
+
+
+def test_instantiate_with_apply(staged_ds_fashion, workspace_path):
+    ret = main(
+        [
+            "instantiate",
+            "--apply",
+            sys.executable,
+            os.fspath(SORT_DIR / "random_predictions.py"),
+        ],
+    )
+    annot_path = next(f for f in os.listdir() if f.endswith(".json"))
+    with open(annot_path, encoding="utf-8") as f:
+        annot = json.load(f)
+    assert ret == 0
+    assert get_workspace_counts(workspace_path) == (32, 23)
+    assert isinstance(annot.get("prediction"), float)
+
+
+def test_instantiate_path_with_apply(
+    tmp_path,
+    staged_ds_fashion,
+    workspace_path,
+):
+    dest = os.fspath(tmp_path / "data")
+    ret = main(
+        [
+            "instantiate",
+            "--apply",
+            sys.executable,
+            os.fspath(SORT_DIR / "random_predictions.py"),
+            "--",
+            dest,
+        ],
+    )
+    annot_path = os.path.join(
+        dest,
+        next(f for f in os.listdir(dest) if f.endswith(".json")),
+    )
+    with open(annot_path, encoding="utf-8") as f:
+        annot = json.load(f)
+    assert ret == 0
+    assert get_workspace_counts(dest) == (32, 23)
+    assert isinstance(annot.get("prediction"), float)
 
 
 def test_instantiate_bare_path_without_parents(

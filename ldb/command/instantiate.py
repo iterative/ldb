@@ -22,6 +22,7 @@ def instantiate_command(options: Namespace) -> None:
         options.path,
         fmt=options.format,
         force=options.force,
+        apply=options.apply,
     )
     print(
         "Copied dataset to workspace.\n"
@@ -50,6 +51,14 @@ def add_parser(
         action="store_true",
         default=False,
         help="Remove existing workspace contents",
+    )
+    parser.add_argument(
+        "--apply",
+        nargs="+",
+        metavar="<exec>",
+        default=None,
+        dest="apply",
+        help="Executable to apply to data objects and annotations",
     )
     parser.add_argument(
         "path",
