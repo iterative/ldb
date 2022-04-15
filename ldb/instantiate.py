@@ -1,5 +1,7 @@
+import json
 import os
 import shutil
+import subprocess
 import tempfile
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
@@ -10,6 +12,7 @@ from typing import (
     Mapping,
     NamedTuple,
     Optional,
+    Sequence,
     Tuple,
     Union,
     cast,
@@ -50,6 +53,7 @@ def instantiate(
     dest: Path,
     fmt: str = Format.BARE,
     force: bool = False,
+    apply: Sequence[str] = (),
 ) -> InstantiateResult:
     fmt = INSTANTIATE_FORMATS[fmt]
     collection = collection_dir_to_object(
@@ -71,12 +75,16 @@ def instantiate(
             fmt,
         )
 
-        # check again to make sure nothing was added while writing to the
-        # temporary location
-        ensure_path_is_empty_workspace(dest, force)
-        dest_str = os.fspath(dest)
-        for path in Path(tmp_dir).iterdir():
-            shutil.move(os.fspath(path), dest_str)
+        if apply:
+            paths = [str(ldb_dir / InstanceDir.USER_FILTERS)]
+            apply_transform(apply, tmp_dir, os.fspath(dest), paths=paths)
+        else:
+            # check again to make sure nothing was added while writing to the
+            # temporary location
+            ensure_path_is_empty_workspace(dest, force)
+            dest_str = os.fspath(dest)
+            for path in Path(tmp_dir).iterdir():
+                shutil.move(os.fspath(path), dest_str)
 
     return result
 
@@ -114,6 +122,33 @@ def instantiate_collection(
             dest_dir,
         )
     raise ValueError(f"Not a valid indexing format: {fmt}")
+
+
+def apply_transform(
+    proc_args: Sequence[str],
+    input_dir: str,
+    output_dir: str,
+    paths: Sequence[str] = (),
+) -> int:
+    from ldb.pipe import open_plugin  # pylint: disable=import-outside-toplevel
+
+    data = json.dumps(
+        [
+            os.path.abspath(input_dir),
+            os.path.abspath(output_dir),
+        ],
+    )
+    with open_plugin(proc_args, paths, set_cwd=True) as proc:
+        stdout, stderr = proc.communicate(data)
+        retcode = proc.poll() or 0
+        if retcode:
+            raise subprocess.CalledProcessError(
+                retcode,
+                proc.args,
+                output=stdout,
+                stderr=stderr,
+            )
+    return retcode
 
 
 @dataclass
