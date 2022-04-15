@@ -85,7 +85,7 @@ def open_plugin(
             if full_path is not None:
                 try:
                     if set_cwd:
-                        cwd = full_path
+                        cwd = os.path.split(full_path)[0] or None
                     with open_proc([full_path, *other_args], cwd=cwd) as proc:
                         yield proc
                 except OSError:
@@ -93,9 +93,10 @@ def open_plugin(
                 else:
                     return
     if set_cwd:
-        cwd = shutil.which(proc_path)
-        if cwd is not None:
-            proc_path = cwd
+        full_path = shutil.which(proc_path)
+        if full_path is not None:
+            cwd = os.path.split(full_path)[0] or None
+            proc_path = full_path
     with open_proc([proc_path, *other_args], cwd=cwd) as proc:
         yield proc
 

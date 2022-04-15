@@ -138,7 +138,7 @@ def apply_transform(
             os.path.abspath(output_dir),
         ],
     )
-    with open_plugin(proc_args, paths) as proc:
+    with open_plugin(proc_args, paths, set_cwd=True) as proc:
         stdout, stderr = proc.communicate(data)
         retcode = proc.poll() or 0
         if retcode:
