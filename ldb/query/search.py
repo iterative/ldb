@@ -1,8 +1,9 @@
 from typing import Callable, Collection, Iterable, Iterator
 
 import jmespath
-from jmespath.exceptions import JMESPathTypeError, ParseError
+from jmespath.exceptions import JMESPathError, ParseError
 
+from ldb.jmespath import custom_compile, jp_compile
 from ldb.query.utils import OptionsCache
 from ldb.typing import JSONDecoded
 
@@ -14,21 +15,29 @@ OPTIONS_CACHE = OptionsCache()
 
 def get_search_func(
     query_str: str,
+    use_custom: bool = True,
 ) -> SearchFunc:
     """
     Compile `query_str` and return a search function.
     """
-    query_obj = jmespath.compile(query_str)
+    if use_custom:
+        query_obj = custom_compile(query_str)
+    else:
+        query_obj = jp_compile(query_str)
 
     def search(objects: Iterable[JSONDecoded]) -> Iterator[JSONDecoded]:
         for obj in objects:
-            yield query_obj.search(obj, options=OPTIONS_CACHE.get())
+            try:
+                yield query_obj.search(obj, options=OPTIONS_CACHE.get())
+            except JMESPathError:
+                yield None
 
     return search
 
 
 def get_bool_search_func(
     query_str: str,
+    use_custom: bool = True,
 ) -> BoolSearchFunc:
     """
     Adapt `query_str` to cast result to a bool and return a search function.
@@ -44,8 +53,12 @@ def get_bool_search_func(
 
     See https://jmespath.org/specification.html#or-expressions
     """
+    modified_query_str = f"{query_str} && `true` || `false`"
     try:
-        query_obj = jmespath.compile(f"{query_str} && `true` || `false`")
+        if use_custom:
+            query_obj = custom_compile(modified_query_str)
+        else:
+            query_obj = jp_compile(modified_query_str)
     except ParseError:
         # If the expression above raises a ParseError, this should too
         # This way we show the original query string in the error message
@@ -55,10 +68,12 @@ def get_bool_search_func(
     def search(objects: Iterable[JSONDecoded]) -> Iterator[bool]:
         for obj in objects:
             try:
-                result = query_obj.search(obj, options=OPTIONS_CACHE.get())
-            except JMESPathTypeError:
-                result = False
-            yield result  # type: ignore[misc]
+                yield query_obj.search(  # type: ignore[misc]
+                    obj,
+                    options=OPTIONS_CACHE.get(),
+                )
+            except JMESPathError:
+                yield False
 
     return search
 
