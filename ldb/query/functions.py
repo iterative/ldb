@@ -69,6 +69,22 @@ def contains_any(
     return any(s in subject for s in searches)
 
 
+def parse_identifier_expression(key: str) -> List[str]:
+    # TODO: use jmespath.lexer.Lexer().tokenize
+    return key.split(".")
+
+
+def has_keys(value: JSONDecoded, *keys: str) -> bool:
+    for key_exp in keys:
+        node = value
+        for key in parse_identifier_expression(key_exp):
+            try:
+                node = node[key]  # type: ignore[index,call-overload]
+            except (KeyError, TypeError):
+                return False
+    return True
+
+
 CUSTOM_FUNCTIONS = {
     "regex": (regex, ["string", "string"]),
     "regex_match": (regex_match, ["string", "string"]),
@@ -79,4 +95,8 @@ CUSTOM_FUNCTIONS = {
     "neg": (neg, ["number|array"]),
     "contains_all": (contains_all, ["array|string", "array"]),
     "contains_any": (contains_any, ["array|string", "array"]),
+    "has_keys": (
+        has_keys,
+        ["boolean|array|object|null|string|number", "string", "*"],
+    ),
 }
