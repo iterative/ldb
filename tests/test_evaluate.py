@@ -14,6 +14,10 @@ from ldb.utils import DATASET_PREFIX, ROOT, WORKSPACE_DATASET_PREFIX, chdir
 from .data import QUERY_DATA
 from .utils import is_data_object_meta_obj, stage_new_workspace
 
+SIMPLE_MULTI_SELECT_QUERY = (
+    '[label, (has_keys(@, `"inference.label"`) && inference.label || `null`)]'
+)
+
 
 @pytest.mark.parametrize(
     "args,data_objs,annots",
@@ -104,7 +108,12 @@ def test_evaluate_storage_location(ldb_instance, data_dir):
         evaluate(
             ldb_instance,
             [dir_to_eval],
-            [(OpType.ANNOTATION_QUERY, "[label, inference.label]")],
+            [
+                (
+                    OpType.ANNOTATION_QUERY,
+                    SIMPLE_MULTI_SELECT_QUERY,
+                ),
+            ],
         ),
     )
     expected = [
@@ -139,7 +148,10 @@ def test_evaluate_data_objects(
     query_args = []
     if do_annotation_query:
         query_args.append(
-            (OpType.ANNOTATION_QUERY, "[label, inference.label]"),
+            (
+                OpType.ANNOTATION_QUERY,
+                SIMPLE_MULTI_SELECT_QUERY,
+            ),
         )
     if do_file_query:
         query_args.append((OpType.FILE_QUERY, "@"))
@@ -228,7 +240,12 @@ def test_evaluate_datasets(ldb_instance, workspace_path, data_dir):
         evaluate(
             ldb_instance,
             ["ds:a", "ds:b"],
-            [(OpType.ANNOTATION_QUERY, "[label, inference.label]")],
+            [
+                (
+                    OpType.ANNOTATION_QUERY,
+                    SIMPLE_MULTI_SELECT_QUERY,
+                ),
+            ],
         ),
     )
     expected = [
@@ -261,7 +278,12 @@ def test_evaluate_root_dataset(limit, ldb_instance, data_dir):
     query_args = []
     if limit:
         query_args.append((OpType.LIMIT, limit))
-    query_args.append((OpType.ANNOTATION_QUERY, "[label, inference.label]"))
+    query_args.append(
+        (
+            OpType.ANNOTATION_QUERY,
+            SIMPLE_MULTI_SELECT_QUERY,
+        ),
+    )
     result = list(
         evaluate(
             ldb_instance,
@@ -336,7 +358,12 @@ def test_evaluate_another_workspace(
             evaluate(
                 ldb_instance,
                 [ws_ident],
-                [(OpType.ANNOTATION_QUERY, "[label, inference.label]")],
+                [
+                    (
+                        OpType.ANNOTATION_QUERY,
+                        SIMPLE_MULTI_SELECT_QUERY,
+                    ),
+                ],
             ),
         )
     expected = [

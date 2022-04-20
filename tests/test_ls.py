@@ -369,7 +369,7 @@ def test_ls_root_dataset_query(before, after, num, ldb_instance, data_dir):
             *before,
             (
                 OpType.ANNOTATION_QUERY,
-                "@ == `null` || label == inference.label || label == `3`",
+                "@ == `null` || label == `3` || label == inference.label",
             ),
             *after,
         ],
