@@ -1,38 +1,15 @@
-from typing import Any, Dict, Optional, Type
+from typing import Dict, List, Optional, Type
 
 from jmespath import exceptions, lexer
 from jmespath.parser import ParsedResult, Parser
 from jmespath.visitor import Options, TreeInterpreter
 
+from ldb.jmespath.exceptions import (
+    IdentifierTypeException,
+    InvalidIdentifierExpression,
+    MissingIdentifierException,
+)
 from ldb.typing import JSONDecoded, JSONObject
-
-
-class IdentifierException(exceptions.JMESPathError):
-    def __init__(  # pylint: disable=super-init-not-called
-        self,
-        identifier: str,
-    ) -> None:
-        self.identifier = identifier
-
-    def __str__(self) -> str:
-        return f"{self.identifier}"
-
-
-class MissingIdentifierException(IdentifierException):
-    pass
-
-
-class IdentifierTypeException(IdentifierException):
-    def __init__(self, identifier: str, subject: Any) -> None:
-        super().__init__(identifier)
-        self.subject = subject
-
-    def __str__(self) -> str:
-        return (
-            f"Invalid application of identifier {self.identifier}. "
-            "Identifier expression subject must be a dict, not "
-            f"{type(self.subject)}"
-        )
 
 
 class FieldValidatedTreeInterpreter(  # pylint: disable=abstract-method
@@ -108,3 +85,20 @@ class CustomParsedResult(ParsedResult):
             value,
         )
         return result
+
+
+def parse_identifier_expression(key: str) -> List[str]:
+    tokens = list(
+        lexer.Lexer().tokenize(key),  # type: ignore[func-returns-value]
+    )
+    even = True
+    result = []
+    for t in tokens[:-1]:
+        if even:
+            if not t["type"] in ("unquoted_identifier", "quoted_identifier"):
+                raise InvalidIdentifierExpression(key)
+            result.append(t["value"])
+        elif not t["type"] == "dot":
+            raise InvalidIdentifierExpression(key)
+        even = not even
+    return result
