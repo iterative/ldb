@@ -508,6 +508,7 @@ def select_data_object_hashes(
     ldb_dir: Path,
     paths: Sequence[str],
     query_args: Iterable[OpDef],
+    warn: bool = True,
 ) -> Iterable[str]:
     if not query_args:
         data_object_hashes: Iterable[str] = process_args_for_delete(
@@ -524,6 +525,7 @@ def select_data_object_hashes(
             data_object_hashes,
             annotation_hashes,
             query_args,
+            warn=warn,
         )
         data_object_hashes = (d for d, _ in collection)
     return data_object_hashes

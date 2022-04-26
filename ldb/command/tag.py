@@ -28,6 +28,7 @@ def tag_command(options: Namespace) -> None:
         ldb_dir,
         paths,
         query_args,
+        warn=False,
     )
     tag_data_objects(
         ldb_dir,
