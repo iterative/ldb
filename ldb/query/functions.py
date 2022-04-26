@@ -2,6 +2,7 @@ import operator
 import re
 from typing import Iterable, List, Optional, Union
 
+from ldb.jmespath.parser import parse_identifier_expression
 from ldb.typing import JMESPathValue, JSONBinFunc, JSONDecoded
 
 NumVec = Union[int, float, List[Union[int, float]]]
@@ -67,11 +68,6 @@ def contains_any(
     searches: List[JSONDecoded],
 ) -> bool:
     return any(s in subject for s in searches)
-
-
-def parse_identifier_expression(key: str) -> List[str]:
-    # TODO: use jmespath.lexer.Lexer().tokenize
-    return key.split(".")
 
 
 def has_keys(value: JSONDecoded, *keys: str) -> bool:
