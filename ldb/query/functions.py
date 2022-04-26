@@ -2,6 +2,8 @@ import operator
 import re
 from typing import Iterable, List, Optional, Union
 
+from jmespath.exceptions import JMESPathTypeError
+
 from ldb.jmespath.parser import parse_identifier_expression
 from ldb.typing import JMESPathValue, JSONBinFunc, JSONDecoded
 
@@ -81,6 +83,30 @@ def has_keys(value: JSONDecoded, *keys: str) -> bool:
     return True
 
 
+def get(
+    value: JSONDecoded,
+    key_exp: str,
+    default: JSONDecoded = None,
+) -> JSONDecoded:
+    node = value
+    # Optional args on variadic functions take the same types, so we
+    # give `key_exp` a more general type signature and ensure it's a
+    # string here
+    if not isinstance(key_exp, str):
+        raise JMESPathTypeError(
+            "get",
+            key_exp,
+            type(key_exp).__name__,
+            ["string"],
+        )
+    for key in parse_identifier_expression(key_exp):
+        try:
+            node = node[key]  # type: ignore[index,call-overload]
+        except (KeyError, TypeError):
+            return default
+    return node
+
+
 CUSTOM_FUNCTIONS = {
     "regex": (regex, ["string", "string"]),
     "regex_match": (regex_match, ["string", "string"]),
@@ -94,5 +120,13 @@ CUSTOM_FUNCTIONS = {
     "has_keys": (
         has_keys,
         ["boolean|array|object|null|string|number", "string", "*"],
+    ),
+    "get": (
+        get,
+        [
+            "boolean|array|object|null|string|number",
+            "boolean|array|object|null|string|number|expref",
+            "*",
+        ],
     ),
 }
