@@ -477,7 +477,10 @@ class PipelineBuilder:
             op: CollectionFunc
             if op_type == OpType.ANNOTATION_QUERY:
                 assert isinstance(arg, str)
-                op = self.annotation_query(arg, warn)
+                op = self.annotation_query(arg, True, warn)
+            elif op_type == OpType.JP_ANNOTATION_QUERY:
+                assert isinstance(arg, str)
+                op = self.annotation_query(arg, False, warn)
             elif op_type == OpType.FILE_QUERY:
                 assert isinstance(arg, str)
                 op = self.file_query(arg, warn)
@@ -501,11 +504,16 @@ class PipelineBuilder:
             ops.append(op)
         return ops
 
-    def annotation_query(self, search: str, warn: bool) -> CollectionFunc:
+    def annotation_query(
+        self,
+        search: str,
+        use_custom: bool,
+        warn: bool,
+    ) -> CollectionFunc:
         return AnnotationQuery(
             self.ldb_dir,
             self.data.annotations,
-            get_bool_search_func(search, warn=warn),
+            get_bool_search_func(search, use_custom=use_custom, warn=warn),
         ).apply
 
     def file_query(self, search: str, warn: bool) -> CollectionFunc:

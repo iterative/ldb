@@ -55,7 +55,16 @@ def add_base_data_object_options(parser: ArgumentParser, dest: str) -> None:
         default=[],
         dest=dest,
         action=AppendConstValuesAction,
-        help="JMESPath query applied to annotations",
+        help="JMESPath-like query applied to annotations",
+    )
+    parser.add_argument(
+        "--jquery",
+        metavar="<query>",
+        const=OpType.JP_ANNOTATION_QUERY,
+        default=[],
+        dest=dest,
+        action=AppendConstValuesAction,
+        help="Fully compliant JMESPath query applied to annotations",
     )
     parser.add_argument(
         "--file",
@@ -64,7 +73,7 @@ def add_base_data_object_options(parser: ArgumentParser, dest: str) -> None:
         default=[],
         dest=dest,
         action=AppendConstValuesAction,
-        help="JMESPath query applied to data object file attributes",
+        help="JMESPath-like query applied to data object file attributes",
     )
     parser.add_argument(
         "--tag",

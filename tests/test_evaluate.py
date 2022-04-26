@@ -1,6 +1,6 @@
 import os
 import shutil
-from typing import Any, Dict, Sequence
+from typing import Any, Dict, Sequence, Tuple
 
 import pytest
 
@@ -14,9 +14,7 @@ from ldb.utils import DATASET_PREFIX, ROOT, WORKSPACE_DATASET_PREFIX, chdir
 from .data import QUERY_DATA
 from .utils import is_data_object_meta_obj, stage_new_workspace
 
-SIMPLE_MULTI_SELECT_QUERY = (
-    '[label, (has_keys(@, `"inference.label"`) && inference.label || `null`)]'
-)
+SIMPLE_MULTI_SELECT_QUERY = '[label, get(@, `"inference.label"`)]'
 
 
 @pytest.mark.parametrize(
@@ -37,12 +35,11 @@ def test_cli_eval_counts_root_dataset(
             f"{DATASET_PREFIX}{ROOT}",
             *args,
             "--query=@ != `null`",
-            '--file=`"file-query"`',
         ],
     )
     out_lines = capsys.readouterr().out.splitlines()
-    found_data_objs = sum(x == '"file-query"' for x in out_lines)
     found_annots = sum(x == "true" for x in out_lines)
+    found_data_objs = found_annots + sum(x == "false" for x in out_lines)
     assert ret == 0
     assert found_data_objs == data_objs
     assert found_annots == annots
@@ -62,6 +59,7 @@ def test_cli_eval_counts_root_dataset(
             '{\n\t"inference": {\n\t\t"label": 1\n\t},\n\t"label": 7\n}',
         ),
     ],
+    ids=["no-arg", "2", "none", "tab"],
 )
 def test_cli_eval_json_indent(
     indent_args,
@@ -73,7 +71,7 @@ def test_cli_eval_json_indent(
         [
             "eval",
             f"{DATASET_PREFIX}{ROOT}",
-            "--query '[label, inference.label]'",
+            "--query=@",
             "--json",
             *indent_args,
         ],
@@ -172,38 +170,34 @@ def test_evaluate_data_objects(
     file_meta_result: Sequence[Dict[str, Any]] = ()
     annotation_result: Sequence[JSONDecoded] = ()
 
-    expected_data_object_hashes = (
+    expected_data_object_hashes: Tuple[str, ...] = (
         "47149106168f7d88fcea9e168608f129",
         "66e0373a2a989870fbc2c7791d8e6490",
         "a2430513e897d5abcf62a55b8df81355",
         "def3cbcb30f3254a2a220e51ddf45375",
     )
+    if do_annotation_query and do_file_query:
+        expected_data_object_hashes = expected_data_object_hashes[:3]
     expected_annotation_result: Sequence[JSONDecoded] = ()
-    expected_num_columns = 1
 
-    no_query_args = not do_annotation_query and not do_file_query
-    if do_annotation_query or no_query_args:
-        annotation_result = result_columns[-1]
-        expected_num_columns += 1
-    if do_annotation_query:
-        expected_annotation_result = (
-            [4, 4],
-            [3, None],
-            [7, 1],
-            None,
-        )
-    elif no_query_args:
-        expected_annotation_result = (
-            {"label": 4, "inference": {"label": 4}},  # type: ignore[assignment] # noqa: E501
-            {"label": 3},
-            {"label": 7, "inference": {"label": 1}},
-            None,
-        )
     if do_file_query:
         file_meta_result = result_columns[1]
-        expected_num_columns += 1
-
-    assert len(result_columns) == expected_num_columns
+    else:
+        annotation_result = result_columns[1]
+        if do_annotation_query:
+            expected_annotation_result = (
+                [4, 4],
+                [3, None],
+                [7, 1],
+                None,
+            )
+        else:
+            expected_annotation_result = (
+                {"label": 4, "inference": {"label": 4}},  # type: ignore[assignment] # noqa: E501
+                {"label": 3},
+                {"label": 7, "inference": {"label": 1}},
+                None,
+            )
     assert result_columns[0] == expected_data_object_hashes
     assert expected_annotation_result == annotation_result
     assert all(is_data_object_meta_obj(m) for m in file_meta_result)
