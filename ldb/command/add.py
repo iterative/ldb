@@ -36,6 +36,7 @@ def add_command(options: Namespace) -> None:
         data_object_hashes,
         annotation_hashes,
         query_args,
+        warn=False,
     )
     print("Adding to working dataset...")
     add(

@@ -470,16 +470,17 @@ class PipelineBuilder:
     def build(
         self,
         op_defs: Iterable[OpDef],
+        warn: bool = True,
     ) -> List[CollectionFunc]:
         ops = []
         for op_type, arg in op_defs:
             op: CollectionFunc
             if op_type == OpType.ANNOTATION_QUERY:
                 assert isinstance(arg, str)
-                op = self.annotation_query(arg)
+                op = self.annotation_query(arg, warn)
             elif op_type == OpType.FILE_QUERY:
                 assert isinstance(arg, str)
-                op = self.file_query(arg)
+                op = self.file_query(arg, warn)
             elif op_type == OpType.TAG_QUERY:
                 assert isinstance(arg, abc.Collection)
                 op = self.tag_query(arg)
@@ -500,18 +501,18 @@ class PipelineBuilder:
             ops.append(op)
         return ops
 
-    def annotation_query(self, search: str) -> CollectionFunc:
+    def annotation_query(self, search: str, warn: bool) -> CollectionFunc:
         return AnnotationQuery(
             self.ldb_dir,
             self.data.annotations,
-            get_bool_search_func(search),
+            get_bool_search_func(search, warn=warn),
         ).apply
 
-    def file_query(self, search: str) -> CollectionFunc:
+    def file_query(self, search: str, warn: bool) -> CollectionFunc:
         return FileQuery(
             self.ldb_dir,
             self.data.data_object_metas,
-            get_bool_search_func(search),
+            get_bool_search_func(search, warn=warn),
         ).apply
 
     def tag_query(self, tag: Collection[str]) -> CollectionFunc:
@@ -539,8 +540,11 @@ class Pipeline:
         ldb_dir: Path,
         op_defs: Iterable[OpDef],
         data: Optional[PipelineData] = None,
+        warn: bool = True,
     ) -> "Pipeline":
-        return cls(PipelineBuilder(ldb_dir, data=data).build(op_defs))
+        return cls(
+            PipelineBuilder(ldb_dir, data=data).build(op_defs, warn=warn),
+        )
 
     def run(
         self,
@@ -556,17 +560,19 @@ def apply_queries(
     data_object_hashes: Iterable[str],
     annotation_hashes: Iterable[str],
     op_defs: Iterable[OpDef],
+    warn: bool = True,
 ) -> Iterator[Tuple[str, str]]:
     collection = zip(data_object_hashes, annotation_hashes)
-    return apply_queries_to_collection(ldb_dir, collection, op_defs)
+    return apply_queries_to_collection(ldb_dir, collection, op_defs, warn=warn)
 
 
 def apply_queries_to_collection(
     ldb_dir: Path,
     collection: Iterable[Tuple[str, str]],
     op_defs: Iterable[OpDef],
+    warn: bool = True,
 ) -> Iterator[Tuple[str, str]]:
     """
     Filter the given collection by the operations in `collection_ops`.
     """
-    return Pipeline.from_defs(ldb_dir, op_defs).run(collection)
+    return Pipeline.from_defs(ldb_dir, op_defs, warn=warn).run(collection)

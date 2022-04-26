@@ -23,6 +23,7 @@ def delete_command(options: Namespace) -> None:
         get_ldb_instance(),
         paths,
         query_args,
+        warn=False,
     )
     delete(
         Path("."),

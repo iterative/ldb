@@ -21,6 +21,7 @@ def ls(
     ldb_dir: Path,
     paths: Sequence[str],
     collection_ops: Iterable[OpDef],
+    warn: bool = True,
 ) -> List[DatasetListing]:
     data_object_hashes, annotation_hashes, _ = process_args_for_ls(
         ldb_dir,
@@ -31,6 +32,7 @@ def ls(
         data_object_hashes,
         annotation_hashes,
         collection_ops,
+        warn=warn,
     )
     return ls_collection(ldb_dir, collection)
 

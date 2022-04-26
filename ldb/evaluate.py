@@ -1,3 +1,4 @@
+from functools import partial
 from itertools import tee
 from pathlib import Path
 from typing import Iterable, Iterator, List, Optional, Sequence, Tuple, Union
@@ -20,12 +21,19 @@ def evaluate(
     ldb_dir: Path,
     paths: Sequence[str],
     collection_ops: Iterable[Tuple[str, str]],
+    warn: bool = True,
 ) -> Iterator[EvaluateResult]:
     annotation_query, file_query, collection_ops = process_query_args(
         collection_ops,
     )
-    search = apply_optional(get_search_func, annotation_query)
-    file_search = apply_optional(get_search_func, file_query)
+    search = apply_optional(
+        partial(get_search_func, warn=warn),
+        annotation_query,
+    )
+    file_search = apply_optional(
+        partial(get_search_func, warn=warn),
+        file_query,
+    )
     data_object_hashes, annotation_hashes, _ = process_args_for_ls(
         ldb_dir,
         paths,
@@ -35,6 +43,7 @@ def evaluate(
         data_object_hashes,
         annotation_hashes,
         collection_ops,
+        warn=warn,
     )
     collection1, collection2 = tee(collection)
     data_object_hashes1, data_object_hashes2 = tee(d for d, _ in collection1)

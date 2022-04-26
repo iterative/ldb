@@ -15,6 +15,7 @@ def ls_command(options: Namespace) -> None:
         ldb_dir,
         options.paths,
         options.query_args,
+        warn=False,
     )
     if options.summary:
         print(len(ds_listings))

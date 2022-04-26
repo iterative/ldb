@@ -22,6 +22,7 @@ def pull_command(options: Namespace) -> None:
         paths,
         options.query_args,
         version,
+        warn=False,
     )
 
 

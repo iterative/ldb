@@ -17,6 +17,7 @@ def evaluate_command(options: Namespace) -> None:
         get_ldb_instance(),
         options.paths,
         options.query_args,
+        warn=True,
     ):
         if not options.json_only:
             print(f"0x{data_object_hash}")

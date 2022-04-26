@@ -20,6 +20,7 @@ def pull(
     paths: Sequence[str],
     collection_ops: Iterable[OpDef],
     version: int,
+    warn: bool = True,
 ) -> None:
     version_msg = "latest version" if version == -1 else f"v{version}"
     ds_name = load_workspace_dataset(workspace_path).dataset_name
@@ -40,6 +41,7 @@ def pull(
         ldb_dir,
         collection,
         collection_ops,
+        warn=warn,
     )
     data_object_hashes = (d for d, _ in collection)
     print(f"Updating to {version_msg}")
