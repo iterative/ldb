@@ -1,3 +1,4 @@
+import warnings
 from typing import Callable, Collection, Iterable, Iterator
 
 import jmespath
@@ -6,6 +7,7 @@ from jmespath.exceptions import JMESPathError, ParseError
 from ldb.jmespath import custom_compile, jp_compile
 from ldb.query.utils import OptionsCache
 from ldb.typing import JSONDecoded
+from ldb.warnings import SimpleWarningHandler
 
 SearchFunc = Callable[[Iterable[JSONDecoded]], Iterator[JSONDecoded]]
 BoolSearchFunc = Callable[[Iterable[JSONDecoded]], Iterator[bool]]
@@ -16,6 +18,7 @@ OPTIONS_CACHE = OptionsCache()
 def get_search_func(
     query_str: str,
     use_custom: bool = True,
+    warn: bool = True,
 ) -> SearchFunc:
     """
     Compile `query_str` and return a search function.
@@ -25,12 +28,25 @@ def get_search_func(
     else:
         query_obj = jp_compile(query_str)
 
+    runtime_exc_types = set()
+
     def search(objects: Iterable[JSONDecoded]) -> Iterator[JSONDecoded]:
-        for obj in objects:
-            try:
-                yield query_obj.search(obj, options=OPTIONS_CACHE.get())
-            except JMESPathError:
-                yield None
+        with warnings.catch_warnings():
+            warnings.showwarning = SimpleWarningHandler.showwarning
+            for obj in objects:
+                try:
+                    yield query_obj.search(obj, options=OPTIONS_CACHE.get())
+                except JMESPathError as exc:
+                    if warn:
+                        exc_type = type(exc)
+                        if exc_type not in runtime_exc_types:
+                            warnings.warn(
+                                f"{exc_type.__name__}: {exc}",
+                                RuntimeWarning,
+                                stacklevel=2,
+                            )
+                        runtime_exc_types.add(exc_type)
+                    yield None
 
     return search
 
@@ -38,6 +54,7 @@ def get_search_func(
 def get_bool_search_func(
     query_str: str,
     use_custom: bool = True,
+    warn: bool = True,
 ) -> BoolSearchFunc:
     """
     Adapt `query_str` to cast result to a bool and return a search function.
@@ -65,15 +82,28 @@ def get_bool_search_func(
         jmespath.compile(query_str)
         raise
 
+    runtime_exc_types = set()
+
     def search(objects: Iterable[JSONDecoded]) -> Iterator[bool]:
-        for obj in objects:
-            try:
-                yield query_obj.search(  # type: ignore[misc]
-                    obj,
-                    options=OPTIONS_CACHE.get(),
-                )
-            except JMESPathError:
-                yield False
+        with warnings.catch_warnings():
+            warnings.showwarning = SimpleWarningHandler.showwarning
+            for obj in objects:
+                try:
+                    yield query_obj.search(  # type: ignore[misc]
+                        obj,
+                        options=OPTIONS_CACHE.get(),
+                    )
+                except JMESPathError as exc:
+                    if warn:
+                        exc_type = type(exc)
+                        if exc_type not in runtime_exc_types:
+                            warnings.warn(
+                                f"{exc_type.__name__}: {exc}",
+                                RuntimeWarning,
+                                stacklevel=2,
+                            )
+                        runtime_exc_types.add(exc_type)
+                    yield False
 
     return search
 
