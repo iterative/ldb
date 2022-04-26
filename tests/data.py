@@ -7,10 +7,7 @@ SORT_Q1 = ["--pipe", sys.executable, f"{REVERSE_SCRIPT}"]
 FILE_Q1 = ["--file", "fs.size > `400`"]
 ANNOT_Q1 = [
     "--query",
-    (
-        '@ == `null` || (has_keys(@, `"inference.label"`) '
-        "&& inference.label != `null`)"
-    ),
+    "@ == `null` || inference.label != `null`",
 ]
 BASIC_QUERIES = [*FILE_Q1, *ANNOT_Q1]
 # args,data_objs,annots
@@ -43,10 +40,7 @@ SIMPLE_QUERY_DATA = {
             '--query=type(label) == `"number"`',
             "--sample=1.0",
             "--tag=b",
-            (
-                '--query=has_keys(@, `"inference.label"`) '
-                "&& inference.label != `null`"
-            ),
+            "--query=inference.label != `null`",
             '--query=type(inference.label) == `"number"`',
             "--no-tag=missing-tag",
             "--limit=10",
