@@ -30,6 +30,7 @@ SIMPLE_QUERY_DATA = {
     "basic-fsize": ([*BASIC_QUERIES, "--file", "fs.size < `600`"], 7, 3),
     "tag-notag": (["--tag", "a,c,e", "--no-tag", "b,d"], 23, 14),
     "tag": (["--tag", "d"], 9, 9),
+    "path": (["--path", r"/\d*3\d*\.png"], 7, 5),
     "complex-pipeline": (
         [
             "--sample=1.0",

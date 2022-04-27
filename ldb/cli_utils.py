@@ -76,6 +76,18 @@ def add_base_data_object_options(parser: ArgumentParser, dest: str) -> None:
         help="JMESPath-like query applied to data object file attributes",
     )
     parser.add_argument(
+        "--path",
+        metavar="<pattern>",
+        const=OpType.PATH_QUERY,
+        default=[],
+        dest=dest,
+        action=AppendConstValuesAction,
+        help=(
+            "Python regular expression which must match one of the object's "
+            "indexing paths"
+        ),
+    )
+    parser.add_argument(
         "--tag",
         metavar="<tag>",
         const=OpType.TAG_QUERY,

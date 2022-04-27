@@ -1,3 +1,4 @@
+import re
 import warnings
 from typing import Callable, Collection, Iterable, Iterator
 
@@ -120,5 +121,20 @@ def get_no_tag_func(tags: Collection[str]) -> BoolSearchFunc:
     def search(objects: Iterable[Collection[str]]) -> Iterator[bool]:
         for obj in objects:
             yield any(t not in obj for t in tags)
+
+    return search  # type: ignore[return-value]
+
+
+def get_path_func(pattern: str) -> BoolSearchFunc:
+    re_obj = re.compile(pattern)
+
+    def search(objects: Iterable[Collection[str]]) -> Iterator[bool]:
+        for obj in objects:
+            for path in obj:
+                if re_obj.search(path) is not None:
+                    yield True
+                    break
+            else:
+                yield False
 
     return search  # type: ignore[return-value]

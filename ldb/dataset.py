@@ -33,6 +33,7 @@ from ldb.query.search import (
     BoolSearchFunc,
     get_bool_search_func,
     get_no_tag_func,
+    get_path_func,
     get_tag_func,
 )
 from ldb.typing import JSONDecoded, JSONObject
@@ -442,6 +443,15 @@ class TagQuery(FileQuery):
             yield data_obj_meta["tags"]  # type: ignore[index,call-overload,misc] # noqa: E501
 
 
+class PathQuery(FileQuery):
+    def get_search_input(
+        self,
+        collection: Iterable[Tuple[str, str]],
+    ) -> Iterator[List[str]]:
+        for data_obj_meta in super().get_search_input(collection):
+            yield [info["path"] for info in data_obj_meta["alternate_paths"]]  # type: ignore[index,call-overload] # noqa: E501
+
+
 class PipelineData:
     def __init__(self, ldb_dir: Path) -> None:
         self.ldb_dir = ldb_dir
@@ -490,6 +500,9 @@ class PipelineBuilder:
             elif op_type == OpType.NO_TAG_QUERY:
                 assert isinstance(arg, abc.Collection)
                 op = self.no_tag_query(arg)
+            elif op_type == OpType.PATH_QUERY:
+                assert isinstance(arg, str)
+                op = self.path_query(arg)
             elif op_type == OpType.LIMIT:
                 assert isinstance(arg, int)
                 op = Limit(arg).apply
@@ -535,6 +548,13 @@ class PipelineBuilder:
             self.ldb_dir,
             self.data.data_object_metas,
             get_no_tag_func(tag),
+        ).apply
+
+    def path_query(self, pattern: str) -> CollectionFunc:
+        return PathQuery(
+            self.ldb_dir,
+            self.data.data_object_metas,
+            get_path_func(pattern),
         ).apply
 
 
