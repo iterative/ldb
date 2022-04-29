@@ -28,10 +28,12 @@ if TYPE_CHECKING:
 
 DATASET_PREFIX = "ds:"
 WORKSPACE_DATASET_PREFIX = "ws:"
+DATA_OBJ_ID_PREFIX = "id:"
 ROOT = "root"
 CHUNK_SIZE = 2**20
 HASH_DIR_SPLIT_POINT = 3
 UNIQUE_ID_ALPHABET = string.ascii_lowercase + string.digits
+DATA_OBJ_ID_PATTERN = "^(?:id:)?([0-9a-f]{32})$"
 
 _KT_contra = TypeVar("_KT_contra", contravariant=True)
 _VT_co = TypeVar("_VT_co", covariant=True)
@@ -190,11 +192,11 @@ def get_fsspec_path_suffix(path: str) -> str:
 
 
 def parse_data_object_hash_identifier(hash_identifier: str) -> str:
-    match = re.search("^0x([0-9a-f]{32})$", hash_identifier)
+    match = re.search(DATA_OBJ_ID_PATTERN, hash_identifier)
     if match is None:
         raise ValueError(
-            "hash_identifier must start with '0x' followed by 32 hexadecimal "
-            "characters",
+            "hash_identifier must be 32 hexadecimal characters, optionally "
+            f"prefixed with {DATA_OBJ_ID_PREFIX}",
         )
     return match.group(1)
 

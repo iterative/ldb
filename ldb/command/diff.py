@@ -59,7 +59,7 @@ def format_diff_item(diff_item: DiffItem, verbose: bool) -> str:
         else left_truncate(diff_item.data_object_path)
     )
     return (
-        f"{prefix} 0x{diff_item.data_object_hash:35} "
+        f"{prefix} id:{diff_item.data_object_hash:35} "
         f"{annotation_col:12} {data_object_path}"
     )
 

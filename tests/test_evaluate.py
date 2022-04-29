@@ -159,10 +159,10 @@ def test_evaluate_data_objects(
     result = evaluate(
         ldb_instance,
         [
-            "0xa2430513e897d5abcf62a55b8df81355",
-            "0x66e0373a2a989870fbc2c7791d8e6490",
-            "0xdef3cbcb30f3254a2a220e51ddf45375",
-            "0x47149106168f7d88fcea9e168608f129",
+            "id:a2430513e897d5abcf62a55b8df81355",
+            "id:66e0373a2a989870fbc2c7791d8e6490",
+            "id:def3cbcb30f3254a2a220e51ddf45375",
+            "id:47149106168f7d88fcea9e168608f129",
         ],
         query_args,
     )
@@ -210,10 +210,10 @@ def test_evaluate_datasets(ldb_instance, workspace_path, data_dir):
     main(
         [
             "add",
-            "0xa2430513e897d5abcf62a55b8df81355",
-            "0x66e0373a2a989870fbc2c7791d8e6490",
-            "0xdef3cbcb30f3254a2a220e51ddf45375",
-            "0x47149106168f7d88fcea9e168608f129",
+            "id:a2430513e897d5abcf62a55b8df81355",
+            "id:66e0373a2a989870fbc2c7791d8e6490",
+            "id:def3cbcb30f3254a2a220e51ddf45375",
+            "id:47149106168f7d88fcea9e168608f129",
         ],
     )
     main(["commit"])
@@ -221,12 +221,12 @@ def test_evaluate_datasets(ldb_instance, workspace_path, data_dir):
     main(
         [
             "add",
-            "0xe299594dc1f79f8e69c6d79a42699822",
-            "0xa2430513e897d5abcf62a55b8df81355",
-            "0x65383bee429980b89febc3f9b3349379",
-            "0x399146164375493f916025b04d00709c",
-            "0xdef3cbcb30f3254a2a220e51ddf45375",
-            "0xb5fba326c8247d9e62aa17a109146c02",
+            "id:e299594dc1f79f8e69c6d79a42699822",
+            "id:a2430513e897d5abcf62a55b8df81355",
+            "id:65383bee429980b89febc3f9b3349379",
+            "id:399146164375493f916025b04d00709c",
+            "id:def3cbcb30f3254a2a220e51ddf45375",
+            "id:b5fba326c8247d9e62aa17a109146c02",
         ],
     )
     main(["commit"])

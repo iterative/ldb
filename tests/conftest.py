@@ -163,10 +163,10 @@ def ds_a(workspace_path: Path, index_original: Path) -> str:
     main(
         [
             "add",
-            "0x3c679fd1b8537dc7da1272a085e388e6",
-            "0x982814b9116dce7882dfc31636c3ff7a",
-            "0xebbc6c0cebb66738942ee56513f9ee2f",
-            "0x1e0759182b328fd22fcdb5e6beb54adf",
+            "id:3c679fd1b8537dc7da1272a085e388e6",
+            "id:982814b9116dce7882dfc31636c3ff7a",
+            "id:ebbc6c0cebb66738942ee56513f9ee2f",
+            "id:1e0759182b328fd22fcdb5e6beb54adf",
         ],
     )
     main(["commit"])
@@ -180,11 +180,11 @@ def ds_b(workspace_path: Path, index_original: Path) -> str:
     main(
         [
             "add",
-            "0x982814b9116dce7882dfc31636c3ff7a",
-            "0x1e0759182b328fd22fcdb5e6beb54adf",
-            "0x2f3533f1e35349602fbfaf0ec9b3ef3f",
-            "0x95789bb1ac140460cefc97a6e66a9ee8",
-            "0xe1c3ef93e4e1cf108fa2a4c9d6e03af2",
+            "id:982814b9116dce7882dfc31636c3ff7a",
+            "id:1e0759182b328fd22fcdb5e6beb54adf",
+            "id:2f3533f1e35349602fbfaf0ec9b3ef3f",
+            "id:95789bb1ac140460cefc97a6e66a9ee8",
+            "id:e1c3ef93e4e1cf108fa2a4c9d6e03af2",
         ],
     )
     main(["commit"])

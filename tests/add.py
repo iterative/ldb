@@ -82,10 +82,10 @@ class AddCommandBase:
         ret = main(
             [
                 self.COMMAND,
-                "0x3c679fd1b8537dc7da1272a085e388e6",
-                "0x982814b9116dce7882dfc31636c3ff7a",
-                "0xebbc6c0cebb66738942ee56513f9ee2f",
-                "0x1e0759182b328fd22fcdb5e6beb54adf",
+                "id:3c679fd1b8537dc7da1272a085e388e6",
+                "id:982814b9116dce7882dfc31636c3ff7a",
+                "id:ebbc6c0cebb66738942ee56513f9ee2f",
+                "id:1e0759182b328fd22fcdb5e6beb54adf",
             ],
         )
         object_file_paths = get_staged_object_file_paths(workspace_path)

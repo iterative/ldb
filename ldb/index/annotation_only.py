@@ -71,7 +71,7 @@ class AnnotationOnlyIndexingItem(AnnotationFileIndexingItem):
     def index_data(self) -> IndexedObjectResult:
         if not self.data_object_dir.exists():
             raise DataObjectNotFoundError(
-                f"Data object not found: 0x{self.data_object_hash} "
+                f"Data object not found: id:{self.data_object_hash} "
                 f"(annotation_file_path={self.annotation_fsp.path!r})",
             )
 
