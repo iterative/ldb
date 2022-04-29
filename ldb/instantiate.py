@@ -396,7 +396,7 @@ def copy_infer(
             raise LDBException(
                 "For tensorflow-inferred instantiate format, "
                 "all data objects must have an annotation. "
-                f"Missing annotation for data object: 0x{data_object_hash}",
+                f"Missing annotation for data object: id:{data_object_hash}",
             )
     data_obj_paths = []
     for data_object_hash, annotation_hash in cast(
@@ -432,7 +432,7 @@ def copy_label_studio(
             raise LDBException(
                 "For label-studio instantiate format, "
                 "all data objects must have an annotation. "
-                f"Missing annotation for data object: 0x{data_object_hash}",
+                f"Missing annotation for data object: id:{data_object_hash}",
             )
         annot = get_annotation(ldb_dir, annotation_hash)
         try:
@@ -442,7 +442,7 @@ def copy_label_studio(
                 "For label-studio instantiate format, "
                 f'annotations must have the key "data.{url_key}." '
                 "Malformatted annotation for data object: "
-                f"0x{data_object_hash}",
+                f"id:{data_object_hash}",
             ) from exc
         annotations.append(annot)  # type: ignore[arg-type]
     path = LabelStudioInstItem(

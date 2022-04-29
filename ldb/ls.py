@@ -53,7 +53,7 @@ def print_dataset_listings(
             if verbose
             else left_truncate(item.data_object_path)
         )
-        print(f"  0x{item.data_object_hash:35} {annotation_version:8} {path}")
+        print(f"  id:{item.data_object_hash:35} {annotation_version:8} {path}")
         num_items += 1
     return num_items
 

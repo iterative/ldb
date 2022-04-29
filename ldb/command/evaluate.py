@@ -20,7 +20,7 @@ def evaluate_command(options: Namespace) -> None:
         warn=True,
     ):
         if not options.json_only:
-            print(f"0x{data_object_hash}")
+            print(f"id:{data_object_hash}")
         for item in results:
             print(json.dumps(item, indent=indent))
         if not options.json_only:

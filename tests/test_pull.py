@@ -153,7 +153,7 @@ def test_pull_specific_version(
     workspace_path,
 ):
     main(["index", str(DATA_DIR / "predictions")])
-    main(["add", *[f"0x{h}" for h in DATA_OBJ_HASHES]])
+    main(["add", *[f"id:{h}" for h in DATA_OBJ_HASHES]])
     main(["index", str(DATA_DIR / "fashion-mnist/original")])
     main(["index", str(DATA_DIR / "fashion-mnist/updates")])
     ret = main(["pull", *args])
