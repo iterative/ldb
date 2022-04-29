@@ -23,6 +23,7 @@ from tomlkit.toml_document import TOMLDocument
 
 from ldb import config
 from ldb.config import ConfigType
+from ldb.core import get_ldb_instance
 from ldb.dataset import (
     OpDef,
     apply_queries,
@@ -375,15 +376,39 @@ DELETE_FUNCTIONS: Dict[ArgType, Callable[[Path, Sequence[str]], List[str]]] = {
 
 def delete(
     workspace_path: Path,
-    data_object_hashes: Iterable[str],
+    paths: Sequence[str],
+    query_args: Iterable[OpDef],
 ) -> None:
+    if not paths and not query_args:
+        raise LDBException(
+            "Must provide either a query or at least one path",
+        )
+
     workspace_path = Path(os.path.normpath(workspace_path))
     ds_name = load_workspace_dataset(workspace_path).dataset_name
-    collection_dir_path = workspace_path / WorkspacePath.COLLECTION
-    if not collection_dir_path.exists():
-        return
-
     ds_ident = format_dataset_identifier(ds_name)
+    collection_dir_path = workspace_path / WorkspacePath.COLLECTION
+
+    data_object_hashes = select_data_object_hashes(
+        get_ldb_instance(),
+        paths,
+        query_args,
+        warn=False,
+    )
+    num_deleted = delete_from_collection_dir(
+        collection_dir_path,
+        data_object_hashes,
+    )
+    print(f"Deleted {num_deleted} data objects from {ds_ident}")
+
+
+def delete_from_collection_dir(
+    collection_dir_path: Path,
+    data_object_hashes: Iterable[str],
+) -> int:
+    if not collection_dir_path.exists():
+        return 0
+
     num_deleted = 0
     for data_object_hash in data_object_hashes:
         collection_member_path = get_hash_path(
@@ -397,7 +422,7 @@ def delete(
             except OSError:
                 pass
             num_deleted += 1
-    print(f"Deleted {num_deleted} data objects from {ds_ident}")
+    return num_deleted
 
 
 def delete_missing(
