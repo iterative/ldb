@@ -232,13 +232,52 @@ ADD_FUNCTIONS: Dict[ArgType, Callable[[Path, Sequence[str]], AddInput]] = {
 
 def add(
     workspace_path: Path,
-    collection: Iterable[Tuple[str, str]],
+    paths: Sequence[str],
+    query_args: Iterable[OpDef],
 ) -> None:
+    if not paths:
+        if not query_args:
+            raise LDBException(
+                "Must provide either a query or at least one path",
+            )
+        paths = [f"{DATASET_PREFIX}{ROOT}"]
+    ldb_dir = get_ldb_instance()
+
     workspace_path = Path(os.path.normpath(workspace_path))
     ds_name = load_workspace_dataset(workspace_path).dataset_name
     collection_dir_path = workspace_path / WorkspacePath.COLLECTION
     collection_dir_path.mkdir(exist_ok=True)
 
+    data_object_hashes, annotation_hashes, message = process_args_for_add(
+        ldb_dir,
+        paths,
+    )
+    if message:
+        print(message)
+        print()
+
+    collection = apply_queries(
+        ldb_dir,
+        data_object_hashes,
+        annotation_hashes,
+        query_args,
+        warn=False,
+    )
+    print("Adding to working dataset...")
+
+    num_data_objects = add_to_collection_dir(
+        collection_dir_path,
+        collection,
+    )
+
+    ds_ident = format_dataset_identifier(ds_name)
+    print(f"Added {num_data_objects} data objects to {ds_ident}")
+
+
+def add_to_collection_dir(
+    collection_dir_path: Path,
+    collection: Iterable[Tuple[str, str]],
+) -> int:
     to_write = []
     for data_object_hash, annotation_hash in collection:
         to_write.append(
@@ -263,8 +302,7 @@ def add(
             with collection_member_path.open("w") as file:
                 file.write(annotation_hash)
                 num_data_objects += 1
-    ds_ident = format_dataset_identifier(ds_name)
-    print(f"Added {num_data_objects} data objects to {ds_ident}")
+    return num_data_objects
 
 
 def process_args_for_delete(
@@ -425,17 +463,10 @@ def delete_from_collection_dir(
     return num_deleted
 
 
-def delete_missing(
-    workspace_path: Path,
+def delete_missing_from_collection_dir(
+    collection_dir_path: Path,
     data_object_hashes: Iterable[str],
-) -> None:
-    workspace_path = Path(os.path.normpath(workspace_path))
-    ds_name = load_workspace_dataset(workspace_path).dataset_name
-    collection_dir_path = workspace_path / WorkspacePath.COLLECTION
-    if not collection_dir_path.exists():
-        return
-
-    ds_ident = format_dataset_identifier(ds_name)
+) -> int:
     data_object_hash_set = set(data_object_hashes)
     num_deleted = 0
     for path in iter_collection_dir(collection_dir_path):
@@ -449,8 +480,7 @@ def delete_missing(
             except OSError:
                 pass
             num_deleted += 1
-    ds_ident = format_dataset_identifier(ds_name)
-    print(f"Deleted {num_deleted} data objects from {ds_ident}")
+    return num_deleted
 
 
 def get_current_annotation_hash(ldb_dir: Path, data_object_hash: str) -> str:
@@ -554,3 +584,50 @@ def select_data_object_hashes(
         )
         data_object_hashes = (d for d, _ in collection)
     return data_object_hashes
+
+
+def sync(
+    workspace_path: Path,
+    paths: Sequence[str],
+    query_args: Iterable[OpDef],
+) -> None:
+    if not paths:
+        paths = ["."]
+
+    ldb_dir = get_ldb_instance()
+    workspace_path = Path(os.path.normpath(workspace_path))
+    ds_name = load_workspace_dataset(workspace_path).dataset_name
+    ds_ident = format_dataset_identifier(ds_name)
+    collection_dir_path = workspace_path / WorkspacePath.COLLECTION
+    collection_dir_path.mkdir(exist_ok=True)
+
+    data_object_hashes, annotation_hashes, message = process_args_for_add(
+        ldb_dir,
+        paths,
+    )
+    if message:
+        print(message)
+        print()
+
+    collection = list(
+        apply_queries(
+            ldb_dir,
+            data_object_hashes,
+            annotation_hashes,
+            query_args,
+            warn=False,
+        ),
+    )
+
+    data_object_hashes = {d for d, _ in collection}
+    print("Syncing working dataset...")
+    num_data_objects = add_to_collection_dir(
+        collection_dir_path,
+        collection,
+    )
+    print(f"Added {num_data_objects} data objects to {ds_ident}")
+    num_deleted = delete_missing_from_collection_dir(
+        collection_dir_path,
+        data_object_hashes,
+    )
+    print(f"Deleted {num_deleted} data objects from {ds_ident}")
