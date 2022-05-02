@@ -40,6 +40,7 @@ from ldb.path import InstanceDir, WorkspacePath
 from ldb.storage import StorageLocation, get_storage_locations
 from ldb.utils import (
     DATA_OBJ_ID_PATTERN,
+    DATA_OBJ_ID_PREFIX,
     DATASET_PREFIX,
     ROOT,
     WORKSPACE_DATASET_PREFIX,
@@ -168,7 +169,7 @@ def data_object_for_add(
     except ValueError as exc:
         raise LDBException(
             "All paths must be the same type. "
-            "Found path starting with 'id:', but unable "
+            f"Found path starting with '{DATA_OBJ_ID_PREFIX}', but unable "
             "parse all paths as a data object identifier",
         ) from exc
     return AddInput(
@@ -368,7 +369,7 @@ def data_object_for_delete(
     except ValueError as exc:
         raise LDBException(
             "All paths must be the same type. "
-            "Found path starting with 'id:', but unable "
+            f"Found path starting with '{DATA_OBJ_ID_PREFIX}', but unable "
             "parse all paths as a data object identifier",
         ) from exc
 
@@ -491,7 +492,7 @@ def get_current_annotation_hash(ldb_dir: Path, data_object_hash: str) -> str:
     )
     if not data_object_dir.is_dir():
         raise DataObjectNotFoundError(
-            f"Data object not found: id:{data_object_hash}",
+            f"Data object not found: {DATA_OBJ_ID_PREFIX}{data_object_hash}",
         )
     try:
         return (data_object_dir / "current").read_text()
@@ -534,7 +535,8 @@ def path_for_ls(ldb_dir: Path, paths: Sequence[str]) -> AddInput:
             )
         except DataObjectNotFoundError as exc:
             raise DataObjectNotFoundError(
-                f"Data object not found: id:{data_object_hash} "
+                "Data object not found: "
+                f"{DATA_OBJ_ID_PREFIX}{data_object_hash} "
                 f"(path={path!r})",
             ) from exc
         hashes.append((data_object_hash, annotation_hash))

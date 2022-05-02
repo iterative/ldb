@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Iterable, Union
 from ldb.cli_utils import add_data_obj_params
 from ldb.core import get_ldb_instance
 from ldb.evaluate import evaluate
+from ldb.utils import DATA_OBJ_ID_PREFIX
 
 if TYPE_CHECKING:
     from argparse import _SubParsersAction
@@ -20,7 +21,7 @@ def evaluate_command(options: Namespace) -> None:
         warn=True,
     ):
         if not options.json_only:
-            print(f"id:{data_object_hash}")
+            print(f"{DATA_OBJ_ID_PREFIX}{data_object_hash}")
         for item in results:
             print(json.dumps(item, indent=indent))
         if not options.json_only:

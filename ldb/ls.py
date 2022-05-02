@@ -6,7 +6,7 @@ from ldb.add import process_args_for_ls
 from ldb.dataset import OpDef, apply_queries
 from ldb.path import InstanceDir
 from ldb.string_utils import left_truncate
-from ldb.utils import get_hash_path, load_data_file
+from ldb.utils import DATA_OBJ_ID_PREFIX, get_hash_path, load_data_file
 
 
 @dataclass
@@ -53,7 +53,10 @@ def print_dataset_listings(
             if verbose
             else left_truncate(item.data_object_path)
         )
-        print(f"  id:{item.data_object_hash:35} {annotation_version:8} {path}")
+        print(
+            f"  {DATA_OBJ_ID_PREFIX}{item.data_object_hash:35} "
+            f"{annotation_version:8} {path}",
+        )
         num_items += 1
     return num_items
 
