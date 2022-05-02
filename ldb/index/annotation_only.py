@@ -14,7 +14,7 @@ from ldb.index.utils import (
     get_annotation_content,
 )
 from ldb.typing import JSONObject
-from ldb.utils import current_time, load_data_file
+from ldb.utils import DATA_OBJ_ID_PREFIX, current_time, load_data_file
 
 
 class AnnotationOnlyIndexer(Indexer):
@@ -71,7 +71,8 @@ class AnnotationOnlyIndexingItem(AnnotationFileIndexingItem):
     def index_data(self) -> IndexedObjectResult:
         if not self.data_object_dir.exists():
             raise DataObjectNotFoundError(
-                f"Data object not found: id:{self.data_object_hash} "
+                "Data object not found: "
+                f"{DATA_OBJ_ID_PREFIX}{self.data_object_hash} "
                 f"(annotation_file_path={self.annotation_fsp.path!r})",
             )
 

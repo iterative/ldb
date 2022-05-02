@@ -11,6 +11,7 @@ from ldb.diff import (
     summarize_diff,
 )
 from ldb.string_utils import left_truncate
+from ldb.utils import DATA_OBJ_ID_PREFIX
 
 if TYPE_CHECKING:
     from argparse import _SubParsersAction
@@ -59,7 +60,7 @@ def format_diff_item(diff_item: DiffItem, verbose: bool) -> str:
         else left_truncate(diff_item.data_object_path)
     )
     return (
-        f"{prefix} id:{diff_item.data_object_hash:35} "
+        f"{prefix} {DATA_OBJ_ID_PREFIX}{diff_item.data_object_hash:35} "
         f"{annotation_col:12} {data_object_path}"
     )
 
