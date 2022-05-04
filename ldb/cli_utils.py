@@ -173,3 +173,14 @@ def add_data_format_arguments(
             f"Options: {choice_str(formats)}"
         ),
     )
+
+
+def add_target_dir_argument(parser: ArgumentParser) -> None:
+    parser.add_argument(  # type: ignore[attr-defined]
+        "-t",
+        "--target",
+        dest="target_dir",
+        default=".",
+        metavar="<dir>",
+        help="Target directory",
+    ).complete = shtab.DIR

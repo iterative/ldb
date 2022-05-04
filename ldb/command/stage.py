@@ -1,7 +1,7 @@
 from argparse import ArgumentParser, Namespace
-from pathlib import Path
 from typing import TYPE_CHECKING, Iterable
 
+from ldb.cli_utils import add_target_dir_argument
 from ldb.config import get_ldb_dir
 from ldb.core import init_quickstart
 from ldb.stage import stage
@@ -17,7 +17,7 @@ def stage_command(options: Namespace) -> None:
     stage(
         ldb_dir,
         options.dataset,
-        options.workspace_path,
+        options.target_dir,
         options.force,
     )
 
@@ -38,17 +38,10 @@ def add_parser(
         default=False,
         help="Overwrite an unsaved dataset",
     )
+    add_target_dir_argument(parser)
     parser.add_argument(
         "dataset",
         metavar="<dataset>",
         help="Name of the dataset to stage",
-    )
-    parser.add_argument(
-        "workspace_path",
-        metavar="<workspace_path>",
-        nargs="?",
-        type=Path,
-        default=".",
-        help="Workspace directory to stage the dataset in",
     )
     parser.set_defaults(func=stage_command)

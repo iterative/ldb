@@ -117,7 +117,7 @@ def stage(
             ds_version_num,
         )
         message = (
-            f"Staged {curr_dataset_ident} " f"at {os.fspath(workspace_path)!r}"
+            f"Staged {curr_dataset_ident} at {os.fspath(workspace_path)!r}"
         )
     stage_workspace(workspace_path, workspace_ds_obj, collection_obj)
     print(message)

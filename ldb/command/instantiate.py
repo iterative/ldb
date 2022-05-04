@@ -2,12 +2,15 @@ from argparse import ArgumentParser, Namespace
 from pathlib import Path
 from typing import TYPE_CHECKING, Iterable
 
-from ldb.cli_utils import add_data_format_arguments
+from ldb.cli_utils import add_data_format_arguments, add_target_dir_argument
 from ldb.core import get_ldb_instance
 from ldb.data_formats import INSTANTIATE_FORMATS, Format
 from ldb.instantiate import instantiate
 from ldb.utils import format_dataset_identifier
 from ldb.workspace import load_workspace_dataset
+
+if TYPE_CHECKING:
+    from argparse import _SubParsersAction
 
 
 def instantiate_command(options: Namespace) -> None:
@@ -19,7 +22,7 @@ def instantiate_command(options: Namespace) -> None:
     result = instantiate(
         ldb_dir,
         workspace_path,
-        options.path,
+        Path(options.target_dir),
         fmt=options.format,
         force=options.force,
         apply=options.apply,
@@ -52,6 +55,7 @@ def add_parser(
         default=False,
         help="Remove existing workspace contents",
     )
+    add_target_dir_argument(parser)
     parser.add_argument(
         "--apply",
         nargs="+",
@@ -60,16 +64,4 @@ def add_parser(
         dest="apply",
         help="Executable to apply to data objects and annotations",
     )
-    parser.add_argument(
-        "path",
-        metavar="<path>",
-        nargs="?",
-        type=Path,
-        default=".",
-        help="Directory to instantiate in. Current directory by default.",
-    )
     parser.set_defaults(func=instantiate_command)
-
-
-if TYPE_CHECKING:
-    from argparse import _SubParsersAction
