@@ -32,7 +32,7 @@ def test_instantiate_bare(staged_ds_fashion, workspace_path):
 
 def test_instantiate_bare_path(tmp_path, staged_ds_fashion, workspace_path):
     dest = os.fspath(tmp_path / "data")
-    ret = main(["instantiate", dest])
+    ret = main(["instantiate", "-t", dest])
     assert ret == 0
     assert get_workspace_counts(dest) == (32, 23)
 
@@ -66,7 +66,7 @@ def test_instantiate_path_with_apply(
             "--apply",
             sys.executable,
             os.fspath(SORT_DIR / "random_predictions.py"),
-            "--",
+            "-t",
             dest,
         ],
     )
@@ -87,7 +87,7 @@ def test_instantiate_bare_path_without_parents(
     workspace_path,
 ):
     dest = os.fspath(tmp_path / "data/data")
-    ret = main(["instantiate", dest])
+    ret = main(["instantiate", "-t", dest])
     assert ret == 1
     assert not os.path.exists(dest)
 
