@@ -26,7 +26,9 @@ def is_workspace(dir_path: Path) -> bool:
 def test_stage_cli_new_dataset(tmp_path, global_base):
     workspace_path = tmp_path / "workspace"
     ds_name = "my-new-dataset"
-    ret = main(["stage", f"ds:{ds_name}", f"{os.fspath(workspace_path)}"])
+    ret = main(
+        ["stage", f"ds:{ds_name}", "-t", f"{os.fspath(workspace_path)}"],
+    )
 
     curr_time = current_time()
     workspace_ds = WorkspaceDataset.parse(
@@ -57,12 +59,14 @@ def test_stage_cli_populated_directory(stage_before, tmp_path, global_base):
     workspace_path.mkdir()
     if stage_before:
         ret_before = main(
-            ["stage", f"ds:{ds_name}", f"{os.fspath(workspace_path)}"],
+            ["stage", f"ds:{ds_name}", "-t", f"{os.fspath(workspace_path)}"],
         )
     else:
         ret_before = 0
     (workspace_path / "file.txt").touch()
-    ret = main(["stage", f"ds:{ds_name}", f"{os.fspath(workspace_path)}"])
+    ret = main(
+        ["stage", f"ds:{ds_name}", "-t", f"{os.fspath(workspace_path)}"],
+    )
     assert ret_before == 0
     assert ret == 1
     assert is_workspace(workspace_path) == stage_before
@@ -72,7 +76,9 @@ def test_stage_cli_existing_empty_directory(tmp_path, global_base):
     workspace_path = tmp_path / "workspace"
     workspace_path.mkdir()
     ds_name = "my-new-dataset"
-    ret = main(["stage", f"ds:{ds_name}", f"{os.fspath(workspace_path)}"])
+    ret = main(
+        ["stage", f"ds:{ds_name}", "-t", f"{os.fspath(workspace_path)}"],
+    )
     assert ret == 0
     assert is_workspace(workspace_path)
 
