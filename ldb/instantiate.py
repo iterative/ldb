@@ -56,11 +56,31 @@ def instantiate(
     force: bool = False,
     apply: Sequence[str] = (),
 ) -> InstantiateResult:
-    fmt = INSTANTIATE_FORMATS[fmt]
+    # TODO: ensure fmt in INSTANTIATE_FORMATS
     collection = collection_dir_to_object(
         workspace_path / WorkspacePath.COLLECTION,
     )
+    return instantiate_collection(
+        ldb_dir,
+        workspace_path,
+        collection,
+        dest,
+        fmt,
+        force,
+        apply,
+    )
 
+
+def instantiate_collection(
+    ldb_dir: Path,
+    workspace_path: Path,
+    collection: Mapping[str, Optional[str]],
+    dest: Path,
+    fmt: str = Format.BARE,
+    force: bool = False,
+    apply: Sequence[str] = (),
+) -> InstantiateResult:
+    fmt = INSTANTIATE_FORMATS[fmt]
     # fail fast if workspace is not empty
     if dest.exists():
         ensure_path_is_empty_workspace(dest, force)
@@ -69,7 +89,7 @@ def instantiate(
     tmp_dir_base = workspace_path / WorkspacePath.TMP
     tmp_dir_base.mkdir(exist_ok=True)
     with tempfile.TemporaryDirectory(dir=tmp_dir_base) as tmp_dir:
-        result = instantiate_collection(
+        result = instantiate_collection_directly(
             ldb_dir,
             collection,
             tmp_dir,
@@ -90,7 +110,7 @@ def instantiate(
     return result
 
 
-def instantiate_collection(
+def instantiate_collection_directly(
     ldb_dir: Path,
     collection: Mapping[str, Optional[str]],
     dest_dir: Union[str, Path],

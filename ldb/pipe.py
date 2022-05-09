@@ -19,7 +19,7 @@ from typing import (
 
 from ldb.data_formats import Format
 from ldb.exceptions import DataObjectNotFoundError
-from ldb.instantiate import instantiate_collection
+from ldb.instantiate import instantiate_collection_directly
 from ldb.path import InstanceDir
 
 if TYPE_CHECKING:
@@ -35,7 +35,7 @@ def sort_collection(
 ) -> Iterator[Tuple[str, str]]:
     collection_dict = dict(collection)
     with TemporaryDirectory() as temp_dir:
-        result = instantiate_collection(
+        result = instantiate_collection_directly(
             ldb_dir,
             collection_dict,
             temp_dir,
