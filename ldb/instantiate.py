@@ -56,7 +56,9 @@ def instantiate(
     force: bool = False,
     apply: Sequence[str] = (),
 ) -> InstantiateResult:
-    # TODO: ensure fmt in INSTANTIATE_FORMATS
+    if fmt not in INSTANTIATE_FORMATS:
+        raise ValueError(f"Not a valid instantiation format: {fmt}")
+
     collection = collection_dir_to_object(
         workspace_path / WorkspacePath.COLLECTION,
     )
@@ -80,7 +82,10 @@ def instantiate_collection(
     force: bool = False,
     apply: Sequence[str] = (),
 ) -> InstantiateResult:
-    fmt = INSTANTIATE_FORMATS[fmt]
+    try:
+        fmt = INSTANTIATE_FORMATS[fmt]
+    except KeyError as exc:
+        raise ValueError(f"Not a valid instantiation format: {fmt}") from exc
     # fail fast if workspace is not empty
     if dest.exists():
         ensure_path_is_empty_workspace(dest, force)
@@ -142,7 +147,7 @@ def instantiate_collection_directly(
             collection,
             dest_dir,
         )
-    raise ValueError(f"Not a valid indexing format: {fmt}")
+    raise ValueError(f"Not a valid instantiation format: {fmt}")
 
 
 def apply_transform(
