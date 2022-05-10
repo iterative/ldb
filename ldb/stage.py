@@ -44,6 +44,17 @@ def stage(
     )
 
 
+def stage_new(workspace_path: Path, ds_name: str) -> None:
+    workspace_ds_obj = WorkspaceDataset(
+        dataset_name=ds_name,
+        staged_time=current_time(),
+        parent="",
+        tags=[],
+    )
+    stage_workspace(workspace_path, workspace_ds_obj, None)
+    print(f"Staged {DATASET_PREFIX}{ds_name} at {os.fspath(workspace_path)!r}")
+
+
 def stage_with_instance(
     ldb_dir: Path,
     dataset_identifier: str,

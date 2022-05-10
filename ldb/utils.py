@@ -132,8 +132,8 @@ def get_hash_path(base_dir: Path, hash_str: str) -> Path:
     )
 
 
-def format_datetime(dt_obj: datetime) -> str:
-    return dt_obj.astimezone(timezone.utc).isoformat(" ")
+def format_datetime(dt_obj: datetime, sep: str = "T") -> str:
+    return dt_obj.astimezone(timezone.utc).isoformat(sep)
 
 
 def parse_datetime(dt_str: str) -> datetime:
@@ -226,3 +226,10 @@ def chmod_minus_x(path: Union[str, bytes, Path]) -> int:
     )
     os.chmod(path, mode)
     return mode
+
+
+def temp_dataset_name(dt: Optional[datetime] = None) -> str:
+    if dt is None:
+        dt = current_time()
+    timestamp = format_datetime(dt)
+    return f".temp.{timestamp}"

@@ -5,6 +5,7 @@ from typing import Any, Iterable, List, Optional, Sequence, Union
 
 import shtab
 
+from ldb.data_formats import INSTANTIATE_FORMATS, Format
 from ldb.op_type import OpType
 
 TAG_PATTERN = r"^[^\s,]+$"
@@ -184,3 +185,27 @@ def add_target_dir_argument(parser: ArgumentParser) -> None:
         metavar="<dir>",
         help="Target directory",
     ).complete = shtab.DIR
+
+
+def add_instantiate_arguments(parser: ArgumentParser) -> None:
+    add_data_format_arguments(
+        parser,
+        default=Format.BARE,
+        formats=INSTANTIATE_FORMATS,
+    )
+    parser.add_argument(
+        "-f",
+        "--force",
+        action="store_true",
+        default=False,
+        help="Remove existing workspace contents",
+    )
+    add_target_dir_argument(parser)
+    parser.add_argument(
+        "--apply",
+        nargs="+",
+        metavar="<exec>",
+        default=None,
+        dest="apply",
+        help="Executable to apply to data objects and annotations",
+    )
