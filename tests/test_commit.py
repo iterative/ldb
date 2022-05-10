@@ -12,7 +12,7 @@ def test_commit_new_dataset(data_dir, ldb_instance, workspace_path):
     dir_to_add = os.fspath(data_dir / "fashion-mnist/original")
     main(["index", "-m", "bare", dir_to_add])
     main(["add", dir_to_add])
-    ret = main(["commit", "create a new dataset"])
+    ret = main(["commit", "-m", "create a new dataset"])
 
     collection_file_paths = list(
         (ldb_instance / InstanceDir.COLLECTIONS).glob("*/*"),
@@ -82,6 +82,7 @@ def test_commit_multiple_versions(data_dir, ldb_instance, workspace_path):
         main(
             [
                 "commit",
+                "-m",
                 f"add {os.fspath(path_obj.relative_to(data_dir))}",
             ],
         )
@@ -136,7 +137,7 @@ def test_commit_empty_workspace_dataset(
     ldb_instance,
     workspace_path,
 ):
-    ret = main(["commit", "create a new dataset"])
+    ret = main(["commit", "-m", "create a new dataset"])
     assert ret == 0
     assert not list((ldb_instance / InstanceDir.DATASETS).iterdir())
 
@@ -145,8 +146,8 @@ def test_commit_no_changes(data_dir, ldb_instance, workspace_path):
     dir_to_add = os.fspath(data_dir / "fashion-mnist/original")
     main(["index", "-m", "bare", dir_to_add])
     main(["add", dir_to_add])
-    main(["commit", "create a new dataset"])
-    ret = main(["commit", "create another version"])
+    main(["commit", "-m", "create a new dataset"])
+    ret = main(["commit", "-m", "create another version"])
     assert ret == 0
     assert len(list((ldb_instance / InstanceDir.DATASETS).iterdir())) == 1
 
@@ -155,6 +156,6 @@ def test_commit_without_workspace_dataset(tmp_path, data_dir, ldb_instance):
     workspace_path = tmp_path / "workspace"
     workspace_path.mkdir()
     os.chdir(workspace_path)
-    ret = main(["commit", "create a new dataset"])
+    ret = main(["commit", "-m", "create a new dataset"])
     assert ret == 1
     assert not list((ldb_instance / InstanceDir.DATASETS).iterdir())

@@ -37,7 +37,7 @@ def test_cli_status_added_storage_location(
         main(["status"])
         captured1 = capsys.readouterr().out
         with capsys.disabled():
-            main(["commit", dir_to_add])
+            main(["commit", "-m", dir_to_add])
         main(["status"])
         captured2 = capsys.readouterr().out
         main(["status", "ds:my-dataset"])
