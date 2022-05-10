@@ -10,7 +10,7 @@ if TYPE_CHECKING:
 
 
 def commit_command(options: Namespace) -> None:
-    commit(get_ldb_instance(), Path("."), options.message)
+    commit(get_ldb_instance(), Path("."), options.dataset, options.message)
 
 
 def add_parser(
@@ -23,9 +23,16 @@ def add_parser(
         help="Commit the currently staged workspace dataset",
     )
     parser.add_argument(
-        "message",
-        metavar="<message>",
+        "dataset",
+        metavar="<dataset>",
         nargs="?",
+        default="",
+        help="Rename to this dataset name when committing",
+    )
+    parser.add_argument(
+        "-m",
+        "--message",
+        metavar="<message>",
         default="",
         help="A message about this commit",
     )

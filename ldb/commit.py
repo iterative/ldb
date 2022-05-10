@@ -5,12 +5,14 @@ from pathlib import Path
 from ldb.dataset import CommitInfo, Dataset, DatasetVersion
 from ldb.path import InstanceDir, WorkspacePath
 from ldb.utils import (
+    DATASET_PREFIX,
     current_time,
     format_dataset_identifier,
     get_hash_path,
     hash_data,
     json_dumps,
     load_data_file,
+    parse_dataset_identifier,
     write_data_file,
 )
 from ldb.workspace import (
@@ -23,11 +25,26 @@ from ldb.workspace import (
 def commit(
     ldb_dir: Path,
     workspace_path: Path,
-    message: str,
+    dataset_identifier: str = "",
+    message: str = "",
 ) -> None:
     workspace_path = Path(os.path.normpath(workspace_path))
     workspace_ds = load_workspace_dataset(workspace_path)
-    dataset_name = workspace_ds.dataset_name
+    if not dataset_identifier:
+        dataset_name = workspace_ds.dataset_name
+        dataset_identifier = format_dataset_identifier(dataset_name)
+    if dataset_identifier.startswith(f"{DATASET_PREFIX}.temp."):
+        raise ValueError(
+            f"Cannot commit {dataset_identifier}\n"
+            f'Names beginning with "{DATASET_PREFIX}.temp." are temporary '
+            "dataset names. Please specify a different dataset name.",
+        )
+    dataset_name, version_num = parse_dataset_identifier(
+        dataset_identifier,
+    )
+    if version_num is not None:
+        raise ValueError("Dataset name cannot include version when committing")
+
     if workspace_dataset_is_clean(
         ldb_dir,
         workspace_ds,
@@ -89,6 +106,7 @@ def commit(
     )
     workspace_ds.staged_time = curr_time
     workspace_ds.parent = dataset_version_hash
+    workspace_ds.dataset_name = dataset_name
     write_data_file(
         workspace_path / WorkspacePath.DATASET,
         json_dumps(workspace_ds.format()).encode(),

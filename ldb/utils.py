@@ -34,6 +34,11 @@ CHUNK_SIZE = 2**20
 HASH_DIR_SPLIT_POINT = 3
 UNIQUE_ID_ALPHABET = string.ascii_lowercase + string.digits
 DATA_OBJ_ID_PATTERN = "^(?:id:)?([0-9a-f]{32})$"
+DATASET_NAME_BASE_PATTERN = "[A-Za-z0-9_-]+"
+DATASET_NAME_PATTERN = f"^{DATASET_NAME_BASE_PATTERN}$"
+DATASET_IDENTIFIER_PATTERN = (
+    rf"^{re.escape(DATASET_PREFIX)}({DATASET_NAME_BASE_PATTERN})(?:\.v(\d+))?$"
+)
 
 _KT_contra = TypeVar("_KT_contra", contravariant=True)
 _VT_co = TypeVar("_VT_co", covariant=True)
@@ -161,7 +166,7 @@ def parse_dataset_identifier(
     dataset_identifier: str,
 ) -> Tuple[str, Optional[int]]:
     match = re.search(
-        rf"^{DATASET_PREFIX}([A-Za-z0-9_-]+)(?:\.v(\d+))?$",
+        DATASET_IDENTIFIER_PATTERN,
         dataset_identifier,
     )
     if match is None:
