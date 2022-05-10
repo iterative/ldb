@@ -1,6 +1,5 @@
 import json
 import os
-import shutil
 import subprocess
 import tempfile
 from concurrent.futures import ThreadPoolExecutor
@@ -81,13 +80,14 @@ def instantiate_collection(
     fmt: str = Format.BARE,
     force: bool = False,
     apply: Sequence[str] = (),
+    clean: bool = True,
 ) -> InstantiateResult:
     try:
         fmt = INSTANTIATE_FORMATS[fmt]
     except KeyError as exc:
         raise ValueError(f"Not a valid instantiation format: {fmt}") from exc
     # fail fast if workspace is not empty
-    if dest.exists():
+    if clean and dest.exists():
         ensure_path_is_empty_workspace(dest, force)
     dest.mkdir(exist_ok=True)
 
@@ -107,10 +107,11 @@ def instantiate_collection(
         else:
             # check again to make sure nothing was added while writing to the
             # temporary location
-            ensure_path_is_empty_workspace(dest, force)
+            if clean:
+                ensure_path_is_empty_workspace(dest, force)
             dest_str = os.fspath(dest)
             for path in Path(tmp_dir).iterdir():
-                shutil.move(os.fspath(path), dest_str)
+                os.replace(os.fspath(path), os.path.join(dest_str, path.name))
 
     return result
 

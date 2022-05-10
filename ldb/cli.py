@@ -11,6 +11,7 @@ from ldb.command import (
     diff,
     ds,
     evaluate,
+    get,
     index,
     init,
     instantiate,
@@ -62,6 +63,7 @@ def get_main_parser() -> ArgumentParser:
     diff.add_parser(subparsers, parents)
     ds.add_parser(subparsers, parents)
     evaluate.add_parser(subparsers, parents)
+    get.add_parser(subparsers, parents)
     index.add_parser(subparsers, parents)
     init.add_parser(subparsers, parents)
     instantiate.add_parser(subparsers, parents)

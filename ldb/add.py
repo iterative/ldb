@@ -10,6 +10,7 @@ from typing import (
     Iterator,
     List,
     NamedTuple,
+    Optional,
     Sequence,
     Set,
     Tuple,
@@ -236,14 +237,16 @@ def add(
     workspace_path: Path,
     paths: Sequence[str],
     query_args: Iterable[OpDef],
-) -> None:
+    ldb_dir: Optional[Path] = None,
+) -> List[Tuple[str, str]]:
     if not paths:
         if not query_args:
             raise LDBException(
                 "Must provide either a query or at least one path",
             )
         paths = [f"{DATASET_PREFIX}{ROOT}"]
-    ldb_dir = get_ldb_instance()
+    if ldb_dir is None:
+        ldb_dir = get_ldb_instance()
 
     workspace_path = Path(os.path.normpath(workspace_path))
     ds_name = load_workspace_dataset(workspace_path).dataset_name
@@ -267,13 +270,15 @@ def add(
     )
     print("Adding to working dataset...")
 
+    collection_list = list(collection)
     num_data_objects = add_to_collection_dir(
         collection_dir_path,
-        collection,
+        collection_list,
     )
 
     ds_ident = format_dataset_identifier(ds_name)
     print(f"Added {num_data_objects} data objects to {ds_ident}")
+    return collection_list
 
 
 def add_to_collection_dir(
