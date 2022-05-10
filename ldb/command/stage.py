@@ -2,8 +2,6 @@ from argparse import ArgumentParser, Namespace
 from typing import TYPE_CHECKING, Iterable
 
 from ldb.cli_utils import add_target_dir_argument
-from ldb.config import get_ldb_dir
-from ldb.core import init_quickstart
 from ldb.stage import stage
 
 if TYPE_CHECKING:
@@ -11,14 +9,10 @@ if TYPE_CHECKING:
 
 
 def stage_command(options: Namespace) -> None:
-    ldb_dir = get_ldb_dir()
-    if not ldb_dir.is_dir():
-        ldb_dir = init_quickstart()
     stage(
-        ldb_dir,
         options.dataset,
         options.target_dir,
-        options.force,
+        force=options.force,
     )
 
 

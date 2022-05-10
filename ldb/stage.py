@@ -3,6 +3,8 @@ import shutil
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
+from ldb.config import get_ldb_dir
+from ldb.core import init_quickstart
 from ldb.dataset import Dataset, DatasetVersion
 from ldb.exceptions import LDBException
 from ldb.path import InstanceDir, WorkspacePath
@@ -25,6 +27,35 @@ from ldb.workspace import (
 
 
 def stage(
+    dataset_identifier: str,
+    workspace_path: Path,
+    force: bool = False,
+    ldb_dir: Optional[Path] = None,
+) -> None:
+    if ldb_dir is None:
+        ldb_dir = get_ldb_dir()
+    if not ldb_dir.is_dir():
+        ldb_dir = init_quickstart()
+    stage_with_instance(
+        ldb_dir,
+        dataset_identifier,
+        workspace_path,
+        force,
+    )
+
+
+def stage_new(workspace_path: Path, ds_name: str) -> None:
+    workspace_ds_obj = WorkspaceDataset(
+        dataset_name=ds_name,
+        staged_time=current_time(),
+        parent="",
+        tags=[],
+    )
+    stage_workspace(workspace_path, workspace_ds_obj, None)
+    print(f"Staged {DATASET_PREFIX}{ds_name} at {os.fspath(workspace_path)!r}")
+
+
+def stage_with_instance(
     ldb_dir: Path,
     dataset_identifier: str,
     workspace_path: Path,

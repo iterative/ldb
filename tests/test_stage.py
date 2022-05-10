@@ -10,7 +10,7 @@ from ldb.config import ConfigType
 from ldb.exceptions import WorkspaceError
 from ldb.main import main
 from ldb.path import WorkspacePath
-from ldb.stage import stage
+from ldb.stage import stage_with_instance
 from ldb.utils import current_time, load_data_file
 from ldb.workspace import WorkspaceDataset
 
@@ -92,13 +92,13 @@ def test_stage_populated_directory(stage_before, tmp_path, ldb_instance):
     workspace_path = tmp_path / "workspace"
     workspace_path.mkdir()
     if stage_before:
-        stage(ldb_instance, f"ds:{ds_name}", workspace_path)
+        stage_with_instance(ldb_instance, f"ds:{ds_name}", workspace_path)
         error_match = "Workspace is not empty"
     else:
         error_match = "Not a workspace or an empty directory"
     (workspace_path / "file.txt").touch()
     with pytest.raises(WorkspaceError, match=error_match):
-        stage(ldb_instance, f"ds:{ds_name}", workspace_path)
+        stage_with_instance(ldb_instance, f"ds:{ds_name}", workspace_path)
 
 
 @pytest.mark.parametrize("ds_name", ["root", "a:b"])
@@ -106,4 +106,4 @@ def test_stage_invalid_dataset_name(tmp_path, ldb_instance, ds_name):
     workspace_path = tmp_path / "workspace"
     workspace_path.mkdir()
     with pytest.raises(ValueError):
-        stage(ldb_instance, f"ds:{ds_name}", workspace_path)
+        stage_with_instance(ldb_instance, f"ds:{ds_name}", workspace_path)

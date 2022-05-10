@@ -11,13 +11,14 @@ from typing import (
     Optional,
     Sequence,
     Tuple,
+    Union,
 )
 
 from ldb.main import main
 from ldb.path import InstanceDir, WorkspacePath
 from ldb.stage import stage_workspace
 from ldb.utils import chmod_minus_x, current_time, load_data_file
-from ldb.workspace import WorkspaceDataset
+from ldb.workspace import WorkspaceDataset, iter_workspace_dir
 
 DATA_DIR = Path(__file__).parent.parent / "data"
 SORT_DIR = Path(__file__).parent.parent / "sort_option"
@@ -167,3 +168,16 @@ def index_fashion_mnist(  # pylint: disable=unused-argument
     for path_obj, tags in zip(paths, tags_seqs):
         tag_args = ["--add-tags", ",".join(tags)] if tags else []
         main(["index", "-m", "bare", *tag_args, os.fspath(path_obj)])
+
+
+def get_workspace_counts(workspace_path: Union[str, Path]) -> Tuple[int, int]:
+    all_files: List[str] = []
+    for entry in iter_workspace_dir(workspace_path):
+        if entry.is_file():
+            all_files.append(entry.name)
+        else:
+            for _, _, files in os.walk(entry.path):
+                all_files.extend(files)
+    num_annotations = sum(f.endswith(".json") for f in all_files)
+    num_data_objects = len(all_files) - num_annotations
+    return num_data_objects, num_annotations

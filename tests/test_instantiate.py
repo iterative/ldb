@@ -1,27 +1,11 @@
 import json
 import os
 import sys
-from pathlib import Path
-from typing import List, Tuple, Union
 
 from ldb.main import main
 from ldb.utils import DATASET_PREFIX, ROOT
-from ldb.workspace import iter_workspace_dir
 
-from .utils import DATA_DIR, SORT_DIR
-
-
-def get_workspace_counts(workspace_path: Union[str, Path]) -> Tuple[int, int]:
-    all_files: List[str] = []
-    for entry in iter_workspace_dir(workspace_path):
-        if entry.is_file():
-            all_files.append(entry.name)
-        else:
-            for _, _, files in os.walk(entry.path):
-                all_files.extend(files)
-    num_annotations = sum(f.endswith(".json") for f in all_files)
-    num_data_objects = len(all_files) - num_annotations
-    return num_data_objects, num_annotations
+from .utils import DATA_DIR, SORT_DIR, get_workspace_counts
 
 
 def test_instantiate_bare(staged_ds_fashion, workspace_path):
