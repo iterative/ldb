@@ -17,6 +17,7 @@ from typing import (
     cast,
 )
 
+import jmespath
 from funcy.objects import cached_property
 
 from ldb.data_formats import INSTANTIATE_FORMATS, Format
@@ -451,7 +452,6 @@ def copy_label_studio(
     ldb_dir: Path,
     collection: Mapping[str, Optional[str]],
     dest_dir: Union[str, Path],
-    url_key: str = "image",
 ) -> InstantiateResult:
     annot_paths = []
     annotations: List[JSONObject] = []
@@ -465,14 +465,24 @@ def copy_label_studio(
             )
         annot = get_annotation(ldb_dir, annotation_hash)
         try:
-            annot["data"][url_key]  # type: ignore[call-overload, index]
+            annot["data"]["data-object-info"]["md5"]  # type: ignore[call-overload, index] # pylint: disable=pointless-statement # noqa: E501
+            path_key = annot["data"]["data-object-info"]["path_key"]  # type: ignore[call-overload, index] # noqa: E501
         except Exception as exc:
             raise LDBException(
-                "For label-studio instantiate format, "
-                f'annotations must have the key "data.{url_key}." '
                 "Malformatted annotation for data object: "
-                f"{DATA_OBJ_ID_PREFIX}{data_object_hash}",
+                f"{DATA_OBJ_ID_PREFIX}{data_object_hash}\n"
+                "For label-studio instantiation format, "
+                "annotations must have the following keys:\n"
+                "  data.data-object-info.md5\n"
+                "  data.data-object-info.path_key",
             ) from exc
+        if not isinstance(jmespath.search(path_key, annot), str):
+            raise LDBException(
+                "Malformatted annotation for data object: "
+                f"{DATA_OBJ_ID_PREFIX}{data_object_hash}\n"
+                f"Expected a string at {path_key}, the path key indicated by "
+                "data.data-object-info.path_key",
+            )
         annotations.append(annot)  # type: ignore[arg-type]
     path = LabelStudioInstItem(
         ldb_dir,
