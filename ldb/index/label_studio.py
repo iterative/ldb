@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 from typing import Collection, List, Sequence, Set, Tuple
 
+import fsspec
 import jmespath
 from fsspec.utils import get_protocol
 from funcy.objects import cached_property
@@ -71,13 +72,14 @@ class LabelStudioPreprocessor(Preprocessor):
                         ) from exc
 
                     protocol = get_protocol(orig_path)
-                    obj_fs = get_filesystem(
+                    fs_cls = fsspec.get_filesystem_class(protocol)
+                    path: str = fs_cls._strip_protocol(  # pylint: disable=protected-access # noqa: E501
                         orig_path,
+                    )
+                    obj_fs = get_filesystem(
+                        path,
                         protocol,
                         self.storage_locations,
-                    )
-                    path: str = obj_fs._strip_protocol(  # pylint: disable=protected-access # noqa: E501
-                        orig_path,
                     )
                     if "md5" not in data_object_info:
                         data_object_info["md5"] = get_file_hash(obj_fs, path)
