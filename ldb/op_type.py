@@ -7,4 +7,5 @@ class OpType:
     NO_TAG_QUERY = "no_tag_query"
     LIMIT = "limit"
     SAMPLE = "sample"
+    SHUFFLE = "shuffle"
     PIPE = "pipe"
