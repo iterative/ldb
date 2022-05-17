@@ -7,11 +7,13 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import (
     Collection,
+    Iterable,
     List,
     Mapping,
     NamedTuple,
     Optional,
     Sequence,
+    Set,
     Tuple,
     Union,
     cast,
@@ -20,8 +22,9 @@ from typing import (
 import jmespath
 from funcy.objects import cached_property
 
+from ldb.add import process_args_for_delete
 from ldb.data_formats import INSTANTIATE_FORMATS, Format
-from ldb.dataset import get_annotation
+from ldb.dataset import OpDef, apply_queries_to_collection, get_annotation
 from ldb.exceptions import LDBException
 from ldb.fs.utils import FSProtocol, first_protocol
 from ldb.path import InstanceDir, WorkspacePath
@@ -52,15 +55,37 @@ def instantiate(
     ldb_dir: Path,
     workspace_path: Path,
     dest: Path,
+    paths: Sequence[str] = (),
+    query_args: Iterable[OpDef] = (),
     fmt: str = Format.BARE,
     force: bool = False,
     apply: Sequence[str] = (),
+    warn: bool = True,
 ) -> InstantiateResult:
     if fmt not in INSTANTIATE_FORMATS:
         raise ValueError(f"Not a valid instantiation format: {fmt}")
 
-    collection = collection_dir_to_object(
+    data_object_hashes: Set[str] = set(
+        process_args_for_delete(
+            ldb_dir,
+            paths,
+        ),
+    )
+    orig_collection = collection_dir_to_object(
         workspace_path / WorkspacePath.COLLECTION,
+    )
+    collection = {
+        d: a if a is not None else ""
+        for d, a in orig_collection.items()
+        if d in data_object_hashes
+    }
+    collection = dict(
+        apply_queries_to_collection(
+            ldb_dir,
+            collection.items(),
+            query_args,
+            warn=warn,
+        ),
     )
     return instantiate_collection(
         ldb_dir,
@@ -353,7 +378,7 @@ def copy_pairs(
     num_annotations = 0
     # annotations are small and stored in ldb; copy them first
     for data_object_hash, annotation_hash in collection.items():
-        if annotation_hash is None:
+        if not annotation_hash:
             if strict:
                 continue
             annotation_hash = ""
