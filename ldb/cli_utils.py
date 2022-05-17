@@ -138,6 +138,15 @@ def add_base_data_object_options(parser: ArgumentParser, dest: str) -> None:
         ),
     )
     parser.add_argument(
+        "--shuffle",
+        nargs=0,
+        const=OpType.SHUFFLE,
+        default=[],
+        dest=dest,
+        action=AppendConstValuesAction,
+        help="Shuffle items randomly",
+    )
+    parser.add_argument(
         "--pipe",
         nargs="+",
         metavar="<exec>",

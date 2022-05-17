@@ -370,6 +370,16 @@ class Sample(CollectionOperation):
                 yield c
 
 
+class Shuffle(CollectionOperation):
+    def apply(
+        self,
+        collection: Iterable[Tuple[str, str]],
+    ) -> Iterator[Tuple[str, str]]:
+        collection_list = list(collection)
+        random.shuffle(collection_list)
+        yield from collection_list
+
+
 class Sort(CollectionOperation):
     def __init__(self, ldb_dir: Path, proc_args: List[str]) -> None:
         self.ldb_dir = ldb_dir
@@ -509,6 +519,8 @@ class PipelineBuilder:
             elif op_type == OpType.SAMPLE:
                 assert isinstance(arg, float)
                 op = Sample(arg).apply
+            elif op_type == OpType.SHUFFLE:
+                op = Shuffle().apply
             elif op_type == OpType.PIPE:
                 assert isinstance(arg, list)
                 op = Sort(self.ldb_dir, arg).apply
