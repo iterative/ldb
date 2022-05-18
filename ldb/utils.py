@@ -238,3 +238,25 @@ def temp_dataset_name(dt: Optional[datetime] = None) -> str:
         dt = current_time()
     timestamp = format_datetime(dt)
     return f".temp.{timestamp}"
+
+
+def make_target_dir(path: Union[str, Path], parents: bool = False) -> bool:
+    """
+    Make a target directory if it does not exist.
+
+    Return whether or not a new directory was created
+    """
+    try:
+        if parents:
+            os.makedirs(path)
+        else:
+            os.mkdir(path)
+    except FileExistsError:
+        if not os.path.isdir(path):
+            raise NotADirectoryError(  # pylint: disable=raise-missing-from
+                f"Not a directory: {os.fspath(path)!r}",
+            )
+        created = False
+    else:
+        created = True
+    return created
