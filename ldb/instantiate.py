@@ -36,6 +36,7 @@ from ldb.utils import (
     get_hash_path,
     json_dumps,
     load_data_file,
+    make_target_dir,
     write_data_file,
 )
 from ldb.workspace import (
@@ -60,11 +61,13 @@ def instantiate(
     fmt: str = Format.BARE,
     force: bool = False,
     apply: Sequence[str] = (),
+    make_parent_dirs: bool = False,
     warn: bool = True,
 ) -> InstantiateResult:
     if fmt not in INSTANTIATE_FORMATS:
         raise ValueError(f"Not a valid instantiation format: {fmt}")
 
+    make_target_dir(dest, parents=make_parent_dirs)
     data_object_hashes: Set[str] = set(
         process_args_for_delete(
             ldb_dir,

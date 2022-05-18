@@ -21,6 +21,7 @@ def get(
     fmt: str = Format.BARE,
     force: bool = False,
     apply: Sequence[str] = (),
+    make_parent_dirs: bool = False,
     ldb_dir: Optional[Path] = None,
 ) -> InstantiateResult:
     if not paths:
@@ -39,6 +40,7 @@ def get(
         stage_new(
             workspace_path,
             temp_dataset_name(),
+            make_parent_dirs=make_parent_dirs,
         )
     collection = add(
         workspace_path,

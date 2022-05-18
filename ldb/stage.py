@@ -16,6 +16,7 @@ from ldb.utils import (
     get_hash_path,
     json_dumps,
     load_data_file,
+    make_target_dir,
     parse_dataset_identifier,
     write_data_file,
 )
@@ -30,6 +31,7 @@ def stage(
     dataset_identifier: str,
     workspace_path: Path,
     force: bool = False,
+    make_parent_dirs: bool = False,
     ldb_dir: Optional[Path] = None,
 ) -> None:
     if ldb_dir is None:
@@ -40,11 +42,17 @@ def stage(
         ldb_dir,
         dataset_identifier,
         workspace_path,
-        force,
+        force=force,
+        make_parent_dirs=make_parent_dirs,
     )
 
 
-def stage_new(workspace_path: Path, ds_name: str) -> None:
+def stage_new(
+    workspace_path: Path,
+    ds_name: str,
+    make_parent_dirs: bool = False,
+) -> None:
+    make_target_dir(workspace_path, parents=make_parent_dirs)
     workspace_ds_obj = WorkspaceDataset(
         dataset_name=ds_name,
         staged_time=current_time(),
@@ -55,11 +63,12 @@ def stage_new(workspace_path: Path, ds_name: str) -> None:
     print(f"Staged {DATASET_PREFIX}{ds_name} at {os.fspath(workspace_path)!r}")
 
 
-def stage_with_instance(
+def stage_with_instance(  # pylint: disable=too-many-statements
     ldb_dir: Path,
     dataset_identifier: str,
     workspace_path: Path,
     force: bool = False,
+    make_parent_dirs: bool = False,
 ) -> None:
     ds_name, ds_version_num = parse_dataset_identifier(dataset_identifier)
     if ds_name == ROOT:
@@ -67,7 +76,11 @@ def stage_with_instance(
             f"Cannot stage dataset named {DATASET_PREFIX}{ds_name}",
         )
     workspace_path = Path(os.path.normpath(workspace_path))
-    if workspace_path.is_dir():
+    created_new_dir = make_target_dir(
+        workspace_path,
+        parents=make_parent_dirs,
+    )
+    if not created_new_dir:
         if not force:
             try:
                 curr_workspace_ds_obj = WorkspaceDataset.parse(
@@ -172,6 +185,7 @@ def stage_workspace(
         if collection_path.exists():
             shutil.rmtree(collection_path)
         collection_path.mkdir(parents=True)
+
     write_data_file(
         workspace_path / WorkspacePath.DATASET,
         workspace_ds_bytes,
