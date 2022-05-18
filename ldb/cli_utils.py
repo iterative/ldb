@@ -197,6 +197,7 @@ def add_target_dir_argument(parser: ArgumentParser) -> None:
 
 
 def add_instantiate_arguments(parser: ArgumentParser) -> None:
+    add_data_obj_params(parser, dest="query_args")
     add_data_format_arguments(
         parser,
         default=Format.BARE,

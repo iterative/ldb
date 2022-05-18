@@ -77,12 +77,36 @@ def test_instantiate_bare_path_without_parents(
 
 
 def test_instantiate_strict(staged_ds_fashion, workspace_path):
-    main(["instantiate", "-m", "strict"])
+    ret = main(["instantiate", "-m", "strict"])
+    assert ret == 0
     assert get_workspace_counts(workspace_path) == (23, 23)
 
 
+def test_instantiate_with_query(staged_ds_fashion, workspace_path):
+    ret = main(
+        [
+            "instantiate",
+            "id:93e2a847c9341054107d8e93a259a9c8",
+            "id:982814b9116dce7882dfc31636c3ff7a",
+            "id:47149106168f7d88fcea9e168608f129",
+            "id:a2430513e897d5abcf62a55b8df81355",
+            "id:b5fba326c8247d9e62aa17a109146c02",
+            "id:e299594dc1f79f8e69c6d79a42699822",
+            "id:00000000000000000000000000000000",
+            "--query",
+            (
+                "@ == `null` || type(inference.label) == 'number' "
+                "&& inference.label == label"
+            ),
+        ],
+    )
+    assert ret == 0
+    assert get_workspace_counts(workspace_path) == (3, 2)
+
+
 def test_instantiate_annot(staged_ds_fashion, workspace_path):
-    main(["instantiate", "-m", "annot"])
+    ret = main(["instantiate", "-m", "annot"])
+    assert ret == 0
     assert get_workspace_counts(workspace_path) == (0, 23)
 
 
@@ -90,5 +114,6 @@ def test_instantiate_infer(workspace_path):
     main(["stage", "ds:my-dataset"])
     main(["index", "-m", "infer", os.fspath(DATA_DIR / "inferred/multilevel")])
     main(["add", f"{DATASET_PREFIX}{ROOT}"])
-    main(["instantiate", "-m", "infer"])
+    ret = main(["instantiate", "-m", "infer"])
+    assert ret == 0
     assert get_workspace_counts(workspace_path) == (23, 0)

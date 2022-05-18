@@ -22,9 +22,12 @@ def instantiate_command(options: Namespace) -> None:
         ldb_dir,
         workspace_path,
         Path(options.target_dir),
+        options.paths,
+        options.query_args,
         fmt=options.format,
         force=options.force,
         apply=options.apply,
+        warn=False,
     )
     print(
         "Copied dataset to workspace.\n"

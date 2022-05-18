@@ -2,7 +2,7 @@ from argparse import ArgumentParser, Namespace
 from pathlib import Path
 from typing import TYPE_CHECKING, Iterable
 
-from ldb.cli_utils import add_data_obj_params, add_instantiate_arguments
+from ldb.cli_utils import add_instantiate_arguments
 from ldb.get import get
 
 if TYPE_CHECKING:
@@ -31,6 +31,5 @@ def add_parser(
         parents=parents,
         help="Get the specified data objects",
     )
-    add_data_obj_params(parser, dest="query_args")
     add_instantiate_arguments(parser)
     parser.set_defaults(func=instantiate_command)
