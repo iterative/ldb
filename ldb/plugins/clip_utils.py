@@ -44,7 +44,7 @@ def get_image_dataset_features(
             all_features.append(features)
     return torch.cat(
         all_features,
-    ).cpu()  # pylint: disable=no-member # noqa: E501
+    ).cpu()  # pylint: disable=no-member
 
 
 def get_image_features(

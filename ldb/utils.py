@@ -5,8 +5,10 @@ import random
 import re
 import stat
 import string
+import sys
 from contextlib import contextmanager
 from datetime import datetime, timezone
+from functools import partial
 from pathlib import Path
 from typing import (
     TYPE_CHECKING,
@@ -43,6 +45,11 @@ DATASET_IDENTIFIER_PATTERN = (
 _KT_contra = TypeVar("_KT_contra", contravariant=True)
 _VT_co = TypeVar("_VT_co", covariant=True)
 _T = TypeVar("_T")
+
+if sys.version_info < (3, 9):
+    md5 = hashlib.md5
+else:
+    md5 = partial(hashlib.md5, usedforsecurity=False)
 
 
 @overload
@@ -108,7 +115,7 @@ def get_file_hash(fs: AbstractFileSystem, path: str) -> str:
 
 
 def hash_file(fs: AbstractFileSystem, path: str) -> str:
-    hash_obj = hashlib.md5()
+    hash_obj = md5()
     with fs.open(path, "rb") as file:
         for chunk in iter_chunks(file):
             hash_obj.update(chunk)
@@ -116,7 +123,7 @@ def hash_file(fs: AbstractFileSystem, path: str) -> str:
 
 
 def hash_data(data: bytes) -> str:
-    return hashlib.md5(data).hexdigest()
+    return md5(data).hexdigest()
 
 
 def iter_chunks(
