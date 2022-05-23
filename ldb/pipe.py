@@ -61,7 +61,7 @@ def open_proc(
     proc_args: Sequence[str],
     cwd: Optional[str] = None,
 ) -> Iterator[StrPopen]:
-    with Popen(
+    with Popen(  # noqa: S603
         proc_args,
         stdout=subprocess.PIPE,
         stdin=subprocess.PIPE,

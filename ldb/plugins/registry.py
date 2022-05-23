@@ -12,15 +12,15 @@ def dependency_exc(exc: Exception, extra: str) -> NoReturn:
 
 def validate_clip() -> None:
     try:
-        import clip  # pylint: disable=import-outside-toplevel,unused-import # noqa: F401,E501
+        import clip  # pylint: disable=import-outside-toplevel,unused-import # noqa: E501, F401
     except ModuleNotFoundError as exc:
         dependency_exc(exc, "clip-plugin")
 
 
 def validate_resnet() -> None:
     try:
-        import torch  # pylint: disable=import-outside-toplevel,unused-import # noqa: F401,E501
-        import torchvision  # pylint: disable=import-outside-toplevel,unused-import # noqa: F401,E501
+        import torch  # pylint: disable=import-outside-toplevel,unused-import # noqa: E501, F401
+        import torchvision  # pylint: disable=import-outside-toplevel,unused-import # noqa: E501, F401
     except ModuleNotFoundError as exc:
         dependency_exc(exc, "clip-plugin")
 
