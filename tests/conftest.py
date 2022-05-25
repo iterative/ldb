@@ -1,7 +1,8 @@
 import json
 import os
+import sys
 from pathlib import Path
-from typing import Generator, NoReturn
+from typing import Dict, Generator, NoReturn
 
 import pytest
 from pytest import MonkeyPatch, TempPathFactory
@@ -12,10 +13,12 @@ from ldb.env import Env
 from ldb.main import main
 from ldb.path import Filename
 from ldb.storage import add_storage, create_storage_location
+from ldb.transform import SELF, TransformInfo
 from ldb.utils import DATASET_PREFIX, ROOT
 
 from .utils import (
     DATA_DIR,
+    SORT_DIR,
     add_user_filter,
     index_fashion_mnist,
     stage_new_workspace,
@@ -157,7 +160,7 @@ def index_original(ldb_instance: Path, data_dir: Path) -> Path:
 
 
 @pytest.fixture
-def ds_a(workspace_path: Path, index_original: Path) -> str:
+def staged_ds_a(workspace_path: Path, index_original: Path) -> str:
     ds_identifier = f"{DATASET_PREFIX}a"
     main(["stage", ds_identifier])
     main(
@@ -169,8 +172,13 @@ def ds_a(workspace_path: Path, index_original: Path) -> str:
             "id:1e0759182b328fd22fcdb5e6beb54adf",
         ],
     )
-    main(["commit"])
     return ds_identifier
+
+
+@pytest.fixture
+def ds_a(staged_ds_a: str) -> str:
+    main(["commit"])
+    return staged_ds_a
 
 
 @pytest.fixture
@@ -226,3 +234,16 @@ def label_studio_json_path(tmp_path: Path) -> Path:
 def fashion_mnist_session(ldb_instance_session: Path) -> Path:
     index_fashion_mnist(ldb_instance_session)
     return ldb_instance_session
+
+
+@pytest.fixture
+def transform_infos(ldb_instance: Path) -> Dict[str, TransformInfo]:
+    base_args = [sys.executable, os.fspath(SORT_DIR / "rotate.py")]
+    infos = [
+        SELF,
+        TransformInfo.from_generic([*base_args, "45"], "rotate-45"),
+        TransformInfo.from_generic([*base_args, "90"], "rotate-90"),
+    ]
+    for info in infos:
+        info.save(ldb_instance)
+    return {i.name: i for i in infos}

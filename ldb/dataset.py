@@ -81,6 +81,7 @@ class DatasetVersion:
     collection: str
     tags: List[str]
     commit_info: CommitInfo
+    transform_mapping_id: str = ""
 
     @classmethod
     def parse(cls, attr_dict: Dict[str, Any]) -> "DatasetVersion":
@@ -116,6 +117,10 @@ class Dataset:
         attr_dict = asdict(self)
         created = format_datetime(attr_dict.pop("created"))
         return dict(created=created, **attr_dict)
+
+
+class ObjectIDMapping(Dict[str, str]):
+    pass
 
 
 def iter_collection_dir(collection_dir: Union[str, Path]) -> Iterator[str]:

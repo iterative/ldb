@@ -13,6 +13,12 @@ from typing import (
 from jmespath.visitor import _Expression as JMESPathExpression
 from typing_extensions import Protocol
 
+
+class SupportsHash(Protocol):
+    def __hash__(self) -> int:
+        ...
+
+
 JSONKey = Union[str, int, float, bool, None]
 JSONObject = Dict[JSONKey, Any]
 JSONArray = List[Any]

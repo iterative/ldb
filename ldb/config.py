@@ -47,7 +47,14 @@ def save_to_path(config: TOMLDocument, path: Path) -> None:
 
 def load_first(
     config_types: Sequence[str] = DEFAULT_CONFIG_TYPES,
+    ldb_dir: Optional[Path] = None,
 ) -> Optional[TOMLDocument]:
+    if ldb_dir is not None:
+        path = ldb_dir / Filename.CONFIG
+        try:
+            return load_from_path(path)
+        except FileNotFoundError:
+            pass
     for config_type in config_types:
         for config_dir in get_config_dirs(config_type):
             path = config_dir / Filename.CONFIG
@@ -104,8 +111,12 @@ def get_ldb_dir() -> Path:
 
 
 def get_instance_config_dirs() -> List[Path]:
+    from ldb.core import (  # pylint: disable=import-outside-toplevel
+        get_ldb_instance,
+    )
+
     try:
-        return [get_ldb_dir()]
+        return [get_ldb_instance()]
     except LDBInstanceNotFoundError:
         return []
 

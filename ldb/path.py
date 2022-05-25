@@ -17,6 +17,7 @@ class InstanceDir:
     ANNOTATIONS = OBJECTS / "annotations"
     COLLECTIONS = OBJECTS / "collections"
     DATASET_VERSIONS = OBJECTS / "dataset_versions"
+    TRANSFORMS = OBJECTS / "transforms"
     USER_FUNCTIONS = PurePath("custom_code") / "ldb_user_functions"
     USER_FILTERS = PurePath("custom_code") / "ldb_user_filters"
 
@@ -24,6 +25,7 @@ class InstanceDir:
 class WorkspacePath:
     BASE = PurePath(".ldb_workspace")
     COLLECTION = BASE / "collection"
+    TRANSFORM_MAPPING = BASE / "transform_mapping"
     DATASET = BASE / "workspace_dataset"
     TMP = BASE / "tmp"
 
@@ -34,6 +36,7 @@ INSTANCE_DIRS = (
     InstanceDir.OBJECTS,
     InstanceDir.ANNOTATIONS,
     InstanceDir.COLLECTIONS,
+    InstanceDir.TRANSFORMS,
     InstanceDir.DATASET_VERSIONS,
     InstanceDir.USER_FUNCTIONS,
     InstanceDir.USER_FILTERS,

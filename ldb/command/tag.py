@@ -2,7 +2,7 @@ from argparse import ArgumentParser, Namespace
 from typing import TYPE_CHECKING, Iterable
 
 from ldb.add import select_data_object_hashes
-from ldb.cli_utils import add_data_obj_params, tag_list
+from ldb.cli_utils import add_data_obj_params, simple_name_list
 from ldb.core import get_ldb_instance
 from ldb.data_object_tag import tag_data_objects
 from ldb.exceptions import LDBException
@@ -53,7 +53,7 @@ def add_parser(
         "--add",
         metavar="<tags>",
         default=[],
-        type=tag_list,
+        type=simple_name_list,
         action="append",
         help="Comma-separated list of tags to add to data objects",
     )
@@ -62,7 +62,7 @@ def add_parser(
         "--remove",
         metavar="<tags>",
         default=[],
-        type=tag_list,
+        type=simple_name_list,
         action="append",
         help="Comma-separated list of tags to remove from data objects",
     )

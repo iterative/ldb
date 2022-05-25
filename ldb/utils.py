@@ -8,6 +8,7 @@ import string
 import sys
 from contextlib import contextmanager
 from datetime import datetime, timezone
+from enum import Enum
 from functools import partial
 from pathlib import Path
 from typing import (
@@ -50,6 +51,10 @@ if sys.version_info < (3, 9):
     md5 = hashlib.md5
 else:
     md5 = partial(hashlib.md5, usedforsecurity=False)
+
+
+class StrEnum(str, Enum):
+    pass
 
 
 @overload
