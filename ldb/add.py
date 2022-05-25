@@ -440,8 +440,13 @@ def delete(
         query_args,
         warn=False,
     )
+    data_object_hashes = list(data_object_hashes)
     num_deleted = delete_from_collection_dir(
         collection_dir_path,
+        data_object_hashes,
+    )
+    delete_from_collection_dir(
+        workspace_path / WorkspacePath.TRANSFORM_MAPPING,
         data_object_hashes,
     )
     print(f"Deleted {num_deleted} data objects from {ds_ident}")

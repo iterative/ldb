@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Iterable
 import shtab
 
 from ldb import config
-from ldb.cli_utils import add_data_format_arguments, tag_list
+from ldb.cli_utils import add_data_format_arguments, simple_name_list
 from ldb.config import ConfigType
 from ldb.core import get_ldb_instance
 from ldb.data_formats import INDEX_FORMATS, Format
@@ -53,7 +53,7 @@ def add_parser(
         metavar="<tags>",
         dest="tags",
         default=[],
-        type=tag_list,
+        type=simple_name_list,
         action="append",
         help="Comma-separated list of tags to add to indexed data objects",
     )

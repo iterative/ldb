@@ -1,4 +1,4 @@
-import json
+import copy
 import re
 from argparse import Action, ArgumentParser, Namespace
 from typing import Any, Iterable, List, Optional, Sequence, Union
@@ -8,21 +8,34 @@ import shtab
 from ldb.data_formats import INSTANTIATE_FORMATS, Format
 from ldb.op_type import OpType
 
-TAG_PATTERN = r"^[^\s,]+$"
+SIMPLE_NAME_PATTERN = r"^[^\s,]+$"
 
 
-def tag_list(value: str) -> List[str]:
+def simple_name_list(value: str) -> List[str]:
     result = []
     for item in value.split(","):
         item = item.strip()
-        item_match = re.search(TAG_PATTERN, item)
+        item_match = re.search(SIMPLE_NAME_PATTERN, item)
         if item_match is None:
-            raise ValueError(
-                f"Invalid tag: {json.dumps(item)}\n"
-                "Tags may not contain commas or whitespace characters",
-            )
+            raise ValueError(item)
         result.append(item_match.group())
     return result
+
+
+class ExtendAction(Action):
+    def __call__(
+        self,
+        parser: ArgumentParser,
+        namespace: Namespace,
+        values: Union[str, Sequence[Any], None],
+        option_string: Optional[str] = None,
+    ) -> None:
+        if values is None:
+            raise ValueError("values must be iterable")
+        items = getattr(namespace, self.dest, None) or []
+        items = copy.copy(items)
+        items.extend(values)
+        setattr(namespace, self.dest, items)
 
 
 class AppendConstValuesAction(Action):
@@ -43,7 +56,10 @@ def choice_str(choices: Iterable[str]) -> str:
     return f"{{{choice_strings}}}"
 
 
-def add_data_obj_params(parser: ArgumentParser, dest: str) -> None:
+def add_data_obj_params(
+    parser: ArgumentParser,
+    dest: str,
+) -> None:
     add_base_data_object_options(parser, dest)
     add_data_object_paths(parser)
 
@@ -94,7 +110,7 @@ def add_base_data_object_options(parser: ArgumentParser, dest: str) -> None:
         const=OpType.TAG_QUERY,
         default=[],
         dest=dest,
-        type=tag_list,
+        type=simple_name_list,
         action=AppendConstValuesAction,
         help=(
             "Comma-separated list of tags. Select only data objects that "
@@ -107,7 +123,7 @@ def add_base_data_object_options(parser: ArgumentParser, dest: str) -> None:
         const=OpType.NO_TAG_QUERY,
         default=[],
         dest=dest,
-        type=tag_list,
+        type=simple_name_list,
         action=AppendConstValuesAction,
         help=(
             "Comma-separated list of tags. Select only data objects where at "

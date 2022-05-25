@@ -21,6 +21,7 @@ from ldb.command import (
     status,
     sync,
     tag,
+    transform,
 )
 
 
@@ -73,4 +74,5 @@ def get_main_parser() -> ArgumentParser:
     status.add_parser(subparsers, parents)
     sync.add_parser(subparsers, parents)
     tag.add_parser(subparsers, parents)
+    transform.add_parser(subparsers, parents)
     return main_parser
