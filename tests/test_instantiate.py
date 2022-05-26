@@ -21,6 +21,22 @@ def test_instantiate_bare_path(tmp_path, staged_ds_fashion, workspace_path):
     assert get_workspace_counts(dest) == (32, 23)
 
 
+def test_instantiate_with_tranforms(
+    staged_ds_fashion,
+    workspace_path,
+    transform_infos,
+):
+    query = "--query=@ != `null`"
+    main(["transform", query, "--limit=12", "--add=rotate-90,rotate-45"])
+    main(["transform", query, "--limit=9", "--set=rotate-90,rotate-45"])
+    main(["transform", query, "--limit=6", "--set=self,rotate-45"])
+    main(["transform", query, "--limit=3", "--set=rotate-45"])
+    main(["transform", query, "--limit=1", "--remove=rotate-45"])
+    ret = main(["instantiate"])
+    assert ret == 0
+    assert get_workspace_counts(workspace_path) == (43, 17)
+
+
 def test_instantiate_with_apply(staged_ds_fashion, workspace_path):
     ret = main(
         [
