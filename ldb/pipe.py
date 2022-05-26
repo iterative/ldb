@@ -19,8 +19,9 @@ from typing import (
 
 from ldb.data_formats import Format
 from ldb.exceptions import DataObjectNotFoundError
-from ldb.instantiate import instantiate_collection_directly
+from ldb.instantiate import InstConfig, instantiate_collection_directly
 from ldb.path import InstanceDir
+from ldb.storage import get_storage_locations
 
 if TYPE_CHECKING:
     StrPopen = Popen[str]  # pylint: disable=unsubscriptable-object)
@@ -34,11 +35,15 @@ def sort_collection(
     proc_args: List[str],
 ) -> Iterator[Tuple[str, str]]:
     collection_dict = dict(collection)
+    storage_locations = get_storage_locations(ldb_dir)
     with TemporaryDirectory() as temp_dir:
         result = instantiate_collection_directly(
-            ldb_dir,
+            InstConfig(
+                ldb_dir=ldb_dir,
+                storage_locations=storage_locations,
+                dest_dir=temp_dir,
+            ),
             collection_dict,
-            temp_dir,
             Format.BARE,
         )
         data_sequences = (

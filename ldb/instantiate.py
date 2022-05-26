@@ -1,9 +1,10 @@
 import json
 import os
+import shutil
 import subprocess
 import tempfile
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import (
     Collection,
@@ -30,6 +31,12 @@ from ldb.fs.utils import FSProtocol, first_protocol
 from ldb.path import InstanceDir, WorkspacePath
 from ldb.progress import get_progressbar
 from ldb.storage import StorageLocation, get_filesystem, get_storage_locations
+from ldb.transform import (
+    DEFAULT,
+    TransformInfo,
+    TransformType,
+    get_transform_infos_from_dir,
+)
 from ldb.typing import JSONDecoded, JSONObject
 from ldb.utils import (
     DATA_OBJ_ID_PREFIX,
@@ -45,9 +52,26 @@ from ldb.workspace import (
 )
 
 
+@dataclass
+class ItemCopyResult:
+    data_object: str = ""
+    annotation: str = ""
+
+
+@dataclass
+class InstConfig:
+    ldb_dir: Path
+    storage_locations: Collection[StorageLocation]
+    dest_dir: Union[str, Path]
+    intermediate_dir: Union[str, Path] = ""
+    transform_infos: Mapping[str, Collection[TransformInfo]] = field(
+        default_factory=dict,
+    )
+
+
 class InstantiateResult(NamedTuple):
-    data_object_paths: List[str]
-    annotation_paths: List[str]
+    data_object_paths: Sequence[str]
+    annotation_paths: Sequence[str]
     num_data_objects: int
     num_annotations: int
 
@@ -118,64 +142,73 @@ def instantiate_collection(
     # fail fast if workspace is not empty
     if clean and dest.exists():
         ensure_path_is_empty_workspace(dest, force)
+    storage_locations = get_storage_locations(ldb_dir)
+    if fmt in (Format.STRICT, Format.BARE):
+        transform_infos = get_transform_infos_from_dir(
+            ldb_dir,
+            workspace_path / WorkspacePath.TRANSFORM_MAPPING,
+        )
+    else:
+        transform_infos = {}
     dest.mkdir(exist_ok=True)
 
-    tmp_dir_base = workspace_path / WorkspacePath.TMP
+    tmp_dir_base = workspace_path.absolute() / WorkspacePath.TMP
     tmp_dir_base.mkdir(exist_ok=True)
-    with tempfile.TemporaryDirectory(dir=tmp_dir_base) as tmp_dir:
-        result = instantiate_collection_directly(
-            ldb_dir,
-            collection,
-            tmp_dir,
-            fmt,
-        )
-
+    with tempfile.TemporaryDirectory(dir=tmp_dir_base) as final_tmp_dir:
+        with tempfile.TemporaryDirectory(dir=tmp_dir_base) as raw_tmp_dir:
+            config = InstConfig(
+                ldb_dir=ldb_dir,
+                dest_dir=final_tmp_dir,
+                intermediate_dir=raw_tmp_dir,
+                storage_locations=storage_locations,
+                transform_infos=transform_infos,
+            )
+            result = instantiate_collection_directly(
+                config,
+                collection,
+                fmt,
+            )
         if apply:
             paths = [str(ldb_dir / InstanceDir.USER_FILTERS)]
-            apply_transform(apply, tmp_dir, os.fspath(dest), paths=paths)
+            apply_transform(apply, final_tmp_dir, os.fspath(dest), paths=paths)
         else:
             # check again to make sure nothing was added while writing to the
             # temporary location
             if clean:
                 ensure_path_is_empty_workspace(dest, force)
             dest_str = os.fspath(dest)
-            for path in Path(tmp_dir).iterdir():
+            for path in Path(final_tmp_dir).iterdir():
                 os.replace(os.fspath(path), os.path.join(dest_str, path.name))
 
     return result
 
 
 def instantiate_collection_directly(
-    ldb_dir: Path,
+    config: InstConfig,
     collection: Mapping[str, Optional[str]],
-    dest_dir: Union[str, Path],
     fmt: str,
 ) -> InstantiateResult:
     fmt = INSTANTIATE_FORMATS[fmt]
     if fmt in (Format.STRICT, Format.BARE):
         return copy_pairs(
-            ldb_dir,
+            config,
             collection,
-            dest_dir,
             fmt == Format.STRICT,
         )
     if fmt == Format.ANNOT:
         return copy_annot(
-            ldb_dir,
+            config,
             collection,
-            dest_dir,
         )
     if fmt == Format.INFER:
         return copy_infer(
-            ldb_dir,
+            config,
             collection,
-            dest_dir,
         )
     if fmt == Format.LABEL_STUDIO:
         return copy_label_studio(
-            ldb_dir,
+            config,
             collection,
-            dest_dir,
         )
     raise ValueError(f"Not a valid instantiation format: {fmt}")
 
@@ -209,15 +242,17 @@ def apply_transform(
 
 @dataclass
 class InstItem:
-    ldb_dir: Path
-    dest_dir: Union[str, Path]
+    config: InstConfig
     data_object_hash: str
-    storage_locations: Collection[StorageLocation]
+
+    @property
+    def dest_dir(self) -> Union[str, Path]:
+        return self.config.dest_dir
 
     @cached_property
     def data_object_meta(self) -> JSONObject:
         data_object_dir = get_hash_path(
-            self.ldb_dir / InstanceDir.DATA_OBJECT_INFO,
+            self.config.ldb_dir / InstanceDir.DATA_OBJECT_INFO,
             self.data_object_hash,
         )
         return load_data_file(data_object_dir / "meta")  # type: ignore[no-any-return] # noqa: E501
@@ -251,21 +286,48 @@ class InstItem:
         fs_protocol: FSProtocol = self.data_object_meta["fs"]["protocol"]
         protocol: str = first_protocol(fs_protocol)
         path: str = self.data_object_meta["fs"]["path"]
-        fs = get_filesystem(path, protocol, self.storage_locations)
+        fs = get_filesystem(path, protocol, self.config.storage_locations)
         os.makedirs(os.path.split(self.data_object_dest)[0], exist_ok=True)
         dest = self.data_object_dest
 
         fs.get_file(path, dest)
         return dest
 
+    def copy_files(self) -> ItemCopyResult:
+        return ItemCopyResult(data_object=self.copy_data_object())
+
+    def instantiate(self) -> ItemCopyResult:
+        return self.copy_files()
+
+
+def pipe_to_proc(
+    data: str,
+    proc_args: Sequence[str],
+    paths: Sequence[str] = (),
+    set_cwd: bool = True,
+) -> int:
+    from ldb.pipe import open_plugin  # pylint: disable=import-outside-toplevel
+
+    with open_plugin(proc_args, paths, set_cwd=set_cwd) as proc:
+        stdout, stderr = proc.communicate(data)
+        retcode = proc.poll() or 0
+        if retcode:
+            raise subprocess.CalledProcessError(
+                retcode,
+                proc.args,
+                output=stdout,
+                stderr=stderr,
+            )
+    return retcode
+
 
 @dataclass
-class PairInstItem(InstItem):
+class RawPairInstItem(InstItem):
     annotation_hash: str
 
     @cached_property
     def annotation_content(self) -> JSONDecoded:
-        return get_annotation(self.ldb_dir, self.annotation_hash)
+        return get_annotation(self.config.ldb_dir, self.annotation_hash)
 
     @cached_property
     def annotation_content_bytes(self) -> bytes:
@@ -284,13 +346,84 @@ class PairInstItem(InstItem):
         )
         return dest
 
+    def copy_files(self) -> ItemCopyResult:
+        if self.annotation_hash:
+            annotation_path = self.copy_annotation()
+        else:
+            annotation_path = ""
+        return ItemCopyResult(
+            data_object=self.copy_data_object(),
+            annotation=annotation_path,
+        )
+
 
 @dataclass
-class AnnotationOnlyInstItem(PairInstItem):
+class PairInstItem(RawPairInstItem):
+    transform_infos: Collection[TransformInfo]
+
+    @property
+    def dest_dir(self) -> Union[str, Path]:
+        return self.config.intermediate_dir
+
+    def instantiate(self) -> ItemCopyResult:
+        copy_result = self.copy_files()
+        data = {
+            "output_dir": self.config.dest_dir,
+        }
+        if copy_result.data_object:
+            data["data_object"] = copy_result.data_object
+        if copy_result.annotation:
+            data["annotation"] = copy_result.annotation
+
+        # TODO: put this transform application in separate functions
+        for info in self.transform_infos:
+            if info.transform.transform_type == TransformType.PREDEFINED:
+                if info.transform.value == "self":
+                    if copy_result.data_object:
+                        shutil.copy2(
+                            copy_result.data_object,
+                            os.path.join(
+                                self.config.dest_dir,
+                                os.path.basename(copy_result.data_object),
+                            ),
+                        )
+                    if copy_result.annotation:
+                        shutil.copy2(
+                            copy_result.annotation,
+                            os.path.join(
+                                self.config.dest_dir,
+                                os.path.basename(copy_result.annotation),
+                            ),
+                        )
+                else:
+                    raise ValueError(
+                        "Builtin transform does not exist: "
+                        f"{info.transform.value}",
+                    )
+            elif info.transform.transform_type == TransformType.EXEC:
+                if not isinstance(info.transform.value, Sequence):
+                    raise ValueError(
+                        "value must be a list for transform of type "
+                        f"{TransformType.EXEC}, "
+                        f"got {type(info.transform.value)}",
+                    )
+                data_str = json.dumps(
+                    {"transform_name": info.name, **data},
+                )
+                pipe_to_proc(data_str, info.transform.value)
+            else:
+                raise ValueError(
+                    f"Invalid transform type: {info.transform.transform_type}",
+                )
+        return copy_result
+
+
+@dataclass
+class AnnotationOnlyInstItem(RawPairInstItem):
     @cached_property
     def annotation_content(self) -> JSONDecoded:
         annotation: JSONObject = get_annotation(  # type: ignore[assignment]
-            self.ldb_dir,
+            self.config.ldb_dir,
             self.annotation_hash,
         )
         annotation = {
@@ -301,7 +434,7 @@ class AnnotationOnlyInstItem(PairInstItem):
 
 
 @dataclass
-class InferInstItem(PairInstItem):
+class InferInstItem(RawPairInstItem):
     annotation_hash: str
 
     @cached_property
@@ -327,22 +460,18 @@ class InferInstItem(PairInstItem):
 
 
 @dataclass
-class LabelStudioInstItem(PairInstItem):
+class LabelStudioInstItem(RawPairInstItem):
     _annotation_content: List[JSONObject]
 
     def __init__(
         self,
-        ldb_dir: Path,
-        dest_dir: Union[str, Path],
+        config: InstConfig,
         annotation_content: List[JSONObject],
-        storage_locations: Collection[StorageLocation],
     ):
         super().__init__(
-            ldb_dir,
-            dest_dir,
-            "",
-            storage_locations,
-            "",
+            config=config,
+            data_object_hash="",
+            annotation_hash="",
         )
         self._annotation_content = annotation_content
 
@@ -370,45 +499,47 @@ def get_prefix_ext(path: str) -> Tuple[str, str]:
 
 
 def copy_pairs(
-    ldb_dir: Path,
+    config: InstConfig,
     collection: Mapping[str, Optional[str]],
-    dest_dir: Union[str, Path],
     strict: bool = False,
 ) -> InstantiateResult:
-    items: List[PairInstItem] = []
+    items: List[Union[PairInstItem, RawPairInstItem]] = []
     data_obj_paths: List[str] = []
-    annot_paths = []
     num_annotations = 0
-    # annotations are small and stored in ldb; copy them first
     for data_object_hash, annotation_hash in collection.items():
-        if not annotation_hash:
+        if annotation_hash:
+            num_annotations += 1
+        else:
             if strict:
                 continue
             annotation_hash = ""
-        item = PairInstItem(
-            ldb_dir,
-            dest_dir,
-            data_object_hash,
-            get_storage_locations(ldb_dir),
-            annotation_hash,
-        )
-        if annotation_hash:
-            annot_paths.append(item.copy_annotation())
-            num_annotations += 1
+        if config.transform_infos:
+            item: Union[PairInstItem, RawPairInstItem] = PairInstItem(
+                config,
+                data_object_hash,
+                annotation_hash,
+                config.transform_infos.get(data_object_hash, DEFAULT),
+            )
         else:
-            annot_paths.append("")
+            item = RawPairInstItem(
+                config,
+                data_object_hash,
+                annotation_hash,
+            )
         items.append(item)
 
     with ThreadPoolExecutor(max_workers=4 * (os.cpu_count() or 1)) as pool:
         with get_progressbar(transient=True) as progress:
             task = progress.add_task("Instantiate", total=len(items))
 
-            def worker(item: PairInstItem) -> str:
-                result = item.copy_data_object()
+            def worker(item: PairInstItem) -> ItemCopyResult:
+                result = item.instantiate()
                 progress.update(task, advance=1)
                 return result
 
-            data_obj_paths = list(pool.map(worker, items))
+            copy_results = list(pool.map(worker, items))
+            data_obj_paths = [r.data_object for r in copy_results]
+            annot_paths = [r.annotation for r in copy_results]
 
     return InstantiateResult(
         data_obj_paths,
@@ -419,18 +550,15 @@ def copy_pairs(
 
 
 def copy_annot(
-    ldb_dir: Path,
+    config: InstConfig,
     collection: Mapping[str, Optional[str]],
-    dest_dir: Union[str, Path],
 ) -> InstantiateResult:
     annot_paths = []
     for data_object_hash, annotation_hash in collection.items():
         if annotation_hash:
             path = AnnotationOnlyInstItem(
-                ldb_dir,
-                dest_dir,
+                config,
                 data_object_hash,
-                get_storage_locations(ldb_dir),
                 annotation_hash,
             ).copy_annotation()
             annot_paths.append(path)
@@ -443,9 +571,8 @@ def copy_annot(
 
 
 def copy_infer(
-    ldb_dir: Path,
+    config: InstConfig,
     collection: Mapping[str, Optional[str]],
-    dest_dir: Union[str, Path],
 ) -> InstantiateResult:
     for data_object_hash, annotation_hash in collection.items():
         if not annotation_hash:
@@ -461,10 +588,8 @@ def copy_infer(
         collection,
     ).items():
         path = InferInstItem(
-            ldb_dir,
-            dest_dir,
+            config,
             data_object_hash,
-            get_storage_locations(ldb_dir),
             annotation_hash,
         ).copy_data_object()
         data_obj_paths.append(path)
@@ -477,10 +602,10 @@ def copy_infer(
 
 
 def copy_label_studio(
-    ldb_dir: Path,
+    config: InstConfig,
     collection: Mapping[str, Optional[str]],
-    dest_dir: Union[str, Path],
 ) -> InstantiateResult:
+    ldb_dir = config.ldb_dir
     annot_paths = []
     annotations: List[JSONObject] = []
     for data_object_hash, annotation_hash in collection.items():
@@ -513,10 +638,8 @@ def copy_label_studio(
             )
         annotations.append(annot)  # type: ignore[arg-type]
     path = LabelStudioInstItem(
-        ldb_dir,
-        dest_dir,
+        config,
         annotations,
-        get_storage_locations(ldb_dir),
     ).copy_annotation()
     annot_paths.append(path)
     return InstantiateResult(
