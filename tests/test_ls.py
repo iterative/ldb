@@ -13,11 +13,12 @@ from ldb.ls import DatasetListing, ls, ls_collection
 from ldb.main import main
 from ldb.op_type import OpType
 from ldb.path import WorkspacePath
+from ldb.transform import SELF, Transform, TransformConfig, TransformInfo
 from ldb.utils import DATASET_PREFIX, ROOT, WORKSPACE_DATASET_PREFIX, chdir
 from ldb.workspace import collection_dir_to_object
 
 from .data import QUERY_DATA
-from .utils import DATA_DIR, stage_new_workspace
+from .utils import DATA_DIR, SORT_DIR, stage_new_workspace
 
 UPDATES_DIR = fsp.join(DATA_DIR.as_posix(), "fashion-mnist", "updates")
 ORIGINAL_DIR = fsp.join(DATA_DIR.as_posix(), "fashion-mnist", "original")
@@ -256,6 +257,102 @@ def test_ls_data_objects(ldb_instance, workspace_path, index_original):
             ),
             annotation_hash="268daa854dde9f160c2b2ffe1d2ed74b",
             annotation_version=1,
+        ),
+    ]
+    assert listings == expected
+
+
+def test_ls_transforms(ldb_instance, workspace_path, index_original):
+    script_path = os.fspath(SORT_DIR / "rotate.py")
+    rotate_45_run = (script_path, "45")
+    rotate_90_run = (script_path, "90")
+    TransformConfig("rotate-45", rotate_45_run).save(ldb_instance)
+    TransformConfig("rotate-90", rotate_90_run).save(ldb_instance)
+
+    rotate_45_info = TransformInfo(Transform(rotate_45_run), "rotate-45")
+    rotate_90_info = TransformInfo(Transform(rotate_90_run), "rotate-90")
+    main(
+        [
+            "add",
+            "id:3c679fd1b8537dc7da1272a085e388e6",
+            "id:982814b9116dce7882dfc31636c3ff7a",
+            "id:ebbc6c0cebb66738942ee56513f9ee2f",
+            "id:1e0759182b328fd22fcdb5e6beb54adf",
+        ],
+    )
+    main(
+        [
+            "transform",
+            "id:3c679fd1b8537dc7da1272a085e388e6",
+            "id:982814b9116dce7882dfc31636c3ff7a",
+            "-a",
+            "rotate-45,rotate-90",
+        ],
+    )
+    main(
+        [
+            "transform",
+            "id:982814b9116dce7882dfc31636c3ff7a",
+            "id:1e0759182b328fd22fcdb5e6beb54adf",
+            "-r",
+            "self",
+        ],
+    )
+    main(
+        [
+            "transform",
+            "id:ebbc6c0cebb66738942ee56513f9ee2f",
+            "-s",
+            "rotate-90",
+        ],
+    )
+    listings = sorted_ls(ldb_instance, [])
+    expected = [
+        DatasetListing(
+            data_object_hash="1e0759182b328fd22fcdb5e6beb54adf",
+            data_object_path=fsp.join(
+                ORIGINAL_DIR,
+                "data_objects_only",
+                "00014.png",
+            ),
+            annotation_hash="",
+            annotation_version=0,
+            transform_info=frozenset(),
+        ),
+        DatasetListing(
+            data_object_hash="3c679fd1b8537dc7da1272a085e388e6",
+            data_object_path=fsp.join(
+                ORIGINAL_DIR,
+                "data_objects_only",
+                "00036.png",
+            ),
+            annotation_hash="",
+            annotation_version=0,
+            transform_info=frozenset({SELF, rotate_45_info, rotate_90_info}),
+        ),
+        DatasetListing(
+            data_object_hash="982814b9116dce7882dfc31636c3ff7a",
+            data_object_path=fsp.join(
+                ORIGINAL_DIR,
+                "has_both",
+                "test",
+                "00025.png",
+            ),
+            annotation_hash="97dde24d0e61ac83f051cd748e16f5dc",
+            annotation_version=1,
+            transform_info=frozenset({rotate_45_info, rotate_90_info}),
+        ),
+        DatasetListing(
+            data_object_hash="ebbc6c0cebb66738942ee56513f9ee2f",
+            data_object_path=fsp.join(
+                ORIGINAL_DIR,
+                "has_both",
+                "test",
+                "00047.png",
+            ),
+            annotation_hash="268daa854dde9f160c2b2ffe1d2ed74b",
+            annotation_version=1,
+            transform_info=frozenset({rotate_90_info}),
         ),
     ]
     assert listings == expected
