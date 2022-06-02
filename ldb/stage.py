@@ -1,7 +1,7 @@
 import os
 import shutil
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Sequence, Tuple
 
 from ldb.config import get_ldb_dir
 from ldb.core import init_quickstart
@@ -120,6 +120,7 @@ def stage_with_instance(  # pylint: disable=too-many-statements
                 f"To stage a new dataset, use {ds_ident}",
             ) from exc
         collection_obj = None
+        transform_obj = None
         message = (
             f"Staged new dataset {dataset_identifier} "
             f"at {os.fspath(workspace_path)!r}"
@@ -156,6 +157,12 @@ def stage_with_instance(  # pylint: disable=too-many-statements
                 dataset_version_obj.collection,
             ),
         )
+        transform_obj = load_data_file(
+            get_hash_path(
+                ldb_dir / InstanceDir.TRANSFORM_MAPPINGS,
+                dataset_version_obj.transform_mapping_id,
+            ),
+        )
         curr_dataset_ident = format_dataset_identifier(
             ds_name,
             ds_version_num,
@@ -163,7 +170,12 @@ def stage_with_instance(  # pylint: disable=too-many-statements
         message = (
             f"Staged {curr_dataset_ident} at {os.fspath(workspace_path)!r}"
         )
-    stage_workspace(workspace_path, workspace_ds_obj, collection_obj)
+    stage_workspace(
+        workspace_path,
+        workspace_ds_obj,
+        collection_obj,
+        transform_obj,
+    )
     print(message)
 
 
@@ -171,6 +183,7 @@ def stage_workspace(
     workspace_path: Path,
     workspace_ds_obj: WorkspaceDataset,
     collection_obj: Optional[Dict[str, Optional[str]]] = None,
+    transform_obj: Optional[Dict[str, Sequence[str]]] = None,
 ) -> None:
     collection_path = workspace_path / WorkspacePath.COLLECTION
     workspace_ds_bytes = json_dumps(workspace_ds_obj.format()).encode()
@@ -185,6 +198,22 @@ def stage_workspace(
         if collection_path.exists():
             shutil.rmtree(collection_path)
         collection_path.mkdir(parents=True)
+
+    transform_path = workspace_path / WorkspacePath.TRANSFORM_MAPPING
+    if transform_obj:
+        transform_path_data = [
+            (
+                get_hash_path(transform_path, data_object_hash),
+                json_dumps(transform_ids),
+            )
+            for data_object_hash, transform_ids in transform_obj.items()
+        ]
+        transform_path.mkdir(parents=True, exist_ok=True)
+        write_workspace_collection(transform_path, transform_path_data)
+    else:
+        if transform_path.exists():
+            shutil.rmtree(transform_path)
+        transform_path.mkdir(parents=True)
 
     write_data_file(
         workspace_path / WorkspacePath.DATASET,

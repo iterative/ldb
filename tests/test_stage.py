@@ -7,11 +7,14 @@ from tomlkit.toml_document import TOMLDocument
 
 from ldb import config
 from ldb.config import ConfigType
+from ldb.core import get_ldb_instance
+from ldb.dataset import Dataset, get_collection_dir_items
 from ldb.exceptions import WorkspaceError
 from ldb.main import main
-from ldb.path import WorkspacePath
+from ldb.path import InstanceDir, WorkspacePath
 from ldb.stage import stage_with_instance
-from ldb.utils import current_time, load_data_file
+from ldb.transform import get_transform_mapping_dir_items
+from ldb.utils import DATASET_PREFIX, current_time, load_data_file
 from ldb.workspace import WorkspaceDataset
 
 
@@ -19,6 +22,7 @@ def is_workspace(dir_path: Path) -> bool:
     return (
         (dir_path / WorkspacePath.BASE).is_dir()
         and (dir_path / WorkspacePath.COLLECTION).is_dir()
+        and (dir_path / WorkspacePath.TRANSFORM_MAPPING).is_dir()
         and (dir_path / WorkspacePath.DATASET).is_file()
     )
 
@@ -30,6 +34,7 @@ def test_stage_cli_new_dataset(tmp_path, global_base):
         ["stage", f"ds:{ds_name}", "-t", f"{os.fspath(workspace_path)}"],
     )
 
+    # TODO: mock current_time instead of setting staged_time
     curr_time = current_time()
     workspace_ds = WorkspaceDataset.parse(
         load_data_file(workspace_path / WorkspacePath.DATASET),
@@ -47,6 +52,49 @@ def test_stage_cli_new_dataset(tmp_path, global_base):
     assert workspace_ds == expected_workspace_ds
     assert cfg["core"]["read_any_cloud_location"]  # type: ignore[index]
     assert cfg["core"]["auto_index"]  # type: ignore[index]
+
+
+def test_stage_cli_existing_dataset(
+    tmp_path,
+    global_base,
+    staged_ds_fashion_with_transforms,
+):
+    ldb_dir = get_ldb_instance()
+    main(["commit"])
+    workspace_path = tmp_path / "workspace2"
+    ds_name = staged_ds_fashion_with_transforms[len(DATASET_PREFIX) :]
+    ret = main(
+        ["stage", f"ds:{ds_name}", "-t", f"{os.fspath(workspace_path)}"],
+    )
+
+    curr_time = current_time()
+    workspace_ds = WorkspaceDataset.parse(
+        load_data_file(workspace_path / WorkspacePath.DATASET),
+    )
+    dataset_obj = Dataset.parse(
+        load_data_file(ldb_dir / InstanceDir.DATASETS / ds_name),
+    )
+    workspace_ds.staged_time = curr_time
+    collection_items = dict(
+        get_collection_dir_items(workspace_path / WorkspacePath.COLLECTION),
+    )
+    transform_items = dict(
+        get_transform_mapping_dir_items(
+            workspace_path / WorkspacePath.TRANSFORM_MAPPING,
+        ),
+    )
+    expected_workspace_ds = WorkspaceDataset(
+        dataset_name=ds_name,
+        staged_time=curr_time,
+        parent=dataset_obj.versions[-1],
+        tags=[],
+    )
+    assert ret == 0
+    assert is_workspace(workspace_path)
+    assert workspace_ds == expected_workspace_ds
+    assert len(collection_items) == 32
+    assert len(list(filter(None, collection_items.values()))) == 23
+    assert len(transform_items) == 12
 
 
 @pytest.mark.parametrize(

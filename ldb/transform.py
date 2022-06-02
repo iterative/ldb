@@ -392,7 +392,7 @@ def update_transform_mapping_dir(
 
 def get_transform_mapping_dir_items(
     transform_mapping_dir: Path,
-) -> Iterator[Tuple[str, str]]:
+) -> Iterator[Tuple[str, List[str]]]:
     for path in sorted(transform_mapping_dir.glob("*/*")):
         yield path.parent.name + path.name, json.loads(path.read_text())
 
@@ -427,3 +427,27 @@ def get_transform_infos_from_dir(
         d: frozenset({transform_infos[h] for h in hash_seq})
         for d, hash_seq in mapping_items
     }
+
+
+def transform_dir_to_object(transform_dir: Path) -> Dict[str, List[str]]:
+    return dict(
+        sorted(get_transform_mapping_dir_items(transform_dir)),
+    )
+
+
+def save_transform_object(ldb_dir: Path, workspace_path: Path) -> str:
+    transform_obj = transform_dir_to_object(
+        workspace_path / WorkspacePath.TRANSFORM_MAPPING,
+    )
+    transform_obj_bytes = json_dumps(transform_obj).encode()
+    transform_hash = hash_data(transform_obj_bytes)
+    transform_path = get_hash_path(
+        ldb_dir / InstanceDir.TRANSFORM_MAPPINGS,
+        transform_hash,
+    )
+    write_data_file(
+        transform_path,
+        transform_obj_bytes,
+        overwrite_existing=False,
+    )
+    return transform_hash

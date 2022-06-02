@@ -18,6 +18,7 @@ class InstanceDir:
     COLLECTIONS = OBJECTS / "collections"
     DATASET_VERSIONS = OBJECTS / "dataset_versions"
     TRANSFORMS = OBJECTS / "transforms"
+    TRANSFORM_MAPPINGS = OBJECTS / "transform_mappings"
     USER_FUNCTIONS = PurePath("custom_code") / "ldb_user_functions"
     USER_FILTERS = PurePath("custom_code") / "ldb_user_filters"
 

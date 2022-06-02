@@ -5,13 +5,14 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Iterator, List, Optional, Union
 
-from ldb.dataset import get_collection, get_collection_dir_items
+from ldb.dataset import DatasetVersion, get_collection_dir_items
 from ldb.exceptions import WorkspaceDatasetNotFoundError, WorkspaceError
-from ldb.path import WorkspacePath
+from ldb.path import InstanceDir, WorkspacePath
 from ldb.utils import (
     DATASET_PREFIX,
     ROOT,
     format_datetime,
+    get_hash_path,
     load_data_file,
     parse_datetime,
 )
@@ -52,8 +53,33 @@ def workspace_dataset_is_clean(
     )
     if not workspace_dataset_obj.parent:
         return not ws_collection
-    collection_obj = get_collection(ldb_dir, workspace_dataset_obj.parent)
-    return ws_collection == collection_obj
+    dataset_version_obj = DatasetVersion.from_id(
+        ldb_dir,
+        workspace_dataset_obj.parent,
+    )
+    collection_obj = load_data_file(
+        get_hash_path(
+            ldb_dir / InstanceDir.COLLECTIONS,
+            dataset_version_obj.collection,
+        ),
+    )
+    if ws_collection != collection_obj:
+        return False
+
+    from ldb.transform import (  # pylint: disable=import-outside-toplevel
+        transform_dir_to_object,
+    )
+
+    ws_transform_mapping = transform_dir_to_object(
+        workspace_path / WorkspacePath.TRANSFORM_MAPPING,
+    )
+    transform_obj: Dict[str, List[str]] = load_data_file(
+        get_hash_path(
+            ldb_dir / InstanceDir.TRANSFORM_MAPPINGS,
+            dataset_version_obj.transform_mapping_id,
+        ),
+    )
+    return ws_transform_mapping == transform_obj
 
 
 def load_workspace_dataset(workspace_path: Path) -> WorkspaceDataset:

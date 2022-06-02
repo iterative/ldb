@@ -79,9 +79,9 @@ class DatasetVersion:
     version: int
     parent: str
     collection: str
+    transform_mapping_id: str
     tags: List[str]
     commit_info: CommitInfo
-    transform_mapping_id: str = ""
 
     @classmethod
     def parse(cls, attr_dict: Dict[str, Any]) -> "DatasetVersion":
@@ -89,6 +89,21 @@ class DatasetVersion:
         return cls(
             commit_info=CommitInfo.parse(attr_dict.pop("commit_info")),
             **attr_dict,
+        )
+
+    @classmethod
+    def from_id(
+        cls,
+        ldb_dir: Path,
+        dataset_version_id: str,
+    ) -> "DatasetVersion":
+        return cls.parse(
+            load_data_file(
+                get_hash_path(
+                    ldb_dir / InstanceDir.DATASET_VERSIONS,
+                    dataset_version_id,
+                ),
+            ),
         )
 
     def format(self) -> Dict[str, Any]:

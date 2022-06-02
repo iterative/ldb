@@ -209,6 +209,20 @@ def staged_ds_fashion(workspace_path: Path) -> str:
 
 
 @pytest.fixture
+def staged_ds_fashion_with_transforms(
+    staged_ds_fashion: str,
+    transform_infos: Dict[str, TransformInfo],
+) -> str:
+    query = "--query=@ != `null`"
+    main(["transform", query, "--limit=12", "--add=rotate-90,rotate-45"])
+    main(["transform", query, "--limit=9", "--set=rotate-90,rotate-45"])
+    main(["transform", query, "--limit=6", "--set=self,rotate-45"])
+    main(["transform", query, "--limit=3", "--set=rotate-45"])
+    main(["transform", query, "--limit=1", "--remove=rotate-45"])
+    return staged_ds_fashion
+
+
+@pytest.fixture
 def label_studio_json_path(tmp_path: Path) -> Path:
     parent = DATA_DIR / "flat-data-object-only"
     with open(
