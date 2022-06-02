@@ -4,6 +4,7 @@ from pathlib import Path
 
 from ldb.dataset import CommitInfo, Dataset, DatasetVersion
 from ldb.path import InstanceDir, WorkspacePath
+from ldb.transform import save_transform_object
 from ldb.utils import (
     DATASET_PREFIX,
     current_time,
@@ -66,6 +67,7 @@ def commit(
         collection_obj_bytes,
         overwrite_existing=False,
     )
+    transform_hash = save_transform_object(ldb_dir, workspace_path)
 
     curr_time = current_time()
     username = getpass.getuser()
@@ -84,6 +86,7 @@ def commit(
         version=len(dataset.versions) + 1,
         parent=workspace_ds.parent,
         collection=collection_hash,
+        transform_mapping_id=transform_hash,
         tags=workspace_ds.tags.copy(),
         commit_info=CommitInfo(
             created_by=username,

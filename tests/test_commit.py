@@ -8,14 +8,24 @@ from ldb.path import InstanceDir
 from ldb.utils import current_time, load_data_file
 
 
-def test_commit_new_dataset(data_dir, ldb_instance, workspace_path):
+def test_commit_new_dataset(
+    data_dir,
+    ldb_instance,
+    workspace_path,
+    transform_infos,
+):
     dir_to_add = os.fspath(data_dir / "fashion-mnist/original")
     main(["index", "-m", "bare", dir_to_add])
     main(["add", dir_to_add])
+    main(["transform", "-a", "rotate-45,rotate-90", "--limit", "10"])
+    main(["transform", "-r", "self,rotate-45,rotate-90", "--limit", "3"])
     ret = main(["commit", "-m", "create a new dataset"])
 
     collection_file_paths = list(
         (ldb_instance / InstanceDir.COLLECTIONS).glob("*/*"),
+    )
+    transform_mapping_file_paths = list(
+        (ldb_instance / InstanceDir.TRANSFORM_MAPPINGS).glob("*/*"),
     )
     dataset_version_file_paths = list(
         (ldb_instance / InstanceDir.DATASET_VERSIONS).glob("*/*"),
@@ -23,12 +33,17 @@ def test_commit_new_dataset(data_dir, ldb_instance, workspace_path):
     dataset_file_paths = list((ldb_instance / InstanceDir.DATASETS).glob("*"))
 
     collection_obj = load_data_file(collection_file_paths[0])
+    transform_mapping_obj = load_data_file(transform_mapping_file_paths[0])
     dataset_version_obj = DatasetVersion.parse(
         load_data_file(dataset_version_file_paths[0]),
     )
     dataset_obj = Dataset.parse(load_data_file(dataset_file_paths[0]))
     collection_hash = (
         collection_file_paths[0].parent.name + collection_file_paths[0].name
+    )
+    transform_mapping_hash = (
+        transform_mapping_file_paths[0].parent.name
+        + transform_mapping_file_paths[0].name
     )
     dataset_version_hash = (
         dataset_version_file_paths[0].parent.name
@@ -45,6 +60,7 @@ def test_commit_new_dataset(data_dir, ldb_instance, workspace_path):
         version=1,
         parent="",
         collection=collection_hash,
+        transform_mapping_id=transform_mapping_hash,
         tags=[],
         commit_info=CommitInfo(
             created_by=expected_username,
@@ -61,9 +77,11 @@ def test_commit_new_dataset(data_dir, ldb_instance, workspace_path):
 
     assert ret == 0
     assert len(collection_file_paths) == 1
+    assert len(transform_mapping_file_paths) == 1
     assert len(dataset_version_file_paths) == 1
     assert len(dataset_file_paths) == 1
     assert len(collection_obj) == 32
+    assert len(transform_mapping_obj) == 10
     assert sum(bool(a) for a in collection_obj.values()) == 23
     assert dataset_obj == expected_dataset_obj
     assert dataset_version_obj == expected_dataset_version_obj

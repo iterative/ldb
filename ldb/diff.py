@@ -50,7 +50,7 @@ def get_diff_collection(
         )
     if dataset.startswith(WORKSPACE_DATASET_PREFIX):
         return collection_dir_to_object(
-            Path(dataset[len(WORKSPACE_DATASET_PREFIX) :])  # noqa: E203
+            Path(dataset[len(WORKSPACE_DATASET_PREFIX) :])
             / WorkspacePath.COLLECTION,
         )
     return get_collection(ldb_dir, dataset)
