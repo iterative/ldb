@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 from typing import Iterable, Optional, Sequence
 
@@ -6,11 +7,12 @@ from ldb.config import get_ldb_dir
 from ldb.core import init_quickstart
 from ldb.data_formats import Format
 from ldb.dataset import OpDef
-from ldb.exceptions import LDBException
+from ldb.exceptions import LDBException, WorkspaceError
 from ldb.instantiate import InstantiateResult, instantiate_collection
 from ldb.path import WorkspacePath
 from ldb.stage import stage_new
 from ldb.utils import DATASET_PREFIX, ROOT, temp_dataset_name
+from ldb.workspace import iter_workspace_dir
 
 
 def get(
@@ -19,7 +21,6 @@ def get(
     paths: Sequence[str],
     query_args: Iterable[OpDef],
     fmt: str = Format.BARE,
-    force: bool = False,
     apply: Sequence[str] = (),
     make_parent_dirs: bool = False,
     ldb_dir: Optional[Path] = None,
@@ -37,6 +38,11 @@ def get(
         ldb_dir = init_quickstart()
 
     if not (workspace_path / WorkspacePath.DATASET).is_file():
+        if workspace_path.exists() and any(iter_workspace_dir(workspace_path)):
+            raise WorkspaceError(
+                "Target must be empty, missing, or a valid workspace. "
+                f"Directory is not empty: {os.fspath(workspace_path)!r}",
+            )
         stage_new(
             workspace_path,
             temp_dataset_name(),
@@ -55,7 +61,7 @@ def get(
         dict(collection),
         dest,
         fmt,
-        force,
+        force=False,
         apply=apply,
         clean=False,
     )

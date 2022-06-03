@@ -212,20 +212,24 @@ def add_target_dir_argument(parser: ArgumentParser) -> None:
     ).complete = shtab.DIR
 
 
-def add_instantiate_arguments(parser: ArgumentParser) -> None:
+def add_instantiate_arguments(
+    parser: ArgumentParser,
+    include_force: bool = True,
+) -> None:
     add_data_obj_params(parser, dest="query_args")
     add_data_format_arguments(
         parser,
         default=Format.BARE,
         formats=INSTANTIATE_FORMATS,
     )
-    parser.add_argument(
-        "-f",
-        "--force",
-        action="store_true",
-        default=False,
-        help="Remove existing workspace contents",
-    )
+    if include_force:
+        parser.add_argument(
+            "-f",
+            "--force",
+            action="store_true",
+            default=False,
+            help="Remove existing workspace contents",
+        )
     add_target_dir_argument(parser)
     parser.add_argument(
         "--apply",

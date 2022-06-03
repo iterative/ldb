@@ -17,7 +17,6 @@ def instantiate_command(options: Namespace) -> None:
         options.paths,
         options.query_args,
         fmt=options.format,
-        force=options.force,
         apply=options.apply,
     )
 
@@ -31,5 +30,5 @@ def add_parser(
         parents=parents,
         help="Get the specified data objects",
     )
-    add_instantiate_arguments(parser)
+    add_instantiate_arguments(parser, include_force=False)
     parser.set_defaults(func=instantiate_command)
