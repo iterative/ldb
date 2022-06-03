@@ -60,6 +60,7 @@ def init_quickstart(force: bool = False) -> Path:
         auto_index=True,
     )
     add_default_read_add_storage(ldb_dir)
+    add_public_data_lakes(ldb_dir)
     return ldb_dir
 
 
@@ -78,7 +79,20 @@ def add_default_read_add_storage(ldb_dir: Path) -> None:
         ldb_dir / Filename.STORAGE,
         StorageLocation(
             path=os.fspath(path),
+            protocol="file",
             read_and_add=True,
+        ),
+    )
+
+
+def add_public_data_lakes(ldb_dir: Path) -> None:
+    add_storage(
+        ldb_dir / Filename.STORAGE,
+        StorageLocation(
+            path="ldb-public/remote",
+            protocol="s3",
+            read_and_add=False,
+            options={"anon": True},
         ),
     )
 
