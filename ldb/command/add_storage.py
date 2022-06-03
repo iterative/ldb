@@ -1,12 +1,14 @@
+import json
 from argparse import ArgumentParser, Namespace
-from typing import TYPE_CHECKING, Iterable
+from json.decoder import JSONDecodeError
+from typing import TYPE_CHECKING, Iterable, Tuple
 
 import shtab
 
 from ldb.config import get_ldb_dir
 from ldb.core import init
 from ldb.path import Filename
-from ldb.storage import add_storage, create_storage_location
+from ldb.storage import FSOptions, add_storage, create_storage_location
 
 if TYPE_CHECKING:
     from argparse import _SubParsersAction
@@ -19,13 +21,27 @@ def add_storage_command(options: Namespace) -> None:
     storage_location = create_storage_location(
         path=options.path,
         read_and_add=options.read_add,
-        options=dict(options.fs_options),
+        options=parse_fs_options(options.fs_options),
     )
     add_storage(
         ldb_dir / Filename.STORAGE,
         storage_location,
         force=options.force,
     )
+
+
+def parse_fs_options(
+    fs_options: Iterable[Tuple[str, str]],
+) -> FSOptions:
+    result = {}
+    for k, v in fs_options:
+        try:
+            result[k] = json.loads(v)
+        except JSONDecodeError as exc:
+            raise ValueError(
+                f"Expected json value for second arg of --option, got {v}",
+            ) from exc
+    return result
 
 
 def add_parser(
@@ -59,7 +75,10 @@ def add_parser(
         action="append",
         dest="fs_options",
         nargs=2,
-        help="Additional filesystem option. May be used multiple times",
+        help=(
+            "Additional filesystem option where <key> is a string and <value> "
+            "is a json value. May be used multiple times"
+        ),
     )
     parser.add_argument(  # type: ignore[attr-defined]
         "path",
