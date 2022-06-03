@@ -4,7 +4,7 @@ from copy import copy
 from dataclasses import asdict, dataclass, field
 from json import dump, load
 from pathlib import Path
-from typing import Collection, Dict, Generator, Iterable, List, Optional, Union
+from typing import Collection, Dict, Generator, Iterable, List, Optional
 
 import fsspec
 from fsspec.spec import AbstractFileSystem
@@ -13,8 +13,9 @@ from fsspec.utils import get_protocol
 from ldb.exceptions import LDBException, StorageConfigurationError
 from ldb.fs import posix_path as fsp
 from ldb.path import Filename
+from ldb.typing import JSONDecoded
 
-FSOptions = Dict[str, Union[str, int, bool]]
+FSOptions = Dict[str, JSONDecoded]
 
 
 @dataclass
