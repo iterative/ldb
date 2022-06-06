@@ -18,12 +18,17 @@ from typing import (
 from fsspec.spec import AbstractFileSystem
 from funcy.objects import cached_property
 
-from ldb.dataset import get_collection_dir_keys
+from ldb.dataset import (
+    get_annotation,
+    get_collection_dir_keys,
+    get_root_collection_annotation_hash,
+)
 from ldb.exceptions import IndexingException, LDBException
 from ldb.index.utils import (
     DEFAULT_CONFIG,
     INDEXED_EPHEMERAL_CONFIG,
     AnnotationMeta,
+    AnnotMergeStrategy,
     DataObjectMeta,
     DataToWrite,
     FileSystemPath,
@@ -138,10 +143,12 @@ class Indexer(ABC):
         ldb_dir: Path,
         preprocessor: Preprocessor,
         tags: Collection[str] = (),
+        annot_merge_strategy: AnnotMergeStrategy = AnnotMergeStrategy.REPLACE,
     ) -> None:
         self.ldb_dir = ldb_dir
         self.preprocessor = preprocessor
         self.tags = tags
+        self.annot_merge_strategy = annot_merge_strategy
         self.result = IndexingResult()
         self.hashes: Dict[AbstractFileSystem, Dict[str, str]] = {}
 
@@ -167,8 +174,9 @@ class PairIndexer(Indexer):
         read_any_cloud_location: bool,
         strict_format: bool,
         tags: Collection[str] = (),
+        annot_merge_strategy: AnnotMergeStrategy = AnnotMergeStrategy.REPLACE,
     ) -> None:
-        super().__init__(ldb_dir, preprocessor, tags)
+        super().__init__(ldb_dir, preprocessor, tags, annot_merge_strategy)
         self.read_any_cloud_location = read_any_cloud_location
         self.strict_format = strict_format
         self.old_to_new_files: Dict[
@@ -292,6 +300,7 @@ class PairIndexer(Indexer):
                             config.save_data_object_path_info,
                             annotation_path,
                             self.tags,
+                            self.annot_merge_strategy,
                         )
                         self.result.append(obj_result)
 
@@ -302,11 +311,13 @@ class PairIndexer(Indexer):
         save_data_object_path_info: bool,
         annotation_path: str,
         tags: Collection[str],
+        annot_merge_strategy: AnnotMergeStrategy,
     ) -> IndexedObjectResult:
         return PairIndexingItem(
             self.ldb_dir,
             current_time(),
             tags,
+            annot_merge_strategy,
             FileSystemPath(fs, data_object_path),
             save_data_object_path_info,
             self.hashes,
@@ -323,6 +334,7 @@ class IndexingItem(ABC):
         default_factory=list,
     )
     tags: Collection[str]
+    annot_merge_strategy: AnnotMergeStrategy
 
     @cached_property
     def current_timestamp(self) -> str:
@@ -382,8 +394,35 @@ class IndexingItem(ABC):
         raise NotImplementedError
 
     @cached_property
-    def annotation_content(self) -> JSONDecoded:
+    def raw_annotation_content(self) -> JSONDecoded:
         raise NotImplementedError
+
+    @cached_property
+    def annotation_content(self) -> JSONDecoded:
+        if self.annot_merge_strategy == AnnotMergeStrategy.REPLACE:
+            return self.raw_annotation_content
+        if self.annot_merge_strategy == AnnotMergeStrategy.MERGE:
+            return self.get_merged_annotation_content()
+        raise ValueError(
+            "Invalid annotation merge strategy: "
+            f"{self.annot_merge_strategy}",
+        )
+
+    def get_merged_annotation_content(self) -> JSONDecoded:
+        if not isinstance(self.raw_annotation_content, Mapping):
+            return self.raw_annotation_content
+        last_annot_hash = get_root_collection_annotation_hash(
+            get_hash_path(
+                self.ldb_dir / InstanceDir.DATA_OBJECT_INFO,
+                self.data_object_hash,
+            ),
+        )
+        if last_annot_hash is None:
+            return self.raw_annotation_content
+        last_annot = get_annotation(self.ldb_dir, last_annot_hash)
+        if not isinstance(last_annot, Mapping):
+            return self.raw_annotation_content
+        return {**last_annot, **self.raw_annotation_content}
 
     @cached_property
     def annotation_ldb_content_bytes(self) -> bytes:
@@ -498,7 +537,7 @@ class AnnotationFileIndexingItem(IndexingItem):
         )
 
     @cached_property
-    def annotation_content(self) -> JSONDecoded:
+    def raw_annotation_content(self) -> JSONDecoded:
         if self.annotation_fsp is None:
             raise IndexingException("Missing annotation_fsp")
         return get_annotation_content(

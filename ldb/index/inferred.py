@@ -15,6 +15,7 @@ from ldb.index.base import (
 )
 from ldb.index.utils import (
     AnnotationMeta,
+    AnnotMergeStrategy,
     FileSystemPath,
     FSPathsMapping,
     IndexingJobMapping,
@@ -83,6 +84,7 @@ class InferredIndexer(PairIndexer):
         read_any_cloud_location: bool,
         strict_format: bool,
         tags: Collection[str] = (),
+        annot_merge_strategy: AnnotMergeStrategy = AnnotMergeStrategy.REPLACE,
     ) -> None:
         self.preprocessor: InferredPreprocessor
         super().__init__(
@@ -91,6 +93,7 @@ class InferredIndexer(PairIndexer):
             read_any_cloud_location,
             strict_format,
             tags,
+            annot_merge_strategy,
         )
 
     def infer_annotations(
@@ -132,6 +135,7 @@ class InferredIndexer(PairIndexer):
             indexing_jobs,
             annotations_by_data_object_path,
             self.tags,
+            self.annot_merge_strategy,
         )
 
     def index_inferred_files(
@@ -142,6 +146,7 @@ class InferredIndexer(PairIndexer):
             JSONObject,
         ],
         tags: Collection[str],
+        annot_merge_strategy: AnnotMergeStrategy = AnnotMergeStrategy.REPLACE,
     ) -> None:
         for fs, jobs in indexing_jobs.items():
             for config, path_seq in jobs:
@@ -150,6 +155,7 @@ class InferredIndexer(PairIndexer):
                         self.ldb_dir,
                         current_time(),
                         tags,
+                        annot_merge_strategy,
                         FileSystemPath(fs, data_object_path),
                         config.save_data_object_path_info,
                         self.hashes,
@@ -177,7 +183,7 @@ class InferredIndexingItem(DataObjectFileIndexingItem):
         )
 
     @cached_property
-    def annotation_content(self) -> JSONDecoded:
+    def raw_annotation_content(self) -> JSONDecoded:
         return self._annotation_content
 
     @cached_property

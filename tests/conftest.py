@@ -2,10 +2,11 @@ import json
 import os
 import sys
 from pathlib import Path
-from typing import Dict, Generator, NoReturn
+from typing import Dict, Generator, Mapping, NoReturn
 
 import pytest
 from pytest import MonkeyPatch, TempPathFactory
+from typing_extensions import Protocol
 
 from ldb.config import get_global_base, set_default_instance
 from ldb.core import get_ldb_instance, init
@@ -14,12 +15,14 @@ from ldb.main import main
 from ldb.path import Filename
 from ldb.storage import add_storage, create_storage_location
 from ldb.transform import SELF, TransformInfo
+from ldb.typing import JSONDecoded
 from ldb.utils import DATASET_PREFIX, ROOT
 
 from .utils import (
     DATA_DIR,
     SORT_DIR,
     add_user_filter,
+    create_data_lake,
     index_fashion_mnist,
     stage_new_workspace,
 )
@@ -261,3 +264,38 @@ def transform_infos(ldb_instance: Path) -> Dict[str, TransformInfo]:
     for info in infos:
         info.save(ldb_instance)
     return {i.name: i for i in infos}
+
+
+class DataLakeFactory(Protocol):
+    def __call__(
+        self,
+        name: str,
+        data: Mapping[str, JSONDecoded],
+        make_data_obj: bool = True,
+        make_annot: bool = True,
+    ) -> Path:
+        ...
+
+
+@pytest.fixture
+def data_lake_factory(ldb_instance: Path, tmp_path: Path) -> DataLakeFactory:
+    def create_tmp_data_lake(
+        name: str,
+        data: Mapping[str, JSONDecoded],
+        make_data_obj: bool = True,
+        make_annot: bool = True,
+    ) -> Path:
+        data_lake_dir = tmp_path / "data-lakes" / name
+        create_data_lake(
+            data_lake_dir,
+            data,
+            make_data_obj=make_data_obj,
+            make_annot=make_annot,
+        )
+        storage_location = create_storage_location(
+            path=os.fspath(data_lake_dir),
+        )
+        add_storage(ldb_instance / Filename.STORAGE, storage_location)
+        return data_lake_dir
+
+    return create_tmp_data_lake

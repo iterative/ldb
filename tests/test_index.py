@@ -9,6 +9,7 @@ from ldb.data_formats import Format
 from ldb.dataset import get_annotations
 from ldb.index import index
 from ldb.index.base import IndexingResult
+from ldb.index.utils import AnnotMergeStrategy
 from ldb.main import main
 from ldb.path import Filename
 from ldb.storage import add_storage, create_storage_location
@@ -16,6 +17,7 @@ from ldb.utils import chdir, load_data_file
 
 from .utils import (
     DATA_DIR,
+    get_current_annot_info,
     get_indexed_data_paths,
     get_obj_tags,
     is_annotation,
@@ -490,3 +492,55 @@ def test_index_inferred(ldb_instance, data_dir):
     assert non_annotation == []
     assert annotations == expected_annotations
     assert tag_seqs == [["img"]] * len(tag_seqs)
+
+
+@pytest.mark.parametrize(
+    "annot_update,expected",
+    [
+        (
+            AnnotMergeStrategy.REPLACE,
+            {
+                "00001": {"a": {"c": 1}, "c": "c"},
+                "00002": [4, 5, 6],
+                "00005": {"a": "a"},
+            },
+        ),
+        (
+            AnnotMergeStrategy.MERGE,
+            {
+                "00001": {"a": {"c": 1}, "b": "b", "c": "c"},
+                "00002": [4, 5, 6],
+                "00005": {"a": "a"},
+            },
+        ),
+    ],
+)
+def test_index_annot_update(
+    annot_update,
+    expected,
+    ldb_instance,
+    data_lake_factory,
+):
+    lake1 = data_lake_factory(
+        "1",
+        {
+            "00001": {"a": {"a": 1, "b": 1}, "b": "b"},
+            "00002": {"a": "a", "b": "b"},
+            "00005": [1, 2, 3],
+        },
+    )
+    lake2 = data_lake_factory(
+        "2",
+        {
+            "00001": {"a": {"c": 1}, "c": "c"},
+            "00002": [4, 5, 6],
+            "00005": {"a": "a"},
+        },
+    )
+    main(["index", os.fspath(lake1)])
+    ret = main(
+        ["index", os.fspath(lake2), "--annotation-update", annot_update],
+    )
+    result = get_current_annot_info(ldb_instance)
+    assert ret == 0
+    assert result == expected

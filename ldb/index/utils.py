@@ -32,6 +32,7 @@ from ldb.func_utils import apply_optional
 from ldb.storage import StorageLocation, get_filesystem
 from ldb.typing import JSONDecoded
 from ldb.utils import (
+    StrEnum,
     format_datetime,
     get_file_hash,
     get_filetype,
@@ -58,6 +59,11 @@ FSPathsMapping = Dict[AbstractFileSystem, List[str]]
 class FileSystemPath(NamedTuple):
     fs: AbstractFileSystem
     path: str
+
+
+class AnnotMergeStrategy(StrEnum):
+    MERGE = "merge"
+    REPLACE = "replace"
 
 
 @dataclass

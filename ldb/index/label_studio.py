@@ -11,6 +11,7 @@ from ldb.exceptions import IndexingException
 from ldb.index.base import PairIndexer, Preprocessor
 from ldb.index.inferred import InferredIndexingItem
 from ldb.index.utils import (
+    AnnotMergeStrategy,
     FileSystemPath,
     FSPathsMapping,
     IndexingJobMapping,
@@ -106,14 +107,21 @@ class LabelStudioIndexer(PairIndexer):
         read_any_cloud_location: bool,
         strict_format: bool,
         tags: Collection[str] = (),
+        annot_merge_strategy: AnnotMergeStrategy = AnnotMergeStrategy.REPLACE,
     ) -> None:
         self.preprocessor: LabelStudioPreprocessor
+        if annot_merge_strategy == AnnotMergeStrategy.MERGE:
+            raise ValueError(
+                "Invalid annotation merge strategy for LabelStudioIndexer: "
+                f"{annot_merge_strategy}",
+            )
         super().__init__(
             ldb_dir,
             preprocessor,
             read_any_cloud_location,
             strict_format,
             tags,
+            annot_merge_strategy,
         )
 
     def _index(self) -> None:
@@ -139,6 +147,7 @@ class LabelStudioIndexer(PairIndexer):
                         self.ldb_dir,
                         current_time(),
                         tags,
+                        AnnotMergeStrategy.REPLACE,
                         FileSystemPath(fs, data_object_path),
                         config.save_data_object_path_info,
                         self.hashes,
