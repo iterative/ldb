@@ -8,16 +8,23 @@ from typing import (
     Dict,
     Iterable,
     List,
+    Mapping,
     Optional,
     Sequence,
     Tuple,
     Union,
 )
 
+from ldb.dataset import (
+    get_annotation,
+    get_collection_dir_items,
+    get_data_object_meta,
+)
 from ldb.main import main
 from ldb.path import InstanceDir, WorkspacePath
 from ldb.stage import stage_workspace
-from ldb.utils import chmod_minus_x, current_time, load_data_file
+from ldb.typing import JSONDecoded
+from ldb.utils import chmod_minus_x, current_time, json_dumps, load_data_file
 from ldb.workspace import WorkspaceDataset, iter_workspace_dir
 
 DATA_DIR = Path(__file__).parent.parent / "data"
@@ -181,3 +188,46 @@ def get_workspace_counts(workspace_path: Union[str, Path]) -> Tuple[int, int]:
     num_annotations = sum(f.endswith(".json") for f in all_files)
     num_data_objects = len(all_files) - num_annotations
     return num_data_objects, num_annotations
+
+
+def create_data_lake(
+    base_dir: Union[str, Path],
+    data: Mapping[str, JSONDecoded],
+    make_data_obj: bool = True,
+    make_annot: bool = True,
+) -> None:
+    base_dir = Path(base_dir)
+    base_dir.mkdir(parents=True)
+    for base_name, annot_contents in data.items():
+        (base_dir / base_name).parent.mkdir(parents=True, exist_ok=True)
+
+        if make_data_obj:
+            data_obj_name = f"{base_name}.png"
+            data_obj_dest = base_dir / data_obj_name
+            data_obj_dest.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(
+                DATA_DIR / "flat-data-object-only" / data_obj_name,
+                data_obj_dest,
+            )
+
+        if make_annot:
+            annot_dest = base_dir / f"{base_name}.json"
+            annot_contents_str = json_dumps(annot_contents)
+            with open(annot_dest, "x", encoding="utf-8") as annot_file:
+                annot_file.write(annot_contents_str)
+
+
+def get_current_annot_info(ldb_dir: Path) -> Dict[str, JSONDecoded]:
+    result = {}
+    for data_obj_hash, annot_hash in get_collection_dir_items(
+        ldb_dir / InstanceDir.DATA_OBJECT_INFO,
+        is_workspace=False,
+    ):
+        name = os.path.splitext(
+            os.path.basename(
+                get_data_object_meta(ldb_dir, data_obj_hash)["fs"]["path"],
+            ),
+        )[0]
+        annot = get_annotation(ldb_dir, annot_hash or "")
+        result[name] = annot
+    return result

@@ -9,6 +9,7 @@ from ldb.config import ConfigType
 from ldb.core import get_ldb_instance
 from ldb.data_formats import INDEX_FORMATS, Format
 from ldb.index import index
+from ldb.index.utils import AnnotMergeStrategy
 
 if TYPE_CHECKING:
     from argparse import _SubParsersAction
@@ -30,6 +31,7 @@ def index_command(options: Namespace) -> None:
         ),
         fmt=options.format,
         tags=tags,
+        annot_merge_strategy=options.annot_merge_strategy,
     )
     print(result.summary())
 
@@ -56,6 +58,17 @@ def add_parser(
         type=simple_name_list,
         action="append",
         help="Comma-separated list of tags to add to indexed data objects",
+    )
+    parser.add_argument(
+        "--annotation-update",
+        metavar="<strategy>",
+        dest="annot_merge_strategy",
+        default=AnnotMergeStrategy.REPLACE,
+        type=AnnotMergeStrategy,
+        help=(
+            "Merge strategy for combining a data object's current annotation "
+            "with the one discovered during indexing."
+        ),
     )
     parser.add_argument(  # type: ignore[attr-defined]
         "paths",

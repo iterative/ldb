@@ -25,6 +25,7 @@ class AnnotationOnlyIndexer(Indexer):
                     self.ldb_dir,
                     current_time(),
                     self.tags,
+                    self.annot_merge_strategy,
                     FileSystemPath(fs, path),
                 )
                 self.result.append(item.index_data())
@@ -65,7 +66,7 @@ class AnnotationOnlyIndexingItem(AnnotationFileIndexingItem):
         return meta_content
 
     @cached_property
-    def annotation_content(self) -> JSONObject:  # type: ignore[override]
+    def raw_annotation_content(self) -> JSONObject:  # type: ignore[override]
         return self.annotation_file_content["annotation"]  # type: ignore[no-any-return] # noqa: E501
 
     def index_data(self) -> IndexedObjectResult:

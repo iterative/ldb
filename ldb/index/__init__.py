@@ -6,7 +6,7 @@ from ldb.index.annotation_only import AnnotationOnlyIndexer
 from ldb.index.base import Indexer, IndexingResult, PairIndexer, Preprocessor
 from ldb.index.inferred import InferredIndexer, InferredPreprocessor
 from ldb.index.label_studio import LabelStudioIndexer, LabelStudioPreprocessor
-from ldb.index.utils import FSPathsMapping
+from ldb.index.utils import AnnotMergeStrategy, FSPathsMapping
 from ldb.storage import get_storage_locations
 
 
@@ -16,6 +16,7 @@ def index(
     read_any_cloud_location: bool = False,
     fmt: str = Format.AUTO,
     tags: Collection[str] = (),
+    annot_merge_strategy: AnnotMergeStrategy = AnnotMergeStrategy.REPLACE,
 ) -> IndexingResult:
     indexer: Indexer
     fmt = INDEX_FORMATS.get(fmt, fmt)
@@ -36,12 +37,14 @@ def index(
                 read_any_cloud_location,
                 fmt == Format.STRICT,
                 tags=tags,
+                annot_merge_strategy=annot_merge_strategy,
             )
         elif fmt == Format.ANNOT:
             indexer = AnnotationOnlyIndexer(
                 ldb_dir,
                 preprocessor,
                 tags=tags,
+                annot_merge_strategy=annot_merge_strategy,
             )
     elif fmt == Format.INFER:
         preprocessor = InferredPreprocessor(paths, storage_locations)
@@ -51,6 +54,7 @@ def index(
             read_any_cloud_location,
             fmt == Format.STRICT,
             tags=tags,
+            annot_merge_strategy=annot_merge_strategy,
         )
     elif fmt == Format.LABEL_STUDIO:
         preprocessor = LabelStudioPreprocessor(paths, storage_locations)
@@ -60,6 +64,7 @@ def index(
             read_any_cloud_location,
             fmt == Format.STRICT,
             tags=tags,
+            annot_merge_strategy=annot_merge_strategy,
         )
     else:
         raise ValueError(f"Not a valid indexing format: {fmt}")
