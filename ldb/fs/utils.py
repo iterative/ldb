@@ -19,6 +19,17 @@ def has_protocol(fs_protocol: FSProtocol, protocol: str) -> bool:
     return protocol in fs_protocol
 
 
+def unstrip_protocol(fs: AbstractFileSystem, path: str) -> str:
+    if isinstance(fs.protocol, str):
+        protocols = (fs.protocol,)
+    else:
+        protocols = fs.protocol
+    for protocol in protocols:
+        if path.startswith(f"{protocol}://"):
+            return path
+    return f"{protocols[0]}://{path}"
+
+
 def cp_file_any_fs(
     source_fs: AbstractFileSystem,
     source_path: str,

@@ -23,7 +23,6 @@ from tomlkit import document
 from tomlkit.toml_document import TOMLDocument
 
 from ldb import config
-from ldb.config import ConfigType
 from ldb.core import get_ldb_instance
 from ldb.dataset import (
     OpDef,
@@ -35,8 +34,9 @@ from ldb.dataset import (
     iter_collection_dir,
 )
 from ldb.exceptions import DataObjectNotFoundError, LDBException
+from ldb.fs.utils import unstrip_protocol
 from ldb.index import index
-from ldb.index.utils import expand_indexing_paths
+from ldb.index.utils import FileSystemPath, expand_indexing_paths
 from ldb.path import InstanceDir, WorkspacePath
 from ldb.storage import StorageLocation, get_storage_locations
 from ldb.utils import (
@@ -185,19 +185,19 @@ def path_for_add(ldb_dir: Path, paths: Sequence[str]) -> AddInput:
         data_object_hashes_from_path(paths, get_storage_locations(ldb_dir)),
     )
     try:
-        annotation_hashes = get_current_annotation_hashes(
+        annotation_hashes = get_current_annotation_hashes_from_file_hashes(
             ldb_dir,
             data_object_hash_iter,
         )
     except DataObjectNotFoundError as exc:
-        cfg: TOMLDocument = (
-            config.load_first([ConfigType.INSTANCE]) or document()
-        )
+        cfg: TOMLDocument = config.load_first() or document()
         auto_index: bool = cfg.get("core", {}).get("auto_index", False)
         if not auto_index:
             raise DataObjectNotFoundError(
-                f"{exc!s}\n"
-                f"Will not index new data: auto_index = {auto_index}",
+                f"{exc!s}\n\n"
+                "Encountered data object not previously indexed by LDB. "
+                "Please index first or enable auto-indexing by setting:\n\n"
+                "\tcore.auto_index = true\n",
             ) from exc
 
         indexing_result = index(
@@ -214,7 +214,7 @@ def path_for_add(ldb_dir: Path, paths: Sequence[str]) -> AddInput:
         )
         message = indexing_result.summary()
     else:
-        data_object_hashes = list(data_object_hash_iter2)
+        data_object_hashes = [h.value for h in data_object_hash_iter2]
         message = ""
 
     return AddInput(
@@ -383,9 +383,13 @@ def path_for_delete(
     ldb_dir: Path,
     paths: Sequence[str],
 ) -> List[str]:
-    return list(
-        data_object_hashes_from_path(paths, get_storage_locations(ldb_dir)),
-    )
+    return [
+        f.value
+        for f in data_object_hashes_from_path(
+            paths,
+            get_storage_locations(ldb_dir),
+        )
+    ]
 
 
 def get_data_object_storage_files(
@@ -402,12 +406,17 @@ def get_data_object_storage_files(
                 yield fs, path
 
 
+class FileHash(NamedTuple):
+    fs_path: FileSystemPath
+    value: str
+
+
 def data_object_hashes_from_path(
     paths: Iterable[str],
     storage_locations: Iterable[StorageLocation],
-) -> Iterator[str]:
+) -> Iterator[FileHash]:
     for fs, path in get_data_object_storage_files(paths, storage_locations):
-        yield get_file_hash(fs, path)
+        yield FileHash(FileSystemPath(fs, path), get_file_hash(fs, path))
 
 
 DELETE_FUNCTIONS: Dict[ArgType, Callable[[Path, Sequence[str]], List[str]]] = {
@@ -517,6 +526,26 @@ def get_current_annotation_hashes(
     return [
         get_current_annotation_hash(ldb_dir, d) for d in data_object_hashes
     ]
+
+
+def get_current_annotation_hashes_from_file_hashes(
+    ldb_dir: Path,
+    data_object_hashes: Iterable[FileHash],
+) -> List[str]:
+    result = []
+    for file_hash in data_object_hashes:
+        try:
+            annot_hash = get_current_annotation_hash(ldb_dir, file_hash.value)
+        except DataObjectNotFoundError:
+            fs, path = file_hash.fs_path
+            path = unstrip_protocol(fs, path)
+            raise DataObjectNotFoundError(  # pylint: disable=raise-missing-from # noqa: E501
+                "Data object not found: "
+                f"{DATA_OBJ_ID_PREFIX}{file_hash.value} "
+                f"(path={path})",
+            )
+        result.append(annot_hash)
+    return result
 
 
 def process_args_for_ls(
