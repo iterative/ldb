@@ -24,6 +24,7 @@ from ldb.dataset import (
     get_root_collection_annotation_hash,
 )
 from ldb.exceptions import IndexingException, LDBException
+from ldb.fs.utils import get_file_hash, get_modified_time
 from ldb.index.utils import (
     DEFAULT_CONFIG,
     INDEXED_EPHEMERAL_CONFIG,
@@ -52,12 +53,10 @@ from ldb.typing import JSONDecoded, JSONObject
 from ldb.utils import (
     current_time,
     format_datetime,
-    get_file_hash,
     get_hash_path,
     hash_data,
     json_dumps,
     load_data_file,
-    timestamp_to_datetime,
     write_data_file,
 )
 
@@ -516,14 +515,6 @@ class AnnotationFileIndexingItem(IndexingItem):
     def annotation_meta(self) -> AnnotationMeta:
         if self.annotation_fsp is None:
             raise IndexingException("Missing annotation_fsp")
-        fs_info = self.annotation_fsp.fs.info(self.annotation_fsp.path)
-        curr_mtime_float = fs_info.get("created")
-        if curr_mtime_float is not None:
-            curr_mtime: Optional[datetime] = timestamp_to_datetime(
-                curr_mtime_float,
-            )
-        else:
-            curr_mtime = None
         prev_annotation = (
             load_data_file(self.annotation_meta_file_path)
             if self.annotation_meta_file_path.exists()
@@ -533,7 +524,10 @@ class AnnotationFileIndexingItem(IndexingItem):
             prev_annotation,
             self.current_timestamp,
             self.annotation_version,
-            curr_mtime,
+            get_modified_time(
+                self.annotation_fsp.fs,
+                self.annotation_fsp.path,
+            ),
         )
 
     @cached_property

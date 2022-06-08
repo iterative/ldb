@@ -27,14 +27,18 @@ from fsspec.utils import get_protocol
 from ldb.data_formats import Format
 from ldb.exceptions import IndexingException, NotAStorageLocationError
 from ldb.fs import posix_path as fsp
-from ldb.fs.utils import cp_file_any_fs, has_protocol
+from ldb.fs.utils import (
+    cp_file_any_fs,
+    get_file_hash,
+    get_modified_time,
+    has_protocol,
+)
 from ldb.func_utils import apply_optional
 from ldb.storage import StorageLocation, get_filesystem
 from ldb.typing import JSONDecoded
 from ldb.utils import (
     StrEnum,
     format_datetime,
-    get_file_hash,
     get_filetype,
     get_first,
     get_fsspec_path_suffix,
@@ -466,7 +470,7 @@ def construct_data_object_meta(
 
     last_indexed_by: str = getpass.getuser()
     atime = datetime_fs_info(fs_info, "atime", "accessed", "time")
-    mtime = datetime_fs_info(fs_info, "mtime", "modified")
+    mtime = get_modified_time(fs, path)
     ctime = datetime_fs_info(fs_info, "ctime", "created")
     size: int = fs_info.get("size", 0)
     mode: int = fs_info.get("mode", 0)

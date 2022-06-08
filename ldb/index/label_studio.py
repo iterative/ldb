@@ -8,6 +8,7 @@ from fsspec.utils import get_protocol
 from funcy.objects import cached_property
 
 from ldb.exceptions import IndexingException
+from ldb.fs.utils import get_file_hash
 from ldb.index.base import PairIndexer, Preprocessor
 from ldb.index.inferred import InferredIndexingItem
 from ldb.index.utils import (
@@ -19,7 +20,7 @@ from ldb.index.utils import (
 )
 from ldb.storage import StorageLocation, get_filesystem
 from ldb.typing import JSONObject
-from ldb.utils import current_time, get_file_hash
+from ldb.utils import current_time
 
 
 class LabelStudioPreprocessor(Preprocessor):

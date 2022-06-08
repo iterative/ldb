@@ -34,7 +34,7 @@ from ldb.dataset import (
     iter_collection_dir,
 )
 from ldb.exceptions import DataObjectNotFoundError, LDBException
-from ldb.fs.utils import unstrip_protocol
+from ldb.fs.utils import get_file_hash, unstrip_protocol
 from ldb.index import index
 from ldb.index.utils import FileSystemPath, expand_indexing_paths
 from ldb.path import InstanceDir, WorkspacePath
@@ -46,7 +46,6 @@ from ldb.utils import (
     ROOT,
     WORKSPACE_DATASET_PREFIX,
     format_dataset_identifier,
-    get_file_hash,
     get_hash_path,
     parse_data_object_hash_identifier,
     parse_dataset_identifier,

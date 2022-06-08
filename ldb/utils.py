@@ -24,8 +24,6 @@ from typing import (
 
 from fsspec.spec import AbstractFileSystem
 
-from ldb.fs.utils import first_protocol
-
 if TYPE_CHECKING:
     from _typeshed import SupportsGetItem, SupportsRead
 
@@ -102,23 +100,6 @@ def write_data_file(
             file.write(data)
 
 
-def get_etag_md5_match(etag: str) -> str:
-    # The e-tag will be a json string, so look for double quotes
-    md5_hash_match = re.match(r"(?i)\"([a-f\d]{32})\"", etag)
-    if md5_hash_match is None:
-        return ""
-    return md5_hash_match.group(1)
-
-
-def get_file_hash(fs: AbstractFileSystem, path: str) -> str:
-    if first_protocol(fs.protocol) in ("s3", "s3a"):
-        return get_etag_md5_match(fs.info(path).get("ETag", "")) or hash_file(
-            fs,
-            path,
-        )
-    return hash_file(fs, path)
-
-
 def hash_file(fs: AbstractFileSystem, path: str) -> str:
     hash_obj = md5()
     with fs.open(path, "rb") as file:
@@ -147,6 +128,10 @@ def get_hash_path(base_dir: Path, hash_str: str) -> Path:
         / hash_str[:HASH_DIR_SPLIT_POINT]
         / hash_str[HASH_DIR_SPLIT_POINT:]
     )
+
+
+def normalize_datetime(dt_obj: datetime) -> datetime:
+    return dt_obj.astimezone(timezone.utc)
 
 
 def format_datetime(dt_obj: datetime, sep: str = "T") -> str:
