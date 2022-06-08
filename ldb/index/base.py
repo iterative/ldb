@@ -255,6 +255,20 @@ class PairIndexer(Indexer):
                 self.hashes,
                 strict_format=self.strict_format,
             )
+            num_ephemeral_data_objects = sum(
+                map(len, self.old_to_new_files.values()),
+            )
+            num_ephemeral_annotations = sum(
+                map(len, self.old_to_new_annot_files.values()),
+            )
+            path = read_add_location.path
+            if read_add_location.protocol != "file":
+                path = f"{read_add_location.protocol}://{path}"
+            print(
+                f"\nCopied ephemeral files to storage: {path}\n"
+                f"  Data objects:       {num_ephemeral_data_objects:9d}\n"
+                f"  Annotations:        {num_ephemeral_annotations:9d}",
+            )
 
             for _, fs_paths in self.old_to_new_annot_files.items():
                 for _, new in fs_paths.items():
