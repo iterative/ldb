@@ -179,7 +179,7 @@ class InferredIndexingItem(DataObjectFileIndexingItem):
             prev_annotation,
             self.current_timestamp,
             self.annotation_version,
-            self.curr_time,
+            None,
         )
 
     @cached_property

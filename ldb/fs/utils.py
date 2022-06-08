@@ -1,8 +1,12 @@
 import os
+import re
+from datetime import datetime
 from typing import Any, Dict, Optional, Sequence, Union
 
 from fsspec.callbacks import _DEFAULT_CALLBACK, Callback
 from fsspec.spec import AbstractFileSystem
+
+from ldb.utils import hash_file, normalize_datetime
 
 FSProtocol = Union[str, Sequence[str]]
 
@@ -28,6 +32,14 @@ def unstrip_protocol(fs: AbstractFileSystem, path: str) -> str:
         if path.startswith(f"{protocol}://"):
             return path
     return f"{protocols[0]}://{path}"
+
+
+def get_modified_time(fs: AbstractFileSystem, path: str) -> Optional[datetime]:
+    try:
+        dt = fs.modified(path)
+    except NotImplementedError:
+        return None
+    return normalize_datetime(dt)
 
 
 def cp_file_any_fs(
@@ -82,3 +94,20 @@ def cp_file_across_fs(
                 data = f1.read(source_fs.blocksize)
                 segment_len = f2.write(data)
                 callback.relative_update(segment_len)
+
+
+def get_file_hash(fs: AbstractFileSystem, path: str) -> str:
+    if first_protocol(fs.protocol) in ("s3", "s3a"):
+        return get_etag_md5_match(fs.info(path).get("ETag", "")) or hash_file(
+            fs,
+            path,
+        )
+    return hash_file(fs, path)
+
+
+def get_etag_md5_match(etag: str) -> str:
+    # The e-tag will be a json string, so look for double quotes
+    md5_hash_match = re.match(r"(?i)\"([a-f\d]{32})\"", etag)
+    if md5_hash_match is None:
+        return ""
+    return md5_hash_match.group(1)
