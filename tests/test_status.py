@@ -20,6 +20,7 @@ def test_status_added_storage_location(
         dataset_version=0,
         num_data_objects=32,
         num_annotations=23,
+        auto_pull=False,
     )
     assert ws_status == expected_ws_status
 
@@ -37,7 +38,7 @@ def test_cli_status_added_storage_location(
         main(["status"])
         captured1 = capsys.readouterr().out
         with capsys.disabled():
-            main(["commit", "-m", dir_to_add])
+            main(["commit", "-m", dir_to_add, "--auto-pull"])
         main(["status"])
         captured2 = capsys.readouterr().out
         main(["status", "ds:my-dataset"])
@@ -48,6 +49,8 @@ def test_cli_status_added_storage_location(
         "ds:my-dataset\n"
         "  Num data objects:       32\n"
         "  Num annotations:        23\n"
+        "\n"
+        "  auto-pull:        false\n"
         "\n"
         "Unsaved changes:\n"
         "  Additions (+):       32\n"
@@ -61,12 +64,16 @@ def test_cli_status_added_storage_location(
         "  Num data objects:       32\n"
         "  Num annotations:        23\n"
         "\n"
+        "  auto-pull:        true\n"
+        "\n"
         "No unsaved changes.\n"
     )
     expected3 = (
         "ds:my-dataset.v1\n"
         "  Num data objects:       32\n"
         "  Num annotations:        23\n"
+        "\n"
+        "  auto-pull:        true\n"
     )
     assert captured1 == expected1
     assert captured2 == expected2

@@ -1,6 +1,7 @@
 import getpass
 import os
 from pathlib import Path
+from typing import Optional
 
 from ldb.dataset import CommitInfo, Dataset, DatasetVersion
 from ldb.path import InstanceDir, WorkspacePath
@@ -28,6 +29,7 @@ def commit(
     workspace_path: Path,
     dataset_identifier: str = "",
     message: str = "",
+    auto_pull: Optional[bool] = None,
 ) -> None:
     workspace_path = Path(os.path.normpath(workspace_path))
     workspace_ds = load_workspace_dataset(workspace_path)
@@ -82,6 +84,7 @@ def commit(
             created=curr_time,
             versions=[],
         )
+    auto_pull = workspace_ds.auto_pull if auto_pull is None else auto_pull
     dataset_version = DatasetVersion(
         version=len(dataset.versions) + 1,
         parent=workspace_ds.parent,
@@ -93,6 +96,7 @@ def commit(
             commit_time=curr_time,
             commit_message=message,
         ),
+        auto_pull=auto_pull,
     )
     dataset_version_bytes = json_dumps(dataset_version.format()).encode()
     dataset_version_hash = hash_data(dataset_version_bytes)
@@ -110,6 +114,7 @@ def commit(
     workspace_ds.staged_time = curr_time
     workspace_ds.parent = dataset_version_hash
     workspace_ds.dataset_name = dataset_name
+    workspace_ds.auto_pull = auto_pull
     write_data_file(
         workspace_path / WorkspacePath.DATASET,
         json_dumps(workspace_ds.format()).encode(),

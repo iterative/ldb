@@ -14,8 +14,14 @@ from ldb.main import main
 from ldb.path import InstanceDir, WorkspacePath
 from ldb.stage import stage_with_instance
 from ldb.transform import get_transform_mapping_dir_items
-from ldb.utils import DATASET_PREFIX, current_time, load_data_file
-from ldb.workspace import WorkspaceDataset
+from ldb.utils import DATASET_PREFIX, chdir, current_time, load_data_file
+from ldb.workspace import (
+    WorkspaceDataset,
+    load_workspace_dataset,
+    workspace_dataset_is_clean,
+)
+
+from .utils import DATA_DIR
 
 
 def is_workspace(dir_path: Path) -> bool:
@@ -95,6 +101,41 @@ def test_stage_cli_existing_dataset(
     assert len(collection_items) == 32
     assert len(list(filter(None, collection_items.values()))) == 23
     assert len(transform_items) == 12
+
+
+def test_stage_cli_auto_pull(
+    tmp_path,
+    ldb_instance,
+):
+    workspace_path1 = tmp_path / "workspace1"
+    workspace_path2 = tmp_path / "workspace2"
+
+    path1 = DATA_DIR / "fashion-mnist/original"
+    path2 = DATA_DIR / "fashion-mnist/updates"
+
+    main(["index", "-m", "bare", os.fspath(path1)])
+
+    workspace_path1.mkdir()
+    with chdir(workspace_path1):
+        main(["stage", "ds:a"])
+        main(["add", "ds:root"])
+        main(["commit", "--auto-pull"])
+
+    main(["index", "-m", "bare", os.fspath(path2)])
+
+    workspace_path2.mkdir()
+    with chdir(workspace_path2):
+        ret = main(["stage", "ds:a"])
+
+    workspace_ds = load_workspace_dataset(workspace_path2)
+    is_clean = workspace_dataset_is_clean(
+        ldb_instance,
+        workspace_ds,
+        workspace_path2,
+    )
+
+    assert ret == 0
+    assert not is_clean
 
 
 @pytest.mark.parametrize(

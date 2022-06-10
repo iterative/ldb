@@ -24,6 +24,7 @@ class WorkspaceDataset:
     staged_time: datetime
     parent: str
     tags: List[str]
+    auto_pull: bool = False
 
     @classmethod
     def parse(cls, attr_dict: Dict[str, Any]) -> "WorkspaceDataset":

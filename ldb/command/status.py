@@ -31,7 +31,9 @@ def status_command(options: Namespace) -> None:
         f"{prefix}"
         f"{ds_identifier}\n"
         f"  Num data objects: {ws_status.num_data_objects:8d}\n"
-        f"  Num annotations:  {ws_status.num_annotations:8d}",
+        f"  Num annotations:  {ws_status.num_annotations:8d}\n"
+        "\n"
+        f"  auto-pull:        {str(ws_status.auto_pull).lower()}",
     )
     if not dataset:
         workspace_ds = load_workspace_dataset(workspace_path)
