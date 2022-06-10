@@ -469,7 +469,15 @@ def construct_data_object_meta(
     fs_info = fs.info(path)
 
     last_indexed_by: str = getpass.getuser()
+
     atime = datetime_fs_info(fs_info, "atime", "accessed", "time")
+    if atime is None and fs.protocol == "file":
+        stat_result = os.stat(
+            fs._strip_protocol(path),  # pylint: disable=protected-access
+            follow_symlinks=False,
+        )
+        atime = timestamp_to_datetime(stat_result.st_atime)
+
     mtime = get_modified_time(fs, path)
     ctime = datetime_fs_info(fs_info, "ctime", "created")
     size: int = fs_info.get("size", 0)
