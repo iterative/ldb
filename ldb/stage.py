@@ -8,6 +8,7 @@ from ldb.core import init_quickstart
 from ldb.dataset import Dataset, DatasetVersion
 from ldb.exceptions import LDBException
 from ldb.path import InstanceDir, WorkspacePath
+from ldb.pull import get_collection_with_updated_annotations
 from ldb.utils import (
     DATASET_PREFIX,
     ROOT,
@@ -107,6 +108,7 @@ def stage_with_instance(  # pylint: disable=too-many-statements
         staged_time=current_time(),
         parent="",
         tags=[],
+        auto_pull=False,
     )
     try:
         dataset_obj = Dataset.parse(
@@ -151,12 +153,20 @@ def stage_with_instance(  # pylint: disable=too-many-statements
         )
         workspace_ds_obj.parent = dataset_version_hash
         workspace_ds_obj.tags = dataset_version_obj.tags.copy()
+        workspace_ds_obj.auto_pull = dataset_version_obj.auto_pull
         collection_obj = load_data_file(
             get_hash_path(
                 ldb_dir / InstanceDir.COLLECTIONS,
                 dataset_version_obj.collection,
             ),
         )
+        if workspace_ds_obj.auto_pull:
+            collection_obj = dict(
+                get_collection_with_updated_annotations(
+                    ldb_dir,
+                    collection_obj.keys(),
+                )[0],
+            )
         transform_obj = load_data_file(
             get_hash_path(
                 ldb_dir / InstanceDir.TRANSFORM_MAPPINGS,

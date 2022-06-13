@@ -88,12 +88,12 @@ def test_commit_new_dataset(
 
 
 def test_commit_multiple_versions(data_dir, ldb_instance, workspace_path):
-    paths = [
-        data_dir / "fashion-mnist/original/has_both/test",
-        data_dir / "fashion-mnist/original/has_both/train/000[01]*",
-        data_dir / "fashion-mnist/updates",
+    commit_params = [
+        ("false", data_dir / "fashion-mnist/original/has_both/test"),
+        ("true", data_dir / "fashion-mnist/original/has_both/train/000[01]*"),
+        ("false", data_dir / "fashion-mnist/updates"),
     ]
-    for path_obj in paths:
+    for auto_pull, path_obj in commit_params:
         path = os.fspath(path_obj)
         main(["index", "-m", "bare", path])
         main(["add", path])
@@ -102,6 +102,8 @@ def test_commit_multiple_versions(data_dir, ldb_instance, workspace_path):
                 "commit",
                 "-m",
                 f"add {os.fspath(path_obj.relative_to(data_dir))}",
+                "--auto-pull",
+                auto_pull,
             ],
         )
 
@@ -126,6 +128,7 @@ def test_commit_multiple_versions(data_dir, ldb_instance, workspace_path):
     ]
 
     commit_times = [d.commit_info.commit_time for d in dataset_version_objects]
+    auto_pull_values = [d.auto_pull for d in dataset_version_objects]
     expected_messages = [
         "add " + os.fspath(Path("fashion-mnist/original/has_both/test")),
         "add "
@@ -147,6 +150,7 @@ def test_commit_multiple_versions(data_dir, ldb_instance, workspace_path):
     assert [
         d.commit_info.commit_message for d in dataset_version_objects
     ] == expected_messages
+    assert auto_pull_values == [False, True, False]
     assert dataset_obj == expected_dataset_obj
 
 

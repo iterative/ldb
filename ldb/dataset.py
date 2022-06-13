@@ -82,6 +82,7 @@ class DatasetVersion:
     transform_mapping_id: str
     tags: List[str]
     commit_info: CommitInfo
+    auto_pull: bool = False
 
     @classmethod
     def parse(cls, attr_dict: Dict[str, Any]) -> "DatasetVersion":

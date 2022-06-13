@@ -11,6 +11,14 @@ from ldb.op_type import OpType
 SIMPLE_NAME_PATTERN = r"^[^\s,]+$"
 
 
+def json_bool(text: str) -> bool:
+    if text == "true":
+        return True
+    if text == "false":
+        return False
+    raise ValueError(f"Not a JSON bool: {text}")
+
+
 def simple_name_list(value: str) -> List[str]:
     result = []
     for item in value.split(","):
