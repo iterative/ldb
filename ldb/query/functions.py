@@ -5,7 +5,7 @@ from typing import Iterable, List, Optional, Union
 from jmespath.exceptions import JMESPathTypeError
 
 from ldb.jmespath.parser import parse_identifier_expression
-from ldb.typing import JMESPathValue, JSONBinFunc, JSONDecoded
+from ldb.typing import JMESPathValue, JSONBinFunc, JSONDecoded, JSONKey
 
 NumVec = Union[int, float, List[Union[int, float]]]
 Arg = Union[JMESPathValue, NumVec]
@@ -107,6 +107,25 @@ def get(
     return node
 
 
+def dotproduct(
+    x1: List[Union[int, float]],
+    x2: List[Union[int, float]],
+) -> Union[int, float]:
+    if len(x1) != len(x2):
+        raise ValueError(f"vector lengths must match: {len(x1)} != {len(x2)}")
+    return sum(x * y for x, y in zip(x1, x2))
+
+
+def unique(values: List[JSONKey]) -> List[JSONKey]:
+    seen = set()
+    result = []
+    for v in values:
+        if v not in seen:
+            seen.add(v)
+            result.append(v)
+    return result
+
+
 CUSTOM_FUNCTIONS = {
     "regex": (regex, ["string", "string"]),
     "regex_match": (regex_match, ["string", "string"]),
@@ -129,4 +148,6 @@ CUSTOM_FUNCTIONS = {
             "*",
         ],
     ),
+    "dotproduct": (dotproduct, ["array", "array"]),
+    "unique": (unique, ["array"]),
 }
