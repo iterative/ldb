@@ -38,6 +38,7 @@ from ldb.query.search import (
 )
 from ldb.typing import JSONDecoded, JSONObject
 from ldb.utils import (
+    ROOT,
     format_dataset_identifier,
     format_datetime,
     get_hash_path,
@@ -143,6 +144,17 @@ def iter_collection_dir(collection_dir: Union[str, Path]) -> Iterator[str]:
     return iglob(os.path.join(collection_dir, "*", "*"))
 
 
+def get_root_collection(
+    ldb_dir: Path,
+) -> Dict[str, Optional[str]]:
+    return dict(
+        get_collection_dir_items(
+            ldb_dir / InstanceDir.DATA_OBJECT_INFO,
+            is_workspace=False,
+        ),
+    )
+
+
 def get_collection(
     ldb_dir: Path,
     dataset_version_hash: str,
@@ -168,6 +180,8 @@ def get_collection_from_dataset_identifier(
     dataset_name: str,
     dataset_version: Optional[int] = None,
 ) -> Dict[str, Optional[str]]:
+    if dataset_name == ROOT:
+        return get_root_collection(ldb_dir)
     dataset = get_dataset(ldb_dir, dataset_name)
     dataset_version_hash = get_dataset_version_hash(dataset, dataset_version)
     return get_collection(ldb_dir, dataset_version_hash)

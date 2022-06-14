@@ -28,8 +28,6 @@ from ldb.dataset import (
     OpDef,
     apply_queries,
     combine_collections,
-    get_collection_dir_items,
-    get_collection_dir_keys,
     get_collection_from_dataset_identifier,
     iter_collection_dir,
 )
@@ -55,7 +53,6 @@ from ldb.workspace import collection_dir_to_object, load_workspace_dataset
 
 @unique
 class ArgType(Enum):
-    ROOT_DATASET = "root dataset"
     DATASET = "dataset"
     WORKSPACE_DATASET = "workspace_dataset"
     DATA_OBJECT = "data object"
@@ -69,8 +66,6 @@ class AddInput(NamedTuple):
 
 
 def get_arg_type(paths: Sequence[str]) -> ArgType:
-    if any(p == f"{DATASET_PREFIX}{ROOT}" for p in paths):
-        return ArgType.ROOT_DATASET
     if any(p.startswith(DATASET_PREFIX) for p in paths):
         return ArgType.DATASET
     if any(p.startswith(WORKSPACE_DATASET_PREFIX) for p in paths):
@@ -102,30 +97,25 @@ def process_args_for_add(
     return ADD_FUNCTIONS[get_arg_type(paths)](ldb_dir, paths)
 
 
-def root_dataset_for_add(
-    ldb_dir: Path,
-    paths: Sequence[str],  # pylint: disable=unused-argument
-) -> AddInput:
-    data_object_hashes = []
-    annotation_hashes = []
-    for data_object_hash, annotation_hash in get_collection_dir_items(
-        ldb_dir / InstanceDir.DATA_OBJECT_INFO,
-        is_workspace=False,
-    ):
-        data_object_hashes.append(data_object_hash)
-        annotation_hashes.append(annotation_hash or "")
-    return AddInput(data_object_hashes, annotation_hashes, "")
+def parse_dataset_paths(
+    paths: Sequence[str],
+) -> List[Tuple[str, Optional[int]]]:
+    result = []
+    for path in paths:
+        try:
+            name, version = parse_dataset_identifier(path)
+        except ValueError as exc:
+            raise ValueError(
+                "All paths must be the same type. "
+                f"Found dataset identifier, but unable to "
+                f"parse all arguments as datasets: {path}",
+            ) from exc
+        result.append((name, version))
+    return result
 
 
 def dataset_for_add(ldb_dir: Path, paths: Sequence[str]) -> AddInput:
-    try:
-        dataset_identifiers = [parse_dataset_identifier(p) for p in paths]
-    except LDBException as exc:
-        raise LDBException(
-            "All paths must be the same type. "
-            "Found path starting with 'ds', but unable "
-            "parse all paths as a dataset identifier",
-        ) from exc
+    dataset_identifiers = parse_dataset_paths(paths)
     collections = [
         get_collection_from_dataset_identifier(
             ldb_dir,
@@ -224,7 +214,6 @@ def path_for_add(ldb_dir: Path, paths: Sequence[str]) -> AddInput:
 
 
 ADD_FUNCTIONS: Dict[ArgType, Callable[[Path, Sequence[str]], AddInput]] = {
-    ArgType.ROOT_DATASET: root_dataset_for_add,
     ArgType.DATASET: dataset_for_add,
     ArgType.WORKSPACE_DATASET: workspace_dataset_for_add,
     ArgType.DATA_OBJECT: data_object_for_add,
@@ -323,26 +312,8 @@ def process_args_for_delete(
     return DELETE_FUNCTIONS[arg_type](ldb_dir, paths)
 
 
-def root_dataset_for_delete(
-    ldb_dir: Path,
-    paths: Sequence[str],  # pylint: disable=unused-argument
-) -> List[str]:
-    return sorted(
-        get_collection_dir_keys(
-            ldb_dir / InstanceDir.DATA_OBJECT_INFO,
-        ),
-    )
-
-
 def dataset_for_delete(ldb_dir: Path, paths: Sequence[str]) -> List[str]:
-    try:
-        dataset_identifiers = [parse_dataset_identifier(p) for p in paths]
-    except LDBException as exc:
-        raise LDBException(
-            "All paths must be the same type. "
-            "Found path starting with 'ds', but unable "
-            "parse all paths as a dataset identifier",
-        ) from exc
+    dataset_identifiers = parse_dataset_paths(paths)
     collections = [
         get_collection_from_dataset_identifier(
             ldb_dir,
@@ -419,7 +390,6 @@ def data_object_hashes_from_path(
 
 
 DELETE_FUNCTIONS: Dict[ArgType, Callable[[Path, Sequence[str]], List[str]]] = {
-    ArgType.ROOT_DATASET: root_dataset_for_delete,
     ArgType.DATASET: dataset_for_delete,
     ArgType.WORKSPACE_DATASET: workspace_dataset_for_delete,
     ArgType.DATA_OBJECT: data_object_for_delete,
@@ -592,7 +562,6 @@ def path_for_ls(ldb_dir: Path, paths: Sequence[str]) -> AddInput:
 
 
 LS_FUNCTIONS: Dict[ArgType, Callable[[Path, Sequence[str]], AddInput]] = {
-    ArgType.ROOT_DATASET: root_dataset_for_add,
     ArgType.DATASET: dataset_for_add,
     ArgType.WORKSPACE_DATASET: workspace_dataset_for_add,
     ArgType.DATA_OBJECT: data_object_for_add,
