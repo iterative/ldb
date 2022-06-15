@@ -88,10 +88,10 @@ def create_storage_location(
 ) -> StorageLocation:
     if not protocol:
         protocol = get_protocol(path)
-    fs = fsspec.filesystem(protocol)
+    fs_cls = fsspec.get_filesystem_class(protocol)
     if protocol == "file":
         path = os.path.abspath(path)
-    path = fs._strip_protocol(path)  # pylint: disable=protected-access
+    path = fs_cls._strip_protocol(path)  # pylint: disable=protected-access
     return StorageLocation(
         path=path,
         protocol=protocol,
