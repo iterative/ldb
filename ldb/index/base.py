@@ -243,7 +243,13 @@ class PairIndexer(Indexer):
             )
             if read_add_location is None:
                 raise LDBException(
-                    "No read-add storage configured. See 'ldb add-storage -h'",
+                    "Local paths outside of configured storage locations "
+                    "found, but no read-add storage configured.\n"
+                    "Either add storage locations containing all indexing "
+                    "paths or add a read-add storage location to handle "
+                    "ephemeral data paths.\n\n"
+                    "For more information, run:\n\n"
+                    "\tldb add-storage --help\n",
                 )
             (
                 self.old_to_new_files,
