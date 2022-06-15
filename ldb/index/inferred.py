@@ -32,7 +32,7 @@ class InferredPreprocessor(Preprocessor):
     def dir_path_to_files(
         self,
     ) -> Dict[AbstractFileSystem, Dict[str, List[str]]]:
-        dir_path_lists = expand_dir_paths(self.paths)
+        dir_path_lists = expand_dir_paths(self.paths, self.storage_locations)
         file_seqs: Dict[AbstractFileSystem, Dict[str, List[str]]] = {}
         for fs, dir_paths in dir_path_lists.items():
             fs_seq: Dict[str, List[str]] = file_seqs.setdefault(fs, {})

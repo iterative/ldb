@@ -186,6 +186,7 @@ def group_indexing_paths_by_type(
 
 def expand_dir_paths(
     paths: Iterable[str],
+    storage_locations: Sequence[StorageLocation],
 ) -> Dict[AbstractFileSystem, List[str]]:
     for path in paths:
         path, num = re.subn(ENDING_DOUBLE_STAR_RE, "", path)
@@ -199,7 +200,12 @@ def expand_dir_paths(
     path_sets: Dict[AbstractFileSystem, Set[str]] = {}
     for path in paths:
         if not is_hidden_fsspec_path(path):
-            fs = fsspec.filesystem(get_protocol(path))
+            protocol = get_protocol(path)
+            fs_cls = fsspec.get_filesystem_class(protocol)
+            path = fs_cls._strip_protocol(  # pylint: disable=protected-access
+                path,
+            )
+            fs = get_filesystem(path, protocol, storage_locations)
             fs_paths = path_sets.setdefault(fs, set())
             for p in fs.expand_path(paths):
                 if not is_hidden_fsspec_path(p) and fs.isdir(p):
