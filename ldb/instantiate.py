@@ -432,6 +432,9 @@ class AnnotationOnlyInstItem(RawPairInstItem):
         }
         return annotation
 
+    def copy_files(self) -> ItemCopyResult:
+        return ItemCopyResult(annotation=self.copy_annotation())
+
 
 @dataclass
 class InferInstItem(RawPairInstItem):
@@ -457,6 +460,9 @@ class InferInstItem(RawPairInstItem):
             *parts,
             self.prefix + self.data_object_hash,
         )
+
+    def copy_files(self) -> ItemCopyResult:
+        return ItemCopyResult(data_object=self.copy_data_object())
 
 
 @dataclass
@@ -486,6 +492,9 @@ class LabelStudioInstItem(RawPairInstItem):
             "annotations",
         )
 
+    def copy_files(self) -> ItemCopyResult:
+        return ItemCopyResult(annotation=self.copy_annotation())
+
 
 def serialize_annotation(annotation: JSONDecoded) -> str:
     return json_dumps(annotation, indent=2)
@@ -498,13 +507,30 @@ def get_prefix_ext(path: str) -> Tuple[str, str]:
     return prefix, ext
 
 
+def instantiate_items(
+    items: Collection[InstItem],
+) -> Tuple[List[str], List[str]]:
+    with ThreadPoolExecutor(max_workers=4 * (os.cpu_count() or 1)) as pool:
+        with get_progressbar(transient=True) as progress:
+            task = progress.add_task("Instantiate", total=len(items))
+
+            def worker(item: InstItem) -> ItemCopyResult:
+                result = item.instantiate()
+                progress.update(task, advance=1)
+                return result
+
+            copy_results = list(pool.map(worker, items))
+    data_obj_paths = [r.data_object for r in copy_results]
+    annot_paths = [r.annotation for r in copy_results]
+    return data_obj_paths, annot_paths
+
+
 def copy_pairs(
     config: InstConfig,
     collection: Mapping[str, Optional[str]],
     strict: bool = False,
 ) -> InstantiateResult:
     items: List[Union[PairInstItem, RawPairInstItem]] = []
-    data_obj_paths: List[str] = []
     num_annotations = 0
     for data_object_hash, annotation_hash in collection.items():
         if annotation_hash:
@@ -527,20 +553,7 @@ def copy_pairs(
                 annotation_hash,
             )
         items.append(item)
-
-    with ThreadPoolExecutor(max_workers=4 * (os.cpu_count() or 1)) as pool:
-        with get_progressbar(transient=True) as progress:
-            task = progress.add_task("Instantiate", total=len(items))
-
-            def worker(item: PairInstItem) -> ItemCopyResult:
-                result = item.instantiate()
-                progress.update(task, advance=1)
-                return result
-
-            copy_results = list(pool.map(worker, items))
-            data_obj_paths = [r.data_object for r in copy_results]
-            annot_paths = [r.annotation for r in copy_results]
-
+    data_obj_paths, annot_paths = instantiate_items(items)
     return InstantiateResult(
         data_obj_paths,
         annot_paths,
@@ -553,15 +566,17 @@ def copy_annot(
     config: InstConfig,
     collection: Mapping[str, Optional[str]],
 ) -> InstantiateResult:
-    annot_paths = []
+    items = []
     for data_object_hash, annotation_hash in collection.items():
         if annotation_hash:
-            path = AnnotationOnlyInstItem(
-                config,
-                data_object_hash,
-                annotation_hash,
-            ).copy_annotation()
-            annot_paths.append(path)
+            items.append(
+                AnnotationOnlyInstItem(
+                    config,
+                    data_object_hash,
+                    annotation_hash,
+                ),
+            )
+    _, annot_paths = instantiate_items(items)
     return InstantiateResult(
         [],
         annot_paths,
@@ -582,17 +597,19 @@ def copy_infer(
                 "Missing annotation for data object: "
                 f"{DATA_OBJ_ID_PREFIX}{data_object_hash}",
             )
-    data_obj_paths = []
+    items = []
     for data_object_hash, annotation_hash in cast(
         Mapping[str, str],
         collection,
     ).items():
-        path = InferInstItem(
-            config,
-            data_object_hash,
-            annotation_hash,
-        ).copy_data_object()
-        data_obj_paths.append(path)
+        items.append(
+            InferInstItem(
+                config,
+                data_object_hash,
+                annotation_hash,
+            ),
+        )
+    data_obj_paths, _ = instantiate_items(items)
     return InstantiateResult(
         data_obj_paths,
         [],
@@ -637,10 +654,14 @@ def copy_label_studio(
                 "data.data-object-info.path_key",
             )
         annotations.append(annot)  # type: ignore[arg-type]
-    path = LabelStudioInstItem(
-        config,
-        annotations,
-    ).copy_annotation()
+    path = (
+        LabelStudioInstItem(
+            config,
+            annotations,
+        )
+        .instantiate()
+        .annotation
+    )
     annot_paths.append(path)
     return InstantiateResult(
         [],
