@@ -214,7 +214,9 @@ def expand_dir_paths(
     for fs, fs_path_set in path_sets.items():
         paths = sorted(fs_path_set)
         for i in range(len(paths) - 1):
-            if paths[i + 1].startswith(paths[i]):
+            if (paths[i + 1].rstrip("/") + "/").startswith(
+                paths[i].rstrip("/") + "/",
+            ):
                 raise IndexingException(
                     f"Paths passed with the {Format.INFER} format should "
                     "match non-overlapping directories. Found overlapping "
