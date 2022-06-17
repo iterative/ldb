@@ -1,46 +1,19 @@
 __all__ = ["main"]
 
-import logging
 import sys
-from logging import Logger
-from types import TracebackType
-from typing import List, Optional, Tuple, Type, Union
+import traceback
+from typing import List, Optional
 
 from ldb.cli import get_main_parser
-
-logger = logging.getLogger(__name__)
+from ldb.exceptions import LDBException
 
 MIN_PYTHON_VERSION_INFO = (3, 7)
 MIN_PYTHON_VERSION = ".".join(map(str, MIN_PYTHON_VERSION_INFO))
 
 
-class QuietFormatter(logging.Formatter):
-    def formatException(
-        self,
-        ei: Union[
-            Tuple[Type[BaseException], BaseException, Optional[TracebackType]],
-            Tuple[None, None, None],
-        ],
-    ) -> str:
-        return ""
-
-
-def configure_logger(log: Logger, verbose: bool) -> None:
-    log = logging.getLogger("ldb")
-    handler = logging.StreamHandler()
-    fmt = "%(levelname)s: %(message)s"
-    if verbose:
-        formatter = logging.Formatter(fmt)
-    else:
-        formatter = QuietFormatter(fmt)
-    handler.setFormatter(formatter)
-    log.addHandler(handler)
-
-
 def main(argv: Optional[List[str]] = None) -> int:
     main_parser = get_main_parser()
     options = main_parser.parse_args(args=argv)
-    configure_logger(logger, options.verbose > 0)
     try:
         if sys.version_info < MIN_PYTHON_VERSION_INFO:
             raise ImportError(
@@ -54,6 +27,25 @@ def main(argv: Optional[List[str]] = None) -> int:
             return 1
         func(options)
     except Exception as exc:  # pylint: disable=broad-except
-        logger.exception(exc)
-        return 1
+        return handle_exception(exc, options.verbose)
     return 0
+
+
+def handle_exception(exception: BaseException, verbose: int = 0) -> int:
+    if isinstance(exception, LDBException):
+        print("ERROR:", exception, file=sys.stderr)
+    else:
+        print(
+            "ERROR:",
+            *traceback.format_exception_only(type(exception), exception),
+            end="",
+            file=sys.stderr,
+        )
+    if verbose > 1:
+        traceback.print_exception(
+            type(exception),
+            exception,
+            exception.__traceback__,
+            file=sys.stderr,
+        )
+    return 1
