@@ -20,7 +20,7 @@ from ldb.utils import DATASET_PREFIX, ROOT
 
 from .utils import (
     DATA_DIR,
-    SORT_DIR,
+    SCRIPTS_DIR,
     add_user_filter,
     create_data_lake,
     index_fashion_mnist,
@@ -255,7 +255,7 @@ def fashion_mnist_session(ldb_instance_session: Path) -> Path:
 
 @pytest.fixture
 def transform_infos(ldb_instance: Path) -> Dict[str, TransformInfo]:
-    base_args = [sys.executable, os.fspath(SORT_DIR / "rotate.py")]
+    base_args = [sys.executable, os.fspath(SCRIPTS_DIR / "rotate.py")]
     infos = [
         SELF,
         TransformInfo.from_generic([*base_args, "45"], "rotate-45"),

@@ -18,7 +18,7 @@ from ldb.utils import DATASET_PREFIX, ROOT, WORKSPACE_DATASET_PREFIX, chdir
 from ldb.workspace import collection_dir_to_object
 
 from .data import QUERY_DATA
-from .utils import DATA_DIR, SORT_DIR, stage_new_workspace
+from .utils import DATA_DIR, SCRIPTS_DIR, stage_new_workspace
 
 UPDATES_DIR = fsp.join(DATA_DIR.as_posix(), "fashion-mnist", "updates")
 ORIGINAL_DIR = fsp.join(DATA_DIR.as_posix(), "fashion-mnist", "original")
@@ -263,7 +263,7 @@ def test_ls_data_objects(ldb_instance, workspace_path, index_original):
 
 
 def test_ls_transforms(ldb_instance, workspace_path, index_original):
-    script_path = os.fspath(SORT_DIR / "rotate.py")
+    script_path = os.fspath(SCRIPTS_DIR / "rotate.py")
     rotate_45_run = (script_path, "45")
     rotate_90_run = (script_path, "90")
     TransformConfig("rotate-45", rotate_45_run).save(ldb_instance)
