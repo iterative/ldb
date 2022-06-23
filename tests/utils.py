@@ -28,7 +28,7 @@ from ldb.utils import chmod_minus_x, current_time, json_dumps, load_data_file
 from ldb.workspace import WorkspaceDataset, iter_workspace_dir
 
 DATA_DIR = Path(__file__).parent.parent / "data"
-SORT_DIR = Path(__file__).parent.parent / "sort_option"
+SCRIPTS_DIR = Path(__file__).parent.parent / "scripts"
 DATA_OBJECT_KEYS = (
     "alternate_paths",
     "first_indexed",
@@ -157,11 +157,11 @@ def add_user_filter(ldb_dir: Path) -> None:
     dest = ldb_dir / InstanceDir.USER_FILTERS
     if os.name == "nt":
         py_dest = dest / "reverse.py"
-        shutil.copy2(SORT_DIR / "reverse", py_dest)
+        shutil.copy2(SCRIPTS_DIR / "reverse", py_dest)
         chmod_minus_x(py_dest)
-        shutil.copy2(SORT_DIR / "reverse.bat", dest)
+        shutil.copy2(SCRIPTS_DIR / "reverse.bat", dest)
     else:
-        shutil.copy2(SORT_DIR / "reverse", dest)
+        shutil.copy2(SCRIPTS_DIR / "reverse", dest)
 
 
 def index_fashion_mnist(  # pylint: disable=unused-argument

@@ -1,8 +1,8 @@
 import sys
 
-from .utils import SORT_DIR
+from .utils import SCRIPTS_DIR
 
-REVERSE_SCRIPT = str(SORT_DIR / "reverse")
+REVERSE_SCRIPT = str(SCRIPTS_DIR / "reverse")
 SORT_Q1 = ["--pipe", sys.executable, f"{REVERSE_SCRIPT}"]
 FILE_Q1 = ["--file", "fs.size > `400`"]
 ANNOT_Q1 = [

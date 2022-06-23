@@ -5,7 +5,7 @@ import sys
 from ldb.main import main
 from ldb.utils import DATASET_PREFIX, ROOT
 
-from .utils import DATA_DIR, SORT_DIR, get_workspace_counts
+from .utils import DATA_DIR, SCRIPTS_DIR, get_workspace_counts
 
 
 def test_instantiate_bare(staged_ds_fashion, workspace_path):
@@ -37,7 +37,7 @@ def test_instantiate_with_apply(staged_ds_fashion, workspace_path):
             "instantiate",
             "--apply",
             sys.executable,
-            os.fspath(SORT_DIR / "random_predictions.py"),
+            os.fspath(SCRIPTS_DIR / "random_predictions.py"),
         ],
     )
     annot_path = next(f for f in os.listdir() if f.endswith(".json"))
@@ -59,7 +59,7 @@ def test_instantiate_path_with_apply(
             "instantiate",
             "--apply",
             sys.executable,
-            os.fspath(SORT_DIR / "random_predictions.py"),
+            os.fspath(SCRIPTS_DIR / "random_predictions.py"),
             "-t",
             dest,
         ],

@@ -5,7 +5,7 @@ import sys
 from ldb.main import main
 from ldb.utils import DATASET_PREFIX, ROOT, chdir
 
-from .utils import DATA_DIR, SORT_DIR, get_workspace_counts
+from .utils import DATA_DIR, SCRIPTS_DIR, get_workspace_counts
 
 
 def test_get_ds_root_staged(staged_ds_fashion, workspace_path):
@@ -34,7 +34,7 @@ def test_get_with_apply(staged_ds_fashion, workspace_path):
             f"{DATASET_PREFIX}{ROOT}",
             "--apply",
             sys.executable,
-            os.fspath(SORT_DIR / "random_predictions.py"),
+            os.fspath(SCRIPTS_DIR / "random_predictions.py"),
         ],
     )
     annot_path = next(f for f in os.listdir() if f.endswith(".json"))
