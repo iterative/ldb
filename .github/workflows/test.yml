@@ -9,6 +9,7 @@ on:
   pull_request:
     branches:
       - "*"
+      - "!renovate/*"
 
 defaults:
   run:
