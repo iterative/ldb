@@ -1,4 +1,4 @@
 {
-    "extends": ["group:all"],
+    "extends": ["config:base", "group:all"],
     "includeForks": true
 }
