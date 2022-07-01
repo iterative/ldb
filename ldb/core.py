@@ -106,6 +106,8 @@ def get_ldb_instance(path: Optional[Path] = None) -> Path:
         path = get_ldb_dir()
     if not is_ldb_instance(path):
         raise LDBInstanceNotFoundError(
-            f"No LDB instance at {os.fspath(path)!r}",
+            f"No LDB instance at {os.fspath(path)!r}\n\n"
+            "For instance initialization help, run:\n\n"
+            "\tldb init -h\n",
         )
     return path
