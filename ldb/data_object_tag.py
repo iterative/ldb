@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Collection, Iterable, Tuple
+from typing import Collection, Iterable, Optional, Tuple
 
 from ldb.path import InstanceDir
 from ldb.utils import (
@@ -15,6 +15,7 @@ def tag_data_objects(
     data_object_hashes: Iterable[str],
     add_tags: Collection[str] = (),
     remove_tags: Collection[str] = (),
+    set_tags: Optional[Collection[str]] = None,
 ) -> Tuple[int, int]:
     print("Tagging data objects")
     num_selected = 0
@@ -25,6 +26,7 @@ def tag_data_objects(
             data_object_hash,
             add_tags,
             remove_tags,
+            set_tags,
         )
         num_selected += 1
     print(
@@ -39,6 +41,7 @@ def tag_data_object(
     data_object_hash: str,
     add_tags: Collection[str] = (),
     remove_tags: Collection[str] = (),
+    set_tags: Optional[Collection[str]] = None,
 ) -> bool:
     meta_path = (
         get_hash_path(
@@ -48,7 +51,10 @@ def tag_data_object(
         / "meta"
     )
     meta = load_data_file(meta_path)
-    tag_set = set(meta["tags"])
+    if set_tags is not None:
+        tag_set = set(set_tags)
+    else:
+        tag_set = set(meta["tags"])
     tag_set.update(add_tags)
     tag_set.difference_update(remove_tags)
     result = sorted(tag_set)
