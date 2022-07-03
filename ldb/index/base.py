@@ -68,6 +68,7 @@ class IndexedObjectResult(NamedTuple):
     found_annotation: bool
     new_data_object: bool
     new_annotation: bool
+    new_data_object_path: bool
     data_object_hash: str
 
 
@@ -77,6 +78,7 @@ class IndexingResult:
     num_found_annotations: int = 0
     num_new_data_objects: int = 0
     num_new_annotations: int = 0
+    num_new_data_object_paths: int = 0
     data_object_hashes: List[str] = field(default_factory=list)
 
     def append(self, item: IndexedObjectResult) -> None:
@@ -84,6 +86,7 @@ class IndexingResult:
         self.num_found_annotations += item.found_annotation
         self.num_new_data_objects += item.new_data_object
         self.num_new_annotations += item.new_annotation
+        self.num_new_data_object_paths += item.new_data_object_path
         self.data_object_hashes.append(item.data_object_hash)
 
     def summary(self, finished: bool = True) -> str:
@@ -93,10 +96,11 @@ class IndexingResult:
             heading = "Unable to finish indexing. Partial indexing results"
         return (
             f"\n{heading}:\n"
-            f"  Found data objects: {self.num_found_data_objects:9d}\n"
-            f"  Found annotations:  {self.num_found_annotations:9d}\n"
-            f"  New data objects:   {self.num_new_data_objects:9d}\n"
-            f"  New annotations:    {self.num_new_annotations:9d}"
+            f"  Found data objects:    {self.num_found_data_objects:9d}\n"
+            f"  Found annotations:     {self.num_found_annotations:9d}\n"
+            f"  New data objects:      {self.num_new_data_objects:9d}\n"
+            f"  New annotations:       {self.num_new_annotations:9d}\n"
+            f"  New data object paths: {self.num_new_data_object_paths:9d}"
         )
 
 
@@ -354,6 +358,7 @@ class IndexingItem(ABC):
     )
     tags: Collection[str]
     annot_merge_strategy: AnnotMergeStrategy
+    found_new_data_object_path: bool = field(init=False, default=False)
 
     @cached_property
     def current_timestamp(self) -> str:
@@ -478,6 +483,7 @@ class IndexingItem(ABC):
             found_annotation=found_annotation,
             new_data_object=new_data_object,
             new_annotation=new_annotation,
+            new_data_object_path=self.found_new_data_object_path,
             data_object_hash=self.data_object_hash,
         )
 
@@ -590,11 +596,17 @@ class DataObjectFileIndexingItem(IndexingItem):
                 | set(self.tags),
             )
         else:
-            meta_contents = construct_data_object_meta(
-                *self.data_object,
+            old_meta = (
                 load_data_file(self.data_object_meta_file_path)
                 if self.data_object_meta_file_path.exists()
-                else {},
+                else {}
+            )
+            (
+                self.found_new_data_object_path,
+                meta_contents,
+            ) = construct_data_object_meta(
+                *self.data_object,
+                old_meta,
                 self.current_timestamp,
                 tags=self.tags,
             )
