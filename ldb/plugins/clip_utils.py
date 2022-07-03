@@ -38,7 +38,7 @@ def get_image_dataset_features(
     dataset: Dataset[torch.Tensor],
 ) -> torch.Tensor:
     all_features = []
-    with torch.no_grad():  # type: ignore[no-untyped-call]
+    with torch.no_grad():
         for images in tqdm(DataLoader(dataset, batch_size=64)):
             features = model.encode_image(images.to(device))
             all_features.append(features)
@@ -63,7 +63,7 @@ def get_text_features(
     text: Union[str, Sequence[str]],
 ) -> torch.Tensor:
     tokens = clip.tokenize(text).to(device)
-    with torch.no_grad():  # type: ignore[no-untyped-call]
+    with torch.no_grad():
         text_features: torch.Tensor = model.encode_text(tokens)
     return text_features
 

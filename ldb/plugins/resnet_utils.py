@@ -89,7 +89,7 @@ def image_layer_similarity(
         input_batch = input_batch.to("cuda")
         model.to("cuda")
 
-    with torch.no_grad():  # type: ignore[no-untyped-call]
+    with torch.no_grad():
         output = model(input_batch)
 
     return cos_sim(output[:1], output[1:])  # type: ignore[no-any-return]
