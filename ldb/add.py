@@ -134,6 +134,8 @@ def dataset_for_add(ldb_dir: Path, paths: Sequence[str]) -> AddInput:
 
 def workspace_dataset_for_add(ldb_dir: Path, paths: Sequence[str]) -> AddInput:
     paths = [re.sub(r"^ws:", "", p) for p in paths]
+    for path in paths:
+        load_workspace_dataset(Path(path))
     collections = [
         collection_dir_to_object(
             Path(path) / WorkspacePath.COLLECTION,
