@@ -28,7 +28,7 @@ from ldb.add import process_args_for_delete
 from ldb.data_formats import INSTANTIATE_FORMATS, Format
 from ldb.dataset import OpDef, apply_queries_to_collection, get_annotation
 from ldb.exceptions import LDBException
-from ldb.fs.utils import FSProtocol, first_protocol
+from ldb.fs.utils import FSProtocol, first_protocol, unstrip_protocol
 from ldb.index.inferred import InferredParamConfig
 from ldb.params import ParamConfig
 from ldb.path import InstanceDir, WorkspacePath
@@ -309,7 +309,13 @@ class InstItem:
         os.makedirs(os.path.split(self.data_object_dest)[0], exist_ok=True)
         dest = self.data_object_dest
 
-        fs.get_file(path, dest)
+        try:
+            fs.get_file(path, dest)
+        except FileNotFoundError as exc:
+            full_path = unstrip_protocol(fs, path)
+            if exc.args and full_path in exc.args:
+                raise
+            raise FileNotFoundError(full_path) from exc
         return dest
 
     def copy_files(self) -> ItemCopyResult:
