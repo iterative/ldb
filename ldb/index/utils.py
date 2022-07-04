@@ -472,7 +472,7 @@ def construct_data_object_meta(
     prev_meta: Dict[str, Any],
     current_timestamp: str,
     tags: Collection[str] = (),
-) -> DataObjectMeta:
+) -> Tuple[bool, DataObjectMeta]:
     # TODO: create dataclass for data object meta
     fs_info = fs.info(path)
 
@@ -515,7 +515,10 @@ def construct_data_object_meta(
     }
     if path_info not in alternate_paths:
         alternate_paths.append(path_info)
-    return {
+        found_new_path = True
+    else:
+        found_new_path = False
+    return found_new_path, {
         "type": filetype,
         "first_indexed": first_indexed,
         "last_indexed": current_timestamp,

@@ -86,5 +86,6 @@ class AnnotationOnlyIndexingItem(AnnotationFileIndexingItem):
             found_annotation=True,
             new_data_object=False,
             new_annotation=new_annotation,
+            new_data_object_path=False,
             data_object_hash=self.data_object_hash,
         )
