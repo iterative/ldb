@@ -7,6 +7,7 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import (
+    Any,
     Collection,
     Iterable,
     List,
@@ -28,6 +29,8 @@ from ldb.data_formats import INSTANTIATE_FORMATS, Format
 from ldb.dataset import OpDef, apply_queries_to_collection, get_annotation
 from ldb.exceptions import LDBException
 from ldb.fs.utils import FSProtocol, first_protocol
+from ldb.index.inferred import InferredParamConfig
+from ldb.params import ParamConfig
 from ldb.path import InstanceDir, WorkspacePath
 from ldb.progress import get_progressbar
 from ldb.storage import StorageLocation, get_filesystem, get_storage_locations
@@ -67,6 +70,7 @@ class InstConfig:
     transform_infos: Mapping[str, Collection[TransformInfo]] = field(
         default_factory=dict,
     )
+    params: Mapping[str, Any] = field(default_factory=dict)
 
 
 class InstantiateResult(NamedTuple):
@@ -87,9 +91,19 @@ def instantiate(
     apply: Sequence[str] = (),
     make_parent_dirs: bool = False,
     warn: bool = True,
+    params: Optional[Mapping[str, str]] = None,
 ) -> InstantiateResult:
-    if fmt not in INSTANTIATE_FORMATS:
-        raise ValueError(f"Not a valid instantiation format: {fmt}")
+    try:
+        fmt = INSTANTIATE_FORMATS[fmt]
+    except KeyError as exc:
+        raise ValueError(f"Not a valid instantiation format: {fmt}") from exc
+    if params is None:
+        params = {}
+
+    if fmt == Format.INFER:
+        processed_params = InferredParamConfig().process_params(params, fmt)
+    else:
+        processed_params = ParamConfig().process_params(params, fmt)
 
     make_target_dir(dest, parents=make_parent_dirs)
     data_object_hashes: Set[str] = set(
@@ -122,6 +136,7 @@ def instantiate(
         fmt,
         force,
         apply,
+        params=processed_params,
     )
 
 
@@ -134,11 +149,14 @@ def instantiate_collection(
     force: bool = False,
     apply: Sequence[str] = (),
     clean: bool = True,
+    params: Optional[Mapping[str, Any]] = None,
 ) -> InstantiateResult:
     try:
         fmt = INSTANTIATE_FORMATS[fmt]
     except KeyError as exc:
         raise ValueError(f"Not a valid instantiation format: {fmt}") from exc
+    if params is None:
+        params = {}
     # fail fast if workspace is not empty
     if clean and dest.exists():
         ensure_path_is_empty_workspace(dest, force)
@@ -162,6 +180,7 @@ def instantiate_collection(
                 intermediate_dir=raw_tmp_dir,
                 storage_locations=storage_locations,
                 transform_infos=transform_infos,
+                params=params,
             )
             result = instantiate_collection_directly(
                 config,
@@ -439,22 +458,30 @@ class AnnotationOnlyInstItem(RawPairInstItem):
 @dataclass
 class InferInstItem(RawPairInstItem):
     annotation_hash: str
+    label_key: Sequence[str]
+    base_label: str = ""
 
     @cached_property
     def base_dest(self) -> str:
         parts: List[str] = []
+        key: str
+        label: Union[JSONObject, str]
         try:
-            label = self.annotation_content["label"]  # type: ignore[index, call-overload] # noqa: E501
+            label = self.annotation_content  # type: ignore[assignment]
+            for key in self.label_key:
+                label = label[key]  # type: ignore[index]
         except Exception as exc:
+            # TODO: convert self.label_key to jmespath expression for message
             raise LDBException(
                 "Annotations for tensorflow-inferred format should contain "
-                '"label" key',
+                f"key: {self.label_key}",
             ) from exc
-        key: str
-        while isinstance(label, dict):
-            key, label = next(iter(label.items()))
-            parts.append(key)
-        parts.append(label)
+
+        if label != self.base_label:
+            while isinstance(label, dict):
+                key, label = next(iter(label.items()))  # type: ignore[assignment] # noqa: E501
+                parts.append(key)
+            parts.append(label)
         return os.path.join(
             self.dest_dir,
             *parts,
@@ -589,6 +616,8 @@ def copy_infer(
     config: InstConfig,
     collection: Mapping[str, Optional[str]],
 ) -> InstantiateResult:
+    label_key: Sequence[str] = config.params.get("label-key", ["label"])
+    base_label: str = config.params.get("base-label", "")
     for data_object_hash, annotation_hash in collection.items():
         if not annotation_hash:
             raise LDBException(
@@ -607,6 +636,8 @@ def copy_infer(
                 config,
                 data_object_hash,
                 annotation_hash,
+                label_key=label_key,
+                base_label=base_label,
             ),
         )
     data_obj_paths, _ = instantiate_items(items)

@@ -1,13 +1,14 @@
 import copy
 import re
 from argparse import Action, ArgumentParser, Namespace
-from typing import Any, Iterable, List, Optional, Sequence, Union
+from typing import Any, Iterable, List, Optional, Sequence, Tuple, Union
 
 import shtab
 
 from ldb.data_formats import INSTANTIATE_FORMATS, Format
 from ldb.op_type import OpType
 
+PARAM_KEY_PATTERN = r"^[a-zA-Z][a-zA-Z0-9]*(-[a-zA-Z0-9]+)*$"
 SIMPLE_NAME_PATTERN = r"^[^\s,]+$"
 
 
@@ -246,4 +247,32 @@ def add_instantiate_arguments(
         default=None,
         dest="apply",
         help="Executable to apply to data objects and annotations",
+    )
+    add_param_option(parser)
+
+
+def param(option_str: str) -> Tuple[str, str]:
+    key, value = option_str.split("=", 1)
+    validate_param_key(key)
+    return key, value
+
+
+def validate_param_key(key: str) -> None:
+    if not re.search(PARAM_KEY_PATTERN, key):
+        raise ValueError(
+            f"Invalid param key {key!r}, "
+            f"must match pattern, {PARAM_KEY_PATTERN!r}",
+        )
+
+
+def add_param_option(parser: ArgumentParser) -> None:
+    parser.add_argument(
+        "-p",
+        "--param",
+        metavar="<key>=<value>",
+        default=[],
+        action="append",
+        dest="params",
+        type=param,
+        help="Format-specific option. May be used multiple times",
     )

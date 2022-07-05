@@ -28,6 +28,7 @@ def instantiate_command(options: Namespace) -> None:
         force=options.force,
         apply=options.apply,
         warn=False,
+        params=dict(options.params),
     )
     print(
         "Copied dataset to workspace.\n"

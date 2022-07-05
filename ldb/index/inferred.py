@@ -1,7 +1,8 @@
+import warnings
 from dataclasses import dataclass
 from itertools import chain
 from pathlib import Path
-from typing import Collection, Dict, List, Tuple, Union
+from typing import Collection, Dict, List, Optional, Tuple
 
 from fsspec.spec import AbstractFileSystem
 from funcy.objects import cached_property
@@ -23,11 +24,27 @@ from ldb.index.utils import (
     expand_dir_paths,
     is_hidden_fsspec_path,
 )
+from ldb.jmespath.parser import parse_identifier_expression
+from ldb.params import ParamConfig
 from ldb.typing import JSONDecoded, JSONObject
 from ldb.utils import current_time, load_data_file
 
+BASE_DIR_HELP = (
+    "To index files in base dirs, provide a label, with the "
+    "tensorflow-inferred format's base-dir-label parameter:\n\n"
+    "\tldb index --format tensorflow-inferred --param base-dir-label=<label> "
+    "<path> [<path> ...]\n"
+)
 
-class InferredPreprocessor(Preprocessor):
+
+class InferredParamConfig(ParamConfig):
+    PARAM_PROCESSORS = {
+        "label-key": parse_identifier_expression,
+        "base-label": None,
+    }
+
+
+class InferredPreprocessor(InferredParamConfig, Preprocessor):
     @cached_property
     def dir_path_to_files(
         self,
@@ -98,21 +115,53 @@ class InferredIndexer(PairIndexer):
 
     def infer_annotations(
         self,
-    ) -> Dict[AbstractFileSystem, Dict[str, JSONObject]]:
-        annotations: Dict[AbstractFileSystem, Dict[str, JSONObject]] = {}
+    ) -> Dict[AbstractFileSystem, Dict[str, Optional[JSONObject]]]:
+        label_key = self.preprocessor.params.get("label-key", ["label"])
+        base_dir_label: Optional[str] = self.preprocessor.params.get(
+            "base-dir-label",
+        )
+
+        if not label_key:
+            raise ValueError("label-key param cannot be empty")
+        annotations: Dict[
+            AbstractFileSystem,
+            Dict[str, Optional[JSONObject]],
+        ] = {}
+
+        warning_count = 0
         for fs, seqs in self.preprocessor.dir_path_to_files.items():
-            fs_annots: Dict[str, JSONObject] = annotations.setdefault(fs, {})
+            fs_annots: Dict[
+                str,
+                Optional[JSONObject],
+            ] = annotations.setdefault(fs, {})
             for dir_path, file_seq in seqs.items():
                 len_dir_path = len(dir_path)
                 for file in file_seq:
                     raw_label = (
                         file[len_dir_path:].rsplit("/", 1)[0].strip("/")
                     )
-                    label_parts = raw_label.lstrip("/").split("/")
-                    label: Union[str, JSONObject] = label_parts[-1]
-                    for p in label_parts[-2::-1]:
-                        label = {p: label}
-                    fs_annots[file] = {"label": label}
+                    label_parts = list(
+                        filter(None, raw_label.lstrip("/").split("/")),
+                    )
+                    if not label_parts and base_dir_label is not None:
+                        label_parts = [base_dir_label]
+
+                    if not label_parts:
+                        if not warning_count:
+                            warnings.warn(
+                                "Skipping file(s) found in base dir.\n"
+                                f"{BASE_DIR_HELP}",
+                                RuntimeWarning,
+                                stacklevel=2,
+                            )
+                        warning_count += 1
+                        fs_annots[file] = None
+                    else:
+                        label_parts = label_key + label_parts
+                        label: JSONObject = {label_parts[-2]: label_parts[-1]}
+                        for p in label_parts[-3::-1]:
+                            label = {p: label}
+                        fs_annots[file] = label
         return annotations
 
     def _index(self) -> None:
@@ -121,7 +170,7 @@ class InferredIndexer(PairIndexer):
 
         annotations_by_data_object_path: Dict[
             Tuple[AbstractFileSystem, str],
-            JSONObject,
+            Optional[JSONObject],
         ] = {}
 
         for fs, fs_annotations in annotations.items():
@@ -143,7 +192,7 @@ class InferredIndexer(PairIndexer):
         indexing_jobs: IndexingJobMapping,
         annotations_by_data_object_path: Dict[
             Tuple[AbstractFileSystem, str],
-            JSONObject,
+            Optional[JSONObject],
         ],
         tags: Collection[str],
         annot_merge_strategy: AnnotMergeStrategy = AnnotMergeStrategy.REPLACE,
@@ -151,17 +200,22 @@ class InferredIndexer(PairIndexer):
         for fs, jobs in indexing_jobs.items():
             for config, path_seq in jobs:
                 for data_object_path in path_seq:
-                    item = InferredIndexingItem(
-                        self.ldb_dir,
-                        current_time(),
-                        tags,
-                        annot_merge_strategy,
-                        FileSystemPath(fs, data_object_path),
-                        config.save_data_object_path_info,
-                        self.hashes,
-                        annotations_by_data_object_path[fs, data_object_path],
-                    )
-                    self.result.append(item.index_data())
+                    annot = annotations_by_data_object_path[
+                        fs,
+                        data_object_path,
+                    ]
+                    if annot is not None:
+                        item = InferredIndexingItem(
+                            self.ldb_dir,
+                            current_time(),
+                            tags,
+                            annot_merge_strategy,
+                            FileSystemPath(fs, data_object_path),
+                            config.save_data_object_path_info,
+                            self.hashes,
+                            annot,
+                        )
+                        self.result.append(item.index_data())
 
 
 @dataclass

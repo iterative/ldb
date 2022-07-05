@@ -1,6 +1,6 @@
 import json
 from pathlib import Path
-from typing import Collection, List, Sequence, Set, Tuple
+from typing import Collection, List, Mapping, Sequence, Set, Tuple
 
 import fsspec
 import jmespath
@@ -28,9 +28,11 @@ class LabelStudioPreprocessor(Preprocessor):
         self,
         paths: Sequence[str],
         storage_locations: Sequence[StorageLocation],
+        params: Mapping[str, str],
+        fmt: str,
         path_key: str = "",
     ) -> None:
-        super().__init__(paths, storage_locations)
+        super().__init__(paths, storage_locations, params, fmt)
         self.path_key = path_key
 
     @cached_property

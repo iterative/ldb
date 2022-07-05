@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Collection, Sequence
+from typing import Collection, Mapping, Optional, Sequence
 
 from ldb.data_formats import INDEX_FORMATS, Format
 from ldb.index.annotation_only import AnnotationOnlyIndexer
@@ -17,13 +17,16 @@ def index(
     fmt: str = Format.AUTO,
     tags: Collection[str] = (),
     annot_merge_strategy: AnnotMergeStrategy = AnnotMergeStrategy.REPLACE,
+    params: Optional[Mapping[str, str]] = None,
 ) -> IndexingResult:
+    if params is None:
+        params = {}
     indexer: Indexer
     fmt = INDEX_FORMATS.get(fmt, fmt)
     print(f"Data format: {fmt}")
     storage_locations = get_storage_locations(ldb_dir)
     if fmt in (Format.AUTO, Format.STRICT, Format.BARE, Format.ANNOT):
-        preprocessor = Preprocessor(paths, storage_locations)
+        preprocessor = Preprocessor(paths, storage_locations, params, fmt)
         if fmt == Format.AUTO:
             fmt = autodetect_format(
                 preprocessor.data_object_paths,
@@ -47,7 +50,12 @@ def index(
                 annot_merge_strategy=annot_merge_strategy,
             )
     elif fmt == Format.INFER:
-        preprocessor = InferredPreprocessor(paths, storage_locations)
+        preprocessor = InferredPreprocessor(
+            paths,
+            storage_locations,
+            params,
+            fmt,
+        )
         indexer = InferredIndexer(
             ldb_dir,
             preprocessor,
@@ -57,7 +65,12 @@ def index(
             annot_merge_strategy=annot_merge_strategy,
         )
     elif fmt == Format.LABEL_STUDIO:
-        preprocessor = LabelStudioPreprocessor(paths, storage_locations)
+        preprocessor = LabelStudioPreprocessor(
+            paths,
+            storage_locations,
+            params,
+            fmt,
+        )
         indexer = LabelStudioIndexer(
             ldb_dir,
             preprocessor,

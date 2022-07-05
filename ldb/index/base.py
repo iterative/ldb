@@ -47,6 +47,7 @@ from ldb.index.utils import (
     separate_storage_and_non_storage_files,
     validate_locations_in_storage,
 )
+from ldb.params import ParamConfig
 from ldb.path import InstanceDir
 from ldb.storage import StorageLocation
 from ldb.typing import JSONDecoded, JSONObject
@@ -104,14 +105,17 @@ class IndexingResult:
         )
 
 
-class Preprocessor:
+class Preprocessor(ParamConfig):
     def __init__(
         self,
         paths: Sequence[str],
         storage_locations: Sequence[StorageLocation],
+        params: Mapping[str, str],
+        fmt: str,
     ) -> None:
         self.paths: List[str] = list(paths)
         self.storage_locations = storage_locations
+        self.params = self.process_params(params, fmt)
 
     def get_storage_files(self) -> FSPathsMapping:
         return expand_indexing_paths(

@@ -4,7 +4,11 @@ from typing import TYPE_CHECKING, Iterable
 import shtab
 
 from ldb import config
-from ldb.cli_utils import add_data_format_arguments, simple_name_list
+from ldb.cli_utils import (
+    add_data_format_arguments,
+    add_param_option,
+    simple_name_list,
+)
 from ldb.config import ConfigType
 from ldb.core import get_ldb_instance
 from ldb.data_formats import INDEX_FORMATS, Format
@@ -32,6 +36,7 @@ def index_command(options: Namespace) -> None:
         fmt=options.format,
         tags=tags,
         annot_merge_strategy=options.annot_merge_strategy,
+        params=dict(options.params),
     )
     print(result.summary())
 
@@ -70,6 +75,7 @@ def add_parser(
             "with the one discovered during indexing."
         ),
     )
+    add_param_option(parser)
     parser.add_argument(  # type: ignore[attr-defined]
         "paths",
         metavar="<path>",
