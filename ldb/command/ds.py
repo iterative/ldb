@@ -15,7 +15,9 @@ def ds_list_command(
     ds_listings = ds(
         ldb_dir,
     )
-    print_ds_listings(ds_listings)
+    num_listings = print_ds_listings(ds_listings)
+    if not num_listings:
+        print("No saved datasets")
 
 
 def ds_del_command(

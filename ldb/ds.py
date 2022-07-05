@@ -25,9 +25,12 @@ def ds(
         )
 
 
-def print_ds_listings(ds_listings: Iterable[DSListing]) -> None:
+def print_ds_listings(ds_listings: Iterable[DSListing]) -> int:
+    num_listings = 0
     for item in ds_listings:
         print(format_dataset_identifier(item.name, item.latest_version))
+        num_listings += 1
+    return num_listings
 
 
 def delete_datasets(ldb_dir: Path, ds_identifiers: Iterable[str]) -> None:
