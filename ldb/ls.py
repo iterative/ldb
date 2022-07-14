@@ -1,8 +1,6 @@
-import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import (
-    Dict,
     FrozenSet,
     Iterable,
     List,
@@ -12,16 +10,11 @@ from typing import (
     Tuple,
 )
 
-from ldb.add import ArgType, get_arg_type, process_args_for_ls
-from ldb.dataset import OpDef, apply_queries
-from ldb.path import InstanceDir, WorkspacePath
+from ldb.add import paths_to_dataset
+from ldb.dataset import OpDef
+from ldb.path import InstanceDir
 from ldb.string_utils import left_truncate
-from ldb.transform import (
-    DEFAULT,
-    TransformInfo,
-    TransformType,
-    get_transform_infos_from_dir,
-)
+from ldb.transform import DEFAULT, TransformInfo, TransformType
 from ldb.utils import DATA_OBJ_ID_PREFIX, get_hash_path, load_data_file
 
 
@@ -40,40 +33,13 @@ def ls(
     collection_ops: Iterable[OpDef],
     warn: bool = True,
 ) -> List[DatasetListing]:
-    transform_infos = get_workspace_transform_infos(ldb_dir, paths)
-    data_object_hashes, annotation_hashes, _ = process_args_for_ls(
+    collection, transform_infos = paths_to_dataset(
         ldb_dir,
         paths,
-    )
-    collection = apply_queries(
-        ldb_dir,
-        data_object_hashes,
-        annotation_hashes,
         collection_ops,
         warn=warn,
     )
     return ls_collection(ldb_dir, collection, transform_infos=transform_infos)
-
-
-def get_workspace_transform_infos(
-    ldb_dir: Path,
-    paths: Sequence[str],
-) -> Optional[Dict[str, FrozenSet[TransformInfo]]]:
-    # TODO: avoid resolving paths here and also inside process_args_for_ls
-    ws_path = ""
-    if not paths or (get_arg_type(paths) == ArgType.WORKSPACE_DATASET):
-        paths = [re.sub(r"^ws:", "", p) for p in paths]
-        if not paths:
-            ws_path = "."
-        elif len(paths) == 1:
-            ws_path = paths[0]
-
-    if ws_path:
-        return get_transform_infos_from_dir(
-            ldb_dir,
-            Path(ws_path) / WorkspacePath.TRANSFORM_MAPPING,
-        )
-    return None
 
 
 def transform_info_sort_key(info: TransformInfo) -> Tuple[bool, str]:

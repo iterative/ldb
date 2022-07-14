@@ -4,6 +4,7 @@ import shutil
 import subprocess
 import tempfile
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import suppress
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import (
@@ -15,7 +16,6 @@ from typing import (
     NamedTuple,
     Optional,
     Sequence,
-    Set,
     Tuple,
     Union,
     cast,
@@ -24,9 +24,9 @@ from typing import (
 import jmespath
 from funcy.objects import cached_property
 
-from ldb.add import process_args_for_delete
+from ldb.add import TransformInfoMapping, paths_to_dataset
 from ldb.data_formats import INSTANTIATE_FORMATS, Format
-from ldb.dataset import OpDef, apply_queries_to_collection, get_annotation
+from ldb.dataset import OpDef, get_annotation
 from ldb.exceptions import LDBException
 from ldb.fs.utils import FSProtocol, first_protocol, unstrip_protocol
 from ldb.index.inferred import InferredParamConfig
@@ -34,12 +34,7 @@ from ldb.params import ParamConfig
 from ldb.path import InstanceDir, WorkspacePath
 from ldb.progress import get_progressbar
 from ldb.storage import StorageLocation, get_filesystem, get_storage_locations
-from ldb.transform import (
-    DEFAULT,
-    TransformInfo,
-    TransformType,
-    get_transform_infos_from_dir,
-)
+from ldb.transform import DEFAULT, TransformInfo, TransformType
 from ldb.typing import JSONDecoded, JSONObject
 from ldb.utils import (
     DATA_OBJ_ID_PREFIX,
@@ -49,10 +44,7 @@ from ldb.utils import (
     make_target_dir,
     write_data_file,
 )
-from ldb.workspace import (
-    collection_dir_to_object,
-    ensure_path_is_empty_workspace,
-)
+from ldb.workspace import ensure_path_is_empty_workspace
 
 
 @dataclass
@@ -82,7 +74,6 @@ class InstantiateResult(NamedTuple):
 
 def instantiate(
     ldb_dir: Path,
-    workspace_path: Path,
     dest: Path,
     paths: Sequence[str] = (),
     query_args: Iterable[OpDef] = (),
@@ -106,99 +97,93 @@ def instantiate(
         processed_params = ParamConfig().process_params(params, fmt)
 
     make_target_dir(dest, parents=make_parent_dirs)
-    data_object_hashes: Set[str] = set(
-        process_args_for_delete(
-            ldb_dir,
-            paths,
-        ),
-    )
-    orig_collection = collection_dir_to_object(
-        workspace_path / WorkspacePath.COLLECTION,
-    )
-    collection = {
-        d: a if a is not None else ""
-        for d, a in orig_collection.items()
-        if d in data_object_hashes
-    }
-    collection = dict(
-        apply_queries_to_collection(
-            ldb_dir,
-            collection.items(),
-            query_args,
-            warn=warn,
-        ),
+    collection, transform_infos = paths_to_dataset(
+        ldb_dir,
+        paths,
+        query_args,
+        warn=warn,
+        include_transforms=fmt in (Format.STRICT, Format.BARE),
     )
     return instantiate_collection(
         ldb_dir,
-        workspace_path,
-        collection,
+        dict(collection),
         dest,
-        fmt,
-        force,
-        apply,
+        transform_infos=transform_infos,
+        fmt=fmt,
+        force=force,
+        apply=apply,
         params=processed_params,
     )
 
 
 def instantiate_collection(
     ldb_dir: Path,
-    workspace_path: Path,
     collection: Mapping[str, Optional[str]],
     dest: Path,
+    transform_infos: Optional[TransformInfoMapping] = None,
     fmt: str = Format.BARE,
     force: bool = False,
     apply: Sequence[str] = (),
     clean: bool = True,
     params: Optional[Mapping[str, Any]] = None,
+    tmp_dir: Optional[Union[str, Path]] = None,
 ) -> InstantiateResult:
     try:
         fmt = INSTANTIATE_FORMATS[fmt]
     except KeyError as exc:
         raise ValueError(f"Not a valid instantiation format: {fmt}") from exc
+    default_tmp = dest / WorkspacePath.TMP
+    if tmp_dir is None:
+        tmp_dir = default_tmp
+    tmp_dir = os.path.abspath(tmp_dir)
     if params is None:
         params = {}
     # fail fast if workspace is not empty
     if clean and dest.exists():
         ensure_path_is_empty_workspace(dest, force)
     storage_locations = get_storage_locations(ldb_dir)
-    if fmt in (Format.STRICT, Format.BARE):
-        transform_infos = get_transform_infos_from_dir(
-            ldb_dir,
-            workspace_path / WorkspacePath.TRANSFORM_MAPPING,
-        )
-    else:
-        transform_infos = {}
     dest.mkdir(exist_ok=True)
 
-    tmp_dir_base = workspace_path.absolute() / WorkspacePath.TMP
-    tmp_dir_base.mkdir(exist_ok=True)
-    with tempfile.TemporaryDirectory(dir=tmp_dir_base) as final_tmp_dir:
-        with tempfile.TemporaryDirectory(dir=tmp_dir_base) as raw_tmp_dir:
-            config = InstConfig(
-                ldb_dir=ldb_dir,
-                dest_dir=final_tmp_dir,
-                intermediate_dir=raw_tmp_dir,
-                storage_locations=storage_locations,
-                transform_infos=transform_infos,
-                params=params,
-            )
-            result = instantiate_collection_directly(
-                config,
-                collection,
-                fmt,
-            )
-        if apply:
-            paths = [str(ldb_dir / InstanceDir.USER_FILTERS)]
-            apply_transform(apply, final_tmp_dir, os.fspath(dest), paths=paths)
-        else:
-            # check again to make sure nothing was added while writing to the
-            # temporary location
-            if clean:
-                ensure_path_is_empty_workspace(dest, force)
-            dest_str = os.fspath(dest)
-            for path in Path(final_tmp_dir).iterdir():
-                os.replace(os.fspath(path), os.path.join(dest_str, path.name))
-
+    try:
+        os.makedirs(tmp_dir, exist_ok=True)
+        with tempfile.TemporaryDirectory(dir=tmp_dir) as final_tmp_dir:
+            with tempfile.TemporaryDirectory(dir=tmp_dir) as raw_tmp_dir:
+                config = InstConfig(
+                    ldb_dir=ldb_dir,
+                    dest_dir=final_tmp_dir,
+                    intermediate_dir=raw_tmp_dir,
+                    storage_locations=storage_locations,
+                    transform_infos=transform_infos or {},
+                    params=params,
+                )
+                result = instantiate_collection_directly(
+                    config,
+                    collection,
+                    fmt,
+                )
+            if apply:
+                paths = [str(ldb_dir / InstanceDir.USER_FILTERS)]
+                apply_transform(
+                    apply,
+                    final_tmp_dir,
+                    os.fspath(dest),
+                    paths=paths,
+                )
+            else:
+                # check again to make sure nothing was added while writing to
+                # the temporary location
+                if clean:
+                    ensure_path_is_empty_workspace(dest, force)
+                dest_str = os.fspath(dest)
+                for path in Path(final_tmp_dir).iterdir():
+                    os.replace(
+                        os.fspath(path),
+                        os.path.join(dest_str, path.name),
+                    )
+    finally:
+        with suppress(OSError):
+            os.rmdir(default_tmp)
+            os.rmdir(os.path.dirname(default_tmp))
     return result
 
 
