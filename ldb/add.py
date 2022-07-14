@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import (
     Callable,
     Dict,
+    FrozenSet,
     Iterable,
     Iterator,
     List,
@@ -37,6 +38,7 @@ from ldb.index import index
 from ldb.index.utils import FileSystemPath, expand_indexing_paths
 from ldb.path import InstanceDir, WorkspacePath
 from ldb.storage import StorageLocation, get_storage_locations
+from ldb.transform import TransformInfo, get_transform_infos_from_dir
 from ldb.utils import (
     DATA_OBJ_ID_PATTERN,
     DATA_OBJ_ID_PREFIX,
@@ -49,6 +51,8 @@ from ldb.utils import (
     parse_dataset_identifier,
 )
 from ldb.workspace import collection_dir_to_object, load_workspace_dataset
+
+TransformInfoMapping = Dict[str, FrozenSet[TransformInfo]]
 
 
 @unique
@@ -86,6 +90,52 @@ def expands_to_workspace(urlpath: str) -> bool:
         ):
             return True
     return False
+
+
+def paths_to_dataset(
+    ldb_dir: Path,
+    paths: Sequence[str],
+    collection_ops: Iterable[OpDef],
+    warn: bool = True,
+    include_transforms: bool = True,
+) -> Tuple[Iterator[Tuple[str, str]], Optional[TransformInfoMapping]]:
+    if include_transforms:
+        transform_infos = get_workspace_transform_infos(ldb_dir, paths)
+    else:
+        transform_infos = None
+    data_object_hashes, annotation_hashes, _ = process_args_for_ls(
+        ldb_dir,
+        paths,
+    )
+    collection = apply_queries(
+        ldb_dir,
+        data_object_hashes,
+        annotation_hashes,
+        collection_ops,
+        warn=warn,
+    )
+    return collection, transform_infos
+
+
+def get_workspace_transform_infos(
+    ldb_dir: Path,
+    paths: Sequence[str],
+) -> Optional[Dict[str, FrozenSet[TransformInfo]]]:
+    # TODO: avoid resolving paths here and also inside process_args_for_ls
+    ws_path = ""
+    if not paths or (get_arg_type(paths) == ArgType.WORKSPACE_DATASET):
+        paths = [re.sub(r"^ws:", "", p) for p in paths]
+        if not paths:
+            ws_path = "."
+        elif len(paths) == 1:
+            ws_path = paths[0]
+
+    if ws_path:
+        return get_transform_infos_from_dir(
+            ldb_dir,
+            Path(ws_path) / WorkspacePath.TRANSFORM_MAPPING,
+        )
+    return None
 
 
 def process_args_for_add(

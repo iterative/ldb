@@ -20,7 +20,6 @@ from typing import (
 from funcy.objects import cached_property
 
 from ldb import config
-from ldb.add import select_data_object_hashes
 from ldb.config import load_first
 from ldb.core import get_ldb_instance
 from ldb.dataset import OpDef, iter_collection_dir
@@ -243,6 +242,10 @@ def add_transform(
     update_type: UpdateType = UpdateType.ADD,
     ldb_dir: Optional[Path] = None,
 ) -> None:
+    from ldb.add import (  # pylint: disable=import-outside-toplevel
+        select_data_object_hashes,
+    )
+
     if ldb_dir is None:
         ldb_dir = get_ldb_instance()
     transforms = [

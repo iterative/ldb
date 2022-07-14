@@ -21,7 +21,7 @@ def test_instantiate_bare_path(tmp_path, staged_ds_fashion, workspace_path):
     assert get_workspace_counts(dest) == (32, 23)
 
 
-def test_instantiate_with_tranforms(
+def test_instantiate_with_transforms(
     staged_ds_fashion_with_transforms,
     workspace_path,
     transform_infos,
@@ -102,7 +102,6 @@ def test_instantiate_with_query(staged_ds_fashion, workspace_path):
             "id:a2430513e897d5abcf62a55b8df81355",
             "id:b5fba326c8247d9e62aa17a109146c02",
             "id:e299594dc1f79f8e69c6d79a42699822",
-            "id:00000000000000000000000000000000",
             "--query",
             (
                 "@ == `null` || type(inference.label) == 'number' "
