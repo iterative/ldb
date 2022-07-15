@@ -436,8 +436,16 @@ class AnnotationOnlyInstItem(RawPairInstItem):
             self.config.ldb_dir,
             self.annotation_hash,
         )
+        fs_protocol: FSProtocol = self.data_object_meta["fs"]["protocol"]
+        protocol: str = first_protocol(fs_protocol)
+        path: str = self.data_object_meta["fs"]["path"]
+        fs = get_filesystem(path, protocol, self.config.storage_locations)
+        path = unstrip_protocol(fs, path)
         annotation = {
-            "ldb_meta": {"data_object_id": self.data_object_hash},
+            "data-object-info": {
+                "md5": self.data_object_hash,
+                "path": path,
+            },
             "annotation": annotation,
         }
         return annotation

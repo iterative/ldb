@@ -616,6 +616,10 @@ class DataObjectFileIndexingItem(IndexingItem):
             )
         return meta_contents
 
+    @cached_property
+    def has_annotation(self) -> bool:
+        return False
+
 
 @dataclass
 class PairIndexingItem(

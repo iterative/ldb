@@ -12,6 +12,7 @@ from fsspec.utils import get_protocol
 
 from ldb.exceptions import LDBException, StorageConfigurationError
 from ldb.fs import posix_path as fsp
+from ldb.fs.utils import has_protocol
 from ldb.path import Filename
 from ldb.typing import JSONDecoded
 
@@ -47,7 +48,7 @@ def get_containing_storage_location(
     storage_locations: Collection[StorageLocation],
 ) -> Optional[StorageLocation]:
     for loc in storage_locations:
-        if loc.protocol == protocol and fsp.isin(path, loc.path):
+        if has_protocol(loc.protocol, protocol) and fsp.isin(path, loc.path):
             return loc
     return None
 
