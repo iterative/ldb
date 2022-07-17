@@ -409,7 +409,7 @@ class IndexingItem(ABC):
         raise NotImplementedError
 
     @cached_property
-    def annotation_ldb_content(  # pylint: disable=no-self-use
+    def annotation_ldb_content(
         self,
     ) -> JSONObject:
         return {
