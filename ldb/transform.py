@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import (
     Any,
     Callable,
+    Collection,
     Dict,
     FrozenSet,
     Iterable,
@@ -22,16 +23,24 @@ from funcy.objects import cached_property
 from ldb import config
 from ldb.config import load_first
 from ldb.core import get_ldb_instance
-from ldb.dataset import OpDef, iter_collection_dir
+from ldb.dataset import (
+    DatasetVersion,
+    OpDef,
+    get_dataset,
+    get_dataset_version_hash,
+    iter_collection_dir,
+)
 from ldb.exceptions import LDBException
 from ldb.path import Filename, InstanceDir, WorkspacePath
 from ldb.utils import (
+    ROOT,
     StrEnum,
     format_dataset_identifier,
     get_hash_path,
     hash_data,
     json_dumps,
     load_data_file,
+    parse_dataset_identifier,
     write_data_file,
 )
 from ldb.workspace import load_workspace_dataset
@@ -421,14 +430,54 @@ def get_transform_infos_from_dir(
     ldb_dir: Path,
     transform_mapping_dir: Path,
 ) -> Dict[str, FrozenSet[TransformInfo]]:
-    mapping_items = list(
+    return get_transform_infos_from_items(
+        ldb_dir,
         get_transform_mapping_dir_items(transform_mapping_dir),
     )
-    unique_hashes = {h for _, hash_seq in mapping_items for h in hash_seq}
+
+
+def dataset_identifier_to_transform_ids(
+    ldb_dir: Path,
+    dataset_identifier: str,
+) -> Dict[str, List[str]]:
+    dataset_name, dataset_version = parse_dataset_identifier(
+        dataset_identifier,
+    )
+    if dataset_name == ROOT:
+        return {}
+    dataset = get_dataset(ldb_dir, dataset_name)
+    dataset_version_hash = get_dataset_version_hash(
+        dataset,
+        dataset_version,
+    )
+    dataset_version_obj = DatasetVersion.parse(
+        load_data_file(
+            get_hash_path(
+                ldb_dir / InstanceDir.DATASET_VERSIONS,
+                dataset_version_hash,
+            ),
+        ),
+    )
+    return load_data_file(  # type: ignore[no-any-return]
+        get_hash_path(
+            ldb_dir / InstanceDir.TRANSFORM_MAPPINGS,
+            dataset_version_obj.transform_mapping_id,
+        ),
+    )
+
+
+def get_transform_infos_from_items(
+    ldb_dir: Path,
+    transform_info_items: Iterable[Tuple[str, Collection[str]]],
+) -> Dict[str, FrozenSet[TransformInfo]]:
+    transform_info_items = list(transform_info_items)
+    unique_hashes = {
+        h for _, hash_seq in transform_info_items for h in hash_seq
+    }
     transform_infos = get_transform_infos_by_hash(ldb_dir, unique_hashes)
     return {
         d: frozenset({transform_infos[h] for h in hash_seq})
-        for d, hash_seq in mapping_items
+        for d, hash_seq in transform_info_items
     }
 
 
