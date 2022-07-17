@@ -1,10 +1,12 @@
 import os
 import re
+from collections import defaultdict
 from enum import Enum, unique
 from itertools import tee
 from pathlib import Path
 from typing import (
     Callable,
+    DefaultDict,
     Dict,
     FrozenSet,
     Iterable,
@@ -38,7 +40,12 @@ from ldb.index import index
 from ldb.index.utils import FileSystemPath, expand_indexing_paths
 from ldb.path import InstanceDir, WorkspacePath
 from ldb.storage import StorageLocation, get_storage_locations
-from ldb.transform import TransformInfo, get_transform_infos_from_dir
+from ldb.transform import (
+    TransformInfo,
+    dataset_identifier_to_transform_ids,
+    get_transform_infos_from_items,
+    get_transform_mapping_dir_items,
+)
 from ldb.utils import (
     DATA_OBJ_ID_PATTERN,
     DATA_OBJ_ID_PREFIX,
@@ -99,8 +106,10 @@ def paths_to_dataset(
     warn: bool = True,
     include_transforms: bool = True,
 ) -> Tuple[Iterator[Tuple[str, str]], Optional[TransformInfoMapping]]:
+    if not paths:
+        paths = ["ws:."]
     if include_transforms:
-        transform_infos = get_workspace_transform_infos(ldb_dir, paths)
+        transform_infos = paths_to_transforms(ldb_dir, paths)
     else:
         transform_infos = None
     data_object_hashes, annotation_hashes, _ = process_args_for_ls(
@@ -117,25 +126,31 @@ def paths_to_dataset(
     return collection, transform_infos
 
 
-def get_workspace_transform_infos(
+def paths_to_transforms(
     ldb_dir: Path,
     paths: Sequence[str],
-) -> Optional[Dict[str, FrozenSet[TransformInfo]]]:
-    # TODO: avoid resolving paths here and also inside process_args_for_ls
-    ws_path = ""
-    if not paths or (get_arg_type(paths) == ArgType.WORKSPACE_DATASET):
+) -> Dict[str, FrozenSet[TransformInfo]]:
+    arg_type = get_arg_type(paths)
+    transform_infos: DefaultDict[str, Set[str]] = defaultdict(set)
+    separate_infos: List[Iterable[Tuple[str, List[str]]]] = []
+    if arg_type == ArgType.DATASET:
+        for dataset_identifier in paths:
+            transform_obj = dataset_identifier_to_transform_ids(
+                ldb_dir,
+                dataset_identifier,
+            )
+            separate_infos.append(transform_obj.items())
+    elif arg_type == ArgType.WORKSPACE_DATASET:
         paths = [re.sub(r"^ws:", "", p) for p in paths]
-        if not paths:
-            ws_path = "."
-        elif len(paths) == 1:
-            ws_path = paths[0]
-
-    if ws_path:
-        return get_transform_infos_from_dir(
-            ldb_dir,
-            Path(ws_path) / WorkspacePath.TRANSFORM_MAPPING,
-        )
-    return None
+        for ws_path in paths:
+            info_items = get_transform_mapping_dir_items(
+                Path(ws_path) / WorkspacePath.TRANSFORM_MAPPING,
+            )
+            separate_infos.append(list(info_items))
+    for infos in separate_infos:
+        for obj_id, info_set in infos:
+            transform_infos[obj_id].update(info_set)
+    return get_transform_infos_from_items(ldb_dir, transform_infos.items())
 
 
 def process_args_for_add(

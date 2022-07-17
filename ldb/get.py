@@ -2,7 +2,7 @@ import os
 from pathlib import Path
 from typing import Iterable, Optional, Sequence
 
-from ldb.add import add, get_workspace_transform_infos
+from ldb.add import add, paths_to_transforms
 from ldb.config import get_ldb_dir
 from ldb.core import init_quickstart
 from ldb.data_formats import Format
@@ -54,7 +54,7 @@ def get(
         query_args,
         ldb_dir=ldb_dir,
     )
-    transform_infos = get_workspace_transform_infos(ldb_dir, paths)
+    transform_infos = paths_to_transforms(ldb_dir, paths)
     print("Instantiating data...\n")
     result = instantiate_collection(
         ldb_dir,
