@@ -1,7 +1,7 @@
 import os
 import shutil
 from pathlib import Path
-from typing import Dict, List, Optional, Sequence, Tuple
+from typing import Dict, List, Mapping, Optional, Sequence, Tuple
 
 from ldb.config import get_ldb_dir
 from ldb.core import init_quickstart
@@ -211,13 +211,11 @@ def stage_workspace(
 
     transform_path = workspace_path / WorkspacePath.TRANSFORM_MAPPING
     if transform_obj:
-        transform_path_data = [
-            (
-                get_hash_path(transform_path, data_object_hash),
-                json_dumps(transform_ids),
-            )
-            for data_object_hash, transform_ids in transform_obj.items()
-        ]
+        transform_path_data = transform_obj_to_path_items(
+            transform_path,
+            transform_obj,
+        )
+
         transform_path.mkdir(parents=True, exist_ok=True)
         write_workspace_collection(transform_path, transform_path_data)
     else:
@@ -229,6 +227,19 @@ def stage_workspace(
         workspace_path / WorkspacePath.DATASET,
         workspace_ds_bytes,
     )
+
+
+def transform_obj_to_path_items(
+    transform_path: Path,
+    transform_obj: Mapping[str, Sequence[str]],
+) -> List[Tuple[Path, str]]:
+    return [
+        (
+            get_hash_path(transform_path, data_object_hash),
+            json_dumps(transform_ids),
+        )
+        for data_object_hash, transform_ids in transform_obj.items()
+    ]
 
 
 def get_workspace_collection_path_data(
