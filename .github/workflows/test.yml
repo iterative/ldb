@@ -9,7 +9,6 @@ on:
   pull_request:
     branches:
       - '*'
-      - '!renovate/**'
 
 defaults:
   run:
@@ -17,6 +16,7 @@ defaults:
 
 jobs:
   lint:
+    if: ${{ github.actor != 'dependabot[bot]' &&  github.actor != 'renovate[bot]' }}
     runs-on: ubuntu-latest
     steps:
       - name: checkout repo
@@ -51,6 +51,7 @@ jobs:
           SKIP=no-commit-to-branch pre-commit run -a --show-diff-on-failure
 
   test:
+    if: ${{ github.actor != 'dependabot[bot]' &&  github.actor != 'renovate[bot]' }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -101,6 +102,7 @@ jobs:
           [[ "$RUNNER_OS" != "Windows" ]] && source ./venv/bin/activate || source ./venv/Scripts/activate
           pytest
   build:
+    if: ${{ github.actor != 'dependabot[bot]' &&  github.actor != 'renovate[bot]' }}
     runs-on: ubuntu-latest
     steps:
       - name: checkout repo
