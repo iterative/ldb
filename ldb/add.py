@@ -54,6 +54,7 @@ from ldb.utils import (
     WORKSPACE_DATASET_PREFIX,
     format_dataset_identifier,
     get_hash_path,
+    json_dumps,
     parse_data_object_hash_identifier,
     parse_dataset_identifier,
 )
@@ -99,23 +100,32 @@ def expands_to_workspace(urlpath: str) -> bool:
     return False
 
 
+ArgProcessingFunc = Callable[[Path, Sequence[str]], AddInput]
+
+
 def paths_to_dataset(
     ldb_dir: Path,
     paths: Sequence[str],
     collection_ops: Iterable[OpDef],
     warn: bool = True,
     include_transforms: bool = True,
+    arg_processing_func: Optional[ArgProcessingFunc] = None,
 ) -> Tuple[Iterator[Tuple[str, str]], Optional[TransformInfoMapping]]:
+    if arg_processing_func is None:
+        arg_processing_func = process_args_for_ls
     if not paths:
         paths = ["ws:."]
     if include_transforms:
         transform_infos = paths_to_transforms(ldb_dir, paths)
     else:
         transform_infos = None
-    data_object_hashes, annotation_hashes, _ = process_args_for_ls(
+    data_object_hashes, annotation_hashes, message = arg_processing_func(
         ldb_dir,
         paths,
     )
+    if message:
+        print(message)
+        print()
     collection = apply_queries(
         ldb_dir,
         data_object_hashes,
@@ -130,6 +140,38 @@ def paths_to_transforms(
     ldb_dir: Path,
     paths: Sequence[str],
 ) -> Dict[str, FrozenSet[TransformInfo]]:
+    transform_infos = _paths_to_transform_id_sets(ldb_dir, paths)
+    return get_transform_infos_from_items(ldb_dir, transform_infos.items())
+
+
+def paths_to_transform_ids(
+    ldb_dir: Path,
+    paths: Sequence[str],
+    workspace_path: Optional[Path] = None,
+) -> Dict[str, Tuple[str, ...]]:
+    transforms_id_sets = _paths_to_transform_id_sets(
+        ldb_dir,
+        paths,
+    )
+    if workspace_path is not None:
+        for data_obj_id, transforms_id_set in _paths_to_transform_id_sets(
+            ldb_dir,
+            paths,
+        ).items():
+            try:
+                transforms_id_sets[data_obj_id] |= transforms_id_set
+            except KeyError:
+                transforms_id_sets[data_obj_id] = transforms_id_set
+    return {
+        data_obj_id: tuple(transform_id_set)
+        for data_obj_id, transform_id_set in transforms_id_sets.items()
+    }
+
+
+def _paths_to_transform_id_sets(
+    ldb_dir: Path,
+    paths: Sequence[str],
+) -> DefaultDict[str, Set[str]]:
     arg_type = get_arg_type(paths)
     transform_infos: DefaultDict[str, Set[str]] = defaultdict(set)
     separate_infos: List[Iterable[Tuple[str, List[str]]]] = []
@@ -148,9 +190,9 @@ def paths_to_transforms(
             )
             separate_infos.append(list(info_items))
     for infos in separate_infos:
-        for obj_id, info_set in infos:
-            transform_infos[obj_id].update(info_set)
-    return get_transform_infos_from_items(ldb_dir, transform_infos.items())
+        for data_object_id, transform_ids in infos:
+            transform_infos[data_object_id].update(transform_ids)
+    return transform_infos
 
 
 def process_args_for_add(
@@ -293,6 +335,7 @@ def add(
     paths: Sequence[str],
     query_args: Iterable[OpDef],
     ldb_dir: Optional[Path] = None,
+    warn: bool = False,
 ) -> List[Tuple[str, str]]:
     if not paths:
         if not query_args:
@@ -306,7 +349,9 @@ def add(
     workspace_path = Path(os.path.normpath(workspace_path))
     ds_name = load_workspace_dataset(workspace_path).dataset_name
     collection_dir_path = workspace_path / WorkspacePath.COLLECTION
+    transform_dir_path = workspace_path / WorkspacePath.TRANSFORM_MAPPING
     collection_dir_path.mkdir(exist_ok=True)
+    transform_dir_path.mkdir(exist_ok=True)
 
     data_object_hashes, annotation_hashes, message = process_args_for_add(
         ldb_dir,
@@ -321,8 +366,9 @@ def add(
         data_object_hashes,
         annotation_hashes,
         query_args,
-        warn=False,
+        warn=warn,
     )
+
     print("Adding to working dataset...")
 
     collection_list = list(collection)
@@ -330,9 +376,22 @@ def add(
         collection_dir_path,
         collection_list,
     )
-
+    transform_obj = paths_to_transform_ids(
+        ldb_dir,
+        paths,
+        workspace_path=workspace_path,
+    )
+    transform_data = [
+        (data_obj_id, json_dumps(transforms))
+        for data_obj_id, transforms in transform_obj.items()
+    ]
+    num_transforms = add_to_collection_dir(
+        transform_dir_path,
+        transform_data,
+    )
     ds_ident = format_dataset_identifier(ds_name)
     print(f"Added {num_data_objects} data objects to {ds_ident}")
+    print(f"Updated {num_transforms} transforms")
     return collection_list
 
 
