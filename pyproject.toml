@@ -175,6 +175,7 @@ confidence = ''
 # --disable=W".
 disable = [
     'bad-inline-option',
+    'cyclic-import',
     'deprecated-pragma',
     'file-ignored',
     'fixme',
