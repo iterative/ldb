@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Iterable, Tuple
 
 import shtab
 
+from ldb.cli_utils import json_bool
 from ldb.config import get_ldb_dir
 from ldb.core import init
 from ldb.path import Filename
@@ -56,8 +57,9 @@ def add_parser(
     parser.add_argument(
         "-a",
         "--read-add",
-        action="store_true",
+        action="store",
         default=False,
+        type=json_bool,
         help="Use this location for adding objects",
     )
     parser.add_argument(

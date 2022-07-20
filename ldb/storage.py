@@ -130,16 +130,16 @@ def add_storage(
                 new_path = storage_location.path
                 if old_path == new_path:
                     if (
-                        storage_location.read_and_add
-                        and not loc.read_and_add
-                        or storage_location.options != loc.options
-                    ):
+                        storage_location.read_and_add,
+                        storage_location.options,
+                    ) != (loc.read_and_add, loc.options):
                         to_replace = loc
                         keep = False
                     else:
                         raise LDBException(
                             "The storage location "
-                            f"{repr(storage_location.path)} already exists",
+                            f"{repr(storage_location.path)} already exists "
+                            "with the given options",
                         )
                 elif fsp.isin(new_path, old_path):
                     raise LDBException(
@@ -151,13 +151,6 @@ def add_storage(
                     keep = False
             if keep:
                 new_locations.append(loc)
-
-        # When replacing any existing location, inherit any true
-        # read_and_add setting
-        to_replace_list = [to_replace] if to_replace is not None else children
-        for loc in to_replace_list:
-            if loc.read_and_add:
-                storage_location.read_and_add = True
 
         if to_replace is not None:
             output = get_update_output(to_replace, storage_location)
