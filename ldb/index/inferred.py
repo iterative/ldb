@@ -31,8 +31,8 @@ from ldb.utils import current_time, load_data_file
 
 BASE_DIR_HELP = (
     "To index files in base dirs, provide a label, with the "
-    "tensorflow-inferred format's base-dir-label parameter:\n\n"
-    "\tldb index --format tensorflow-inferred --param base-dir-label=<label> "
+    "tensorflow-inferred format's base-label parameter:\n\n"
+    "\tldb index --format tensorflow-inferred --param base-label=<label> "
     "<path> [<path> ...]\n"
 )
 
@@ -118,7 +118,7 @@ class InferredIndexer(PairIndexer):
     ) -> Dict[AbstractFileSystem, Dict[str, Optional[JSONObject]]]:
         label_key = self.preprocessor.params.get("label-key", ["label"])
         base_dir_label: Optional[str] = self.preprocessor.params.get(
-            "base-dir-label",
+            "base-label",
         )
 
         if not label_key:
