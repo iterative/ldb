@@ -7,6 +7,7 @@ from ldb import config
 from ldb.cli_utils import (
     add_data_format_arguments,
     add_param_option,
+    choice_str,
     simple_name_list,
 )
 from ldb.config import ConfigType
@@ -64,15 +65,17 @@ def add_parser(
         action="append",
         help="Comma-separated list of tags to add to indexed data objects",
     )
+    annot_update_choice_str = choice_str([s.value for s in AnnotMergeStrategy])
     parser.add_argument(
         "--annotation-update",
         metavar="<strategy>",
         dest="annot_merge_strategy",
         default=AnnotMergeStrategy.REPLACE,
-        type=AnnotMergeStrategy,
+        choices=[s.value for s in AnnotMergeStrategy],
         help=(
             "Merge strategy for combining a data object's current annotation "
-            "with the one discovered during indexing."
+            "with the one discovered during indexing. "
+            f"Choices: {annot_update_choice_str}"
         ),
     )
     add_param_option(parser)
