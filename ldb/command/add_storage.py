@@ -38,10 +38,8 @@ def parse_fs_options(
     for k, v in fs_options:
         try:
             result[k] = json.loads(v)
-        except JSONDecodeError as exc:
-            raise ValueError(
-                f"Expected json value for second arg of --option, got {v}",
-            ) from exc
+        except JSONDecodeError:
+            result[k] = v
     return result
 
 
