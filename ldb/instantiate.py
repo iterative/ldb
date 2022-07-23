@@ -102,7 +102,7 @@ def instantiate(
         paths,
         query_args,
         warn=warn,
-        include_transforms=fmt in (Format.STRICT, Format.BARE),
+        include_transforms=fmt in (Format.STRICT, Format.BARE, Format.ANNOT),
     )
     return instantiate_collection(
         ldb_dir,
@@ -430,6 +430,8 @@ class PairInstItem(RawPairInstItem):
 
 @dataclass
 class AnnotationOnlyInstItem(RawPairInstItem):
+    transform_infos: Optional[Collection[TransformInfo]] = None
+
     @cached_property
     def annotation_content(self) -> JSONDecoded:
         annotation: JSONObject = get_annotation(  # type: ignore[assignment]
@@ -448,6 +450,10 @@ class AnnotationOnlyInstItem(RawPairInstItem):
             },
             "annotation": annotation,
         }
+        if self.transform_infos:
+            annotation["ldb-meta"] = {
+                "transforms": [t.to_dict() for t in self.transform_infos],
+            }
         return annotation
 
     def copy_files(self) -> ItemCopyResult:
@@ -600,6 +606,7 @@ def copy_annot(
                     config,
                     data_object_hash,
                     annotation_hash,
+                    config.transform_infos.get(data_object_hash),
                 ),
             )
     _, annot_paths = instantiate_items(items)

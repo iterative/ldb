@@ -165,6 +165,13 @@ class TransformInfo:
                 create_annotations=self.create_annotations,
             ).save(ldb_dir)
 
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "transform": self.transform.to_dict(),
+            "name": self.name,
+            "create_annotations": self.create_annotations,
+        }
+
 
 @dataclass(frozen=True)
 class Transform:
