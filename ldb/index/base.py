@@ -71,6 +71,8 @@ class IndexedObjectResult(NamedTuple):
     new_annotation: bool
     new_data_object_path: bool
     data_object_hash: str
+    annotation_hash: str
+    transform_hashes: Optional[Sequence[str]]
 
 
 @dataclass
@@ -80,7 +82,10 @@ class IndexingResult:
     num_new_data_objects: int = 0
     num_new_annotations: int = 0
     num_new_data_object_paths: int = 0
-    data_object_hashes: List[str] = field(default_factory=list)
+    collection: Dict[str, str] = field(
+        default_factory=dict,
+    )  # TODO: rename
+    transforms: Dict[str, Sequence[str]] = field(default_factory=dict)
 
     def append(self, item: IndexedObjectResult) -> None:
         self.num_found_data_objects += item.found_data_object
@@ -88,7 +93,9 @@ class IndexingResult:
         self.num_new_data_objects += item.new_data_object
         self.num_new_annotations += item.new_annotation
         self.num_new_data_object_paths += item.new_data_object_path
-        self.data_object_hashes.append(item.data_object_hash)
+        self.collection[item.data_object_hash] = item.annotation_hash
+        if item.transform_hashes is not None:
+            self.transforms[item.data_object_hash] = item.transform_hashes
 
     def summary(self, finished: bool = True) -> str:
         if finished:
@@ -101,7 +108,8 @@ class IndexingResult:
             f"  Found annotations:     {self.num_found_annotations:9d}\n"
             f"  New data objects:      {self.num_new_data_objects:9d}\n"
             f"  New annotations:       {self.num_new_annotations:9d}\n"
-            f"  New data object paths: {self.num_new_data_object_paths:9d}"
+            f"  New data object paths: {self.num_new_data_object_paths:9d}\n"
+            f"  Transform sets:        {len(self.transforms):9d}"
         )
 
 
@@ -423,7 +431,7 @@ class IndexingItem(ABC):
 
     @cached_property
     def raw_annotation_content(self) -> JSONDecoded:
-        raise NotImplementedError
+        return None
 
     @cached_property
     def annotation_content(self) -> JSONDecoded:
@@ -489,6 +497,8 @@ class IndexingItem(ABC):
             new_annotation=new_annotation,
             new_data_object_path=self.found_new_data_object_path,
             data_object_hash=self.data_object_hash,
+            annotation_hash=self.annotation_hash,
+            transform_hashes=None,
         )
 
     def data_object_to_write(self) -> List[DataToWrite]:
@@ -563,7 +573,7 @@ class AnnotationFileIndexingItem(IndexingItem):
     @cached_property
     def raw_annotation_content(self) -> JSONDecoded:
         if self.annotation_fsp is None:
-            raise IndexingException("Missing annotation_fsp")
+            return None
         return get_annotation_content(
             *self.annotation_fsp,
         )

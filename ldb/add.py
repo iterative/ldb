@@ -12,6 +12,7 @@ from typing import (
     Iterable,
     Iterator,
     List,
+    Mapping,
     NamedTuple,
     Optional,
     Sequence,
@@ -75,6 +76,7 @@ class AddInput(NamedTuple):
     data_object_hashes: Iterable[str]
     annotation_hashes: Iterable[str]
     message: str
+    transforms: Optional[Mapping[str, Sequence[str]]] = None
 
 
 def get_arg_type(paths: Sequence[str]) -> ArgType:
@@ -119,7 +121,7 @@ def paths_to_dataset(
         transform_infos = paths_to_transforms(ldb_dir, paths)
     else:
         transform_infos = None
-    data_object_hashes, annotation_hashes, message = arg_processing_func(
+    data_object_hashes, annotation_hashes, message, _ = arg_processing_func(
         ldb_dir,
         paths,
     )
@@ -282,11 +284,14 @@ def path_for_add(ldb_dir: Path, paths: Sequence[str]) -> AddInput:
     data_object_hash_iter, data_object_hash_iter2 = tee(
         data_object_hashes_from_path(paths, get_storage_locations(ldb_dir)),
     )
+    transforms: Optional[Dict[str, Sequence[str]]]
     try:
         annotation_hashes = get_current_annotation_hashes_from_file_hashes(
             ldb_dir,
             data_object_hash_iter,
         )
+        if not annotation_hashes:
+            raise DataObjectNotFoundError
     except DataObjectNotFoundError as exc:
         cfg: TOMLDocument = config.load_first() or document()
         auto_index: bool = cfg.get("core", {}).get("auto_index", False)
@@ -305,20 +310,22 @@ def path_for_add(ldb_dir: Path, paths: Sequence[str]) -> AddInput:
                 cfg.get("core", {}).get("read_any_cloud_location", False)
             ),
         )
-        data_object_hashes = indexing_result.data_object_hashes
-        annotation_hashes = get_current_annotation_hashes(
-            ldb_dir,
-            data_object_hashes,
+        data_object_hashes = list(indexing_result.collection.keys())
+        annotation_hashes = list(
+            indexing_result.collection.values(),
         )
         message = indexing_result.summary()
+        transforms = indexing_result.transforms
     else:
         data_object_hashes = [h.value for h in data_object_hash_iter2]
         message = ""
+        transforms = None
 
     return AddInput(
         data_object_hashes,
         annotation_hashes,
         message,
+        transforms=transforms,
     )
 
 
@@ -353,7 +360,12 @@ def add(
     collection_dir_path.mkdir(exist_ok=True)
     transform_dir_path.mkdir(exist_ok=True)
 
-    data_object_hashes, annotation_hashes, message = process_args_for_add(
+    (
+        data_object_hashes,
+        annotation_hashes,
+        message,
+        transform_obj,
+    ) = process_args_for_add(
         ldb_dir,
         paths,
     )
@@ -376,11 +388,12 @@ def add(
         collection_dir_path,
         collection_list,
     )
-    transform_obj = paths_to_transform_ids(
-        ldb_dir,
-        paths,
-        workspace_path=workspace_path,
-    )
+    if transform_obj is None:
+        transform_obj = paths_to_transform_ids(
+            ldb_dir,
+            paths,
+            workspace_path=workspace_path,
+        )
     transform_data = [
         (data_obj_id, json_dumps(transforms))
         for data_obj_id, transforms in transform_obj.items()
@@ -707,7 +720,7 @@ def select_data_object_hashes(
             paths,
         )
     else:
-        data_object_hashes, annotation_hashes, _ = process_args_for_ls(
+        data_object_hashes, annotation_hashes, _, _ = process_args_for_ls(
             ldb_dir,
             paths,
         )
@@ -737,7 +750,7 @@ def sync(
     collection_dir_path = workspace_path / WorkspacePath.COLLECTION
     collection_dir_path.mkdir(exist_ok=True)
 
-    data_object_hashes, annotation_hashes, message = process_args_for_add(
+    data_object_hashes, annotation_hashes, message, _ = process_args_for_add(
         ldb_dir,
         paths,
     )

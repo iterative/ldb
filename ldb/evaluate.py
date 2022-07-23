@@ -30,6 +30,7 @@ def evaluate(
         data_object_hashes,
         annotation_hashes,
         _,
+        _,
     ) = process_args_for_ls(  # pylint: disable=duplicate-code
         ldb_dir,
         paths,
