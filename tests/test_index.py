@@ -40,7 +40,7 @@ class IndexingNums(NamedTuple):
             result.num_found_annotations,
             result.num_new_data_objects,
             result.num_new_annotations,
-            len(result.data_object_hashes),
+            len(result.collection),
         )
 
 

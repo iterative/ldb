@@ -28,7 +28,7 @@ def pull(
     ws_data_object_hashes = set(
         get_collection_dir_keys(workspace_path / WorkspacePath.COLLECTION),
     )
-    data_object_hashes, annotation_hashes, _ = process_args_for_ls(
+    data_object_hashes, annotation_hashes, _, _ = process_args_for_ls(
         ldb_dir,
         paths,
     )

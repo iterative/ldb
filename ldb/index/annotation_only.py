@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import List, Optional
 
 import fsspec
 from fsspec.utils import get_protocol
@@ -19,6 +20,7 @@ from ldb.index.utils import (
     get_annotation_content,
 )
 from ldb.storage import get_containing_storage_location
+from ldb.transform import Transform, TransformInfo
 from ldb.typing import JSONObject
 from ldb.utils import DATA_OBJ_ID_PREFIX, current_time, load_data_file
 
@@ -74,6 +76,21 @@ class AnnotationOnlyIndexingItem(AnnotationFileIndexingItem):
     @cached_property
     def raw_annotation_content(self) -> JSONObject:  # type: ignore[override]
         return self.annotation_file_content["annotation"]  # type: ignore[no-any-return] # noqa: E501
+
+    @cached_property
+    def transform_infos(self) -> Optional[List[TransformInfo]]:
+        try:
+            transforms = self.annotation_file_content["ldb-meta"]["transforms"]
+        except KeyError:
+            return None
+        return [
+            TransformInfo(
+                transform=Transform(**t["transform"]),
+                name=t["name"],
+                create_annotations=t["create_annotations"],
+            )
+            for t in transforms
+        ]
 
     def index_data(self) -> IndexedObjectResult:
         if not self.data_object_hash or not self.data_object_dir.exists():
@@ -150,6 +167,15 @@ class AnnotationOnlyIndexingItem(AnnotationFileIndexingItem):
             new_data_object_path = False
             self.enqueue_data(self.data_object_to_write())
 
+        if self.transform_infos is None:
+            transform_hashes = None
+        else:
+            transform_hashes = []
+            for transform_info in self.transform_infos:
+                transform_info.save(self.ldb_dir)
+                transform_hashes.append(transform_info.transform.obj_id)
+            transform_hashes.sort()
+
         new_annotation = not self.annotation_meta_file_path.is_file()
         self.enqueue_data(self.annotation_to_write())
         self.write_data()
@@ -160,4 +186,6 @@ class AnnotationOnlyIndexingItem(AnnotationFileIndexingItem):
             new_annotation=new_annotation,
             new_data_object_path=new_data_object_path,
             data_object_hash=self.data_object_hash,
+            annotation_hash=self.annotation_hash,
+            transform_hashes=transform_hashes,
         )
