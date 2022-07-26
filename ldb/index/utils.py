@@ -441,7 +441,7 @@ def in_storage_locations(
     storage_locations: Sequence[StorageLocation],
 ) -> bool:
     for loc in storage_locations:
-        if fsp.isin(path, loc.path):
+        if fsp.isin(path.rstrip("/"), loc.path.rstrip("/")):
             return True
     return False
 

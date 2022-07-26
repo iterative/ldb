@@ -9,6 +9,7 @@ from funcy.objects import cached_property
 
 from ldb.data_formats import Format
 from ldb.exceptions import IndexingException
+from ldb.fs.utils import unstrip_protocol
 from ldb.index.base import (
     DataObjectFileIndexingItem,
     PairIndexer,
@@ -74,12 +75,15 @@ class InferredPreprocessor(InferredParamConfig, Preprocessor):
         files, annotation_files = super().files_by_type
         for fs, path_seq in annotation_files.items():
             if path_seq:
-                first_path = path_seq[0]
+                first_path = unstrip_protocol(fs, path_seq[0])
+                num_annotation_files = sum(
+                    len(m) for m in annotation_files.values()
+                )
                 raise IndexingException(
                     "No annotation files should be present for "
                     f"{Format.INFER} format.\n"
-                    f"Found {len(annotation_files)} JSON files.\n"
-                    f"First path: {first_path} (protocol={fs.protocol})",
+                    f"Found {num_annotation_files} JSON files.\n"
+                    f"First path: {first_path}",
                 )
         return files, annotation_files
 
