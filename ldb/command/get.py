@@ -8,6 +8,8 @@ from ldb.get import get
 if TYPE_CHECKING:
     from argparse import _SubParsersAction
 
+    from ldb.cli import ArgumentParserT
+
 
 def instantiate_command(options: Namespace) -> None:
     workspace_path = Path(options.target_dir)
@@ -22,7 +24,7 @@ def instantiate_command(options: Namespace) -> None:
 
 
 def add_parser(
-    subparsers: "_SubParsersAction[ArgumentParser]",
+    subparsers: "_SubParsersAction[ArgumentParserT]",
     parents: Iterable[ArgumentParser],
 ) -> None:
     parser = subparsers.add_parser(

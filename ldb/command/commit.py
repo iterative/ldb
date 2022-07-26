@@ -9,6 +9,8 @@ from ldb.core import get_ldb_instance
 if TYPE_CHECKING:
     from argparse import _SubParsersAction
 
+    from ldb.cli import ArgumentParserT
+
 
 def commit_command(options: Namespace) -> None:
     commit(
@@ -21,7 +23,7 @@ def commit_command(options: Namespace) -> None:
 
 
 def add_parser(
-    subparsers: "_SubParsersAction[ArgumentParser]",
+    subparsers: "_SubParsersAction[ArgumentParserT]",
     parents: Iterable[ArgumentParser],
 ) -> None:
     parser = subparsers.add_parser(

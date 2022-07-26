@@ -1,5 +1,8 @@
-import argparse
-from argparse import ArgumentParser
+import sys
+import traceback
+from argparse import ArgumentParser, Namespace
+from gettext import gettext
+from typing import Any, List, NoReturn, Optional, Sequence, Tuple, TypeVar
 
 from ldb import __version__
 from ldb.command import (
@@ -23,10 +26,44 @@ from ldb.command import (
     tag,
     transform,
 )
+from ldb.exceptions import LDBException
+from ldb.params import InvalidParamError
+from ldb.utils import print_error
+
+ArgumentParserT = TypeVar("ArgumentParserT", bound=ArgumentParser)
+
+
+class LDBArgumentParser(ArgumentParser):
+    def __init__(self, **kwargs: Any) -> None:
+        self.last_used_parser: Optional[ArgumentParser] = None
+        super().__init__(**kwargs)
+
+    def error(self, message: str) -> NoReturn:
+        parser = (
+            self if self.last_used_parser is None else self.last_used_parser
+        )
+        help_message = parser.format_help()
+        args = {"prog": parser.prog, "message": message}
+        message = gettext("%(prog)s: error: %(message)s\n") % args
+        print_error(f"{message}\n{help_message}", end="")
+        self.exit(2)
+
+    def parse_known_args(
+        self,
+        args: Optional[Sequence[str]] = None,
+        namespace: Optional[Namespace] = None,
+    ) -> Tuple[Namespace, List[str]]:
+        namespace, args = super().parse_known_args(args, namespace)
+
+        # cache the final subcommand's parser
+        if not hasattr(namespace, "parser"):
+            namespace.parser = self
+        self.last_used_parser = namespace.parser
+        return namespace, args
 
 
 def get_main_parser() -> ArgumentParser:
-    parent_parser = argparse.ArgumentParser(add_help=False)
+    parent_parser = LDBArgumentParser(add_help=False)
     verbosity_group = parent_parser.add_mutually_exclusive_group()
     verbosity_group.add_argument(
         "-q",
@@ -44,7 +81,7 @@ def get_main_parser() -> ArgumentParser:
     )
     parents = [parent_parser]
 
-    main_parser = argparse.ArgumentParser(
+    main_parser = LDBArgumentParser(
         prog="ldb",
         description="Label Database",
         parents=parents,
@@ -55,7 +92,14 @@ def get_main_parser() -> ArgumentParser:
         action="version",
         version=f"%(prog)s {__version__}",
     )
-    subparsers = main_parser.add_subparsers()
+    subparsers = main_parser.add_subparsers(
+        title="subcommands",
+        description="valid subcommands",
+        metavar="<command>",
+        dest="command",
+        help="Use `ldb <command> -h` for command-specific help.",
+        required=True,
+    )
     add.add_parser(subparsers, parents)
     add_storage.add_parser(subparsers, parents)
     completion.add_parser(subparsers, parents)
@@ -76,3 +120,21 @@ def get_main_parser() -> ArgumentParser:
     tag.add_parser(subparsers, parents)
     transform.add_parser(subparsers, parents)
     return main_parser
+
+
+def handle_exception(exception: BaseException, verbose: int = 0) -> int:
+    if isinstance(exception, (LDBException, InvalidParamError)):
+        print_error(exception)
+    else:
+        print_error(
+            *traceback.format_exception_only(type(exception), exception),
+            end="",
+        )
+    if verbose > 1:
+        traceback.print_exception(
+            type(exception),
+            exception,
+            exception.__traceback__,
+            file=sys.stderr,
+        )
+    return 1

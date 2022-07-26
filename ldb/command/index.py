@@ -19,6 +19,8 @@ from ldb.index.utils import AnnotMergeStrategy
 if TYPE_CHECKING:
     from argparse import _SubParsersAction
 
+    from ldb.cli import ArgumentParserT
+
 
 def index_command(options: Namespace) -> None:
     tags = [t for lst in options.tags for t in lst]
@@ -44,7 +46,7 @@ def index_command(options: Namespace) -> None:
 
 
 def add_parser(
-    subparsers: "_SubParsersAction[ArgumentParser]",
+    subparsers: "_SubParsersAction[ArgumentParserT]",
     parents: Iterable[ArgumentParser],
 ) -> None:
     parser = subparsers.add_parser(

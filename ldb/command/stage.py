@@ -7,6 +7,8 @@ from ldb.stage import stage
 if TYPE_CHECKING:
     from argparse import _SubParsersAction
 
+    from ldb.cli import ArgumentParserT
+
 
 def stage_command(options: Namespace) -> None:
     stage(
@@ -17,7 +19,7 @@ def stage_command(options: Namespace) -> None:
 
 
 def add_parser(
-    subparsers: "_SubParsersAction[ArgumentParser]",
+    subparsers: "_SubParsersAction[ArgumentParserT]",
     parents: Iterable[ArgumentParser],
 ) -> None:
     parser = subparsers.add_parser(

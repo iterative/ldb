@@ -9,6 +9,8 @@ from ldb.transform import UpdateType, add_transform
 if TYPE_CHECKING:
     from argparse import _SubParsersAction
 
+    from ldb.cli import ArgumentParserT
+
 
 def transform_command(options: Namespace) -> None:
     ran_update = False
@@ -50,7 +52,7 @@ def transform_command(options: Namespace) -> None:
 
 
 def add_parser(
-    subparsers: "_SubParsersAction[ArgumentParser]",
+    subparsers: "_SubParsersAction[ArgumentParserT]",
     parents: Iterable[ArgumentParser],
 ) -> None:
     parser = subparsers.add_parser(

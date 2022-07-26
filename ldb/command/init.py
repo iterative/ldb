@@ -10,6 +10,8 @@ from ldb.core import init
 if TYPE_CHECKING:
     from argparse import _SubParsersAction
 
+    from ldb.cli import ArgumentParserT
+
 
 def init_command(options: Namespace) -> None:
     init(options.path, force=options.force, read_any_cloud_location=False)
@@ -17,7 +19,7 @@ def init_command(options: Namespace) -> None:
 
 
 def add_parser(
-    subparsers: "_SubParsersAction[ArgumentParser]",
+    subparsers: "_SubParsersAction[ArgumentParserT]",
     parents: Iterable[ArgumentParser],
 ) -> None:
     parser = subparsers.add_parser(

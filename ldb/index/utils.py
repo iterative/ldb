@@ -32,6 +32,7 @@ from ldb.fs.utils import (
     get_file_hash,
     get_modified_time,
     has_protocol,
+    unstrip_protocol,
 )
 from ldb.func_utils import apply_optional
 from ldb.storage import StorageLocation, get_filesystem
@@ -420,9 +421,10 @@ def validate_locations_in_storage(
         matching_locs = filter_storage_locations(fs, storage_locations)
         for path in paths:
             if not in_storage_locations(path, matching_locs):
+                full_path = unstrip_protocol(fs, path)
                 raise NotAStorageLocationError(
                     "Found file outside of configured storage locations: "
-                    f"{path}",
+                    f"{full_path}",
                 )
 
 

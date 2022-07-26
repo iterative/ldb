@@ -14,6 +14,8 @@ from ldb.storage import FSOptions, add_storage, create_storage_location
 if TYPE_CHECKING:
     from argparse import _SubParsersAction
 
+    from ldb.cli import ArgumentParserT
+
 
 def add_storage_command(options: Namespace) -> None:
     ldb_dir = get_ldb_dir()
@@ -44,7 +46,7 @@ def parse_fs_options(
 
 
 def add_parser(
-    subparsers: "_SubParsersAction[ArgumentParser]",
+    subparsers: "_SubParsersAction[ArgumentParserT]",
     parents: Iterable[ArgumentParser],
 ) -> None:
     parser = subparsers.add_parser(

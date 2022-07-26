@@ -11,6 +11,8 @@ from ldb.utils import DATA_OBJ_ID_PREFIX
 if TYPE_CHECKING:
     from argparse import _SubParsersAction
 
+    from ldb.cli import ArgumentParserT
+
 
 def evaluate_command(options: Namespace) -> None:
     indent = get_indent_value(options.indent)
@@ -39,7 +41,7 @@ def get_indent_value(indent: str) -> Union[str, int, None]:
 
 
 def add_parser(
-    subparsers: "_SubParsersAction[ArgumentParser]",
+    subparsers: "_SubParsersAction[ArgumentParserT]",
     parents: Iterable[ArgumentParser],
 ) -> None:
     parser = subparsers.add_parser(

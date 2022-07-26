@@ -10,6 +10,8 @@ from ldb.pull import pull
 if TYPE_CHECKING:
     from argparse import _SubParsersAction
 
+    from ldb.cli import ArgumentParserT
+
 VERSION_RE = r"^v(\d+)$"
 
 
@@ -44,7 +46,7 @@ def get_version(s: str) -> int:
 
 
 def add_parser(
-    subparsers: "_SubParsersAction[ArgumentParser]",
+    subparsers: "_SubParsersAction[ArgumentParserT]",
     parents: Iterable[ArgumentParser],
 ) -> None:
     help_msg = "Update annotation versions."

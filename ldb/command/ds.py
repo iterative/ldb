@@ -7,6 +7,8 @@ from ldb.ds import delete_datasets, ds, print_ds_listings
 if TYPE_CHECKING:
     from argparse import _SubParsersAction
 
+    from ldb.cli import ArgumentParserT
+
 
 def ds_list_command(
     options: Namespace,  # pylint: disable=unused-argument
@@ -27,7 +29,7 @@ def ds_del_command(
 
 
 def add_parser(
-    subparsers: "_SubParsersAction[ArgumentParser]",
+    subparsers: "_SubParsersAction[ArgumentParserT]",
     parents: Iterable[ArgumentParser],
 ) -> None:
     parser = subparsers.add_parser(

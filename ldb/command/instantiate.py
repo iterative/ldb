@@ -9,6 +9,8 @@ from ldb.instantiate import instantiate
 if TYPE_CHECKING:
     from argparse import _SubParsersAction
 
+    from ldb.cli import ArgumentParserT
+
 
 def instantiate_command(options: Namespace) -> None:
     ldb_dir = get_ldb_instance()
@@ -31,7 +33,7 @@ def instantiate_command(options: Namespace) -> None:
 
 
 def add_parser(
-    subparsers: "_SubParsersAction[ArgumentParser]",
+    subparsers: "_SubParsersAction[ArgumentParserT]",
     parents: Iterable[ArgumentParser],
 ) -> None:
     parser = subparsers.add_parser(

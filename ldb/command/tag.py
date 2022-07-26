@@ -11,6 +11,8 @@ from ldb.utils import DATASET_PREFIX, ROOT
 if TYPE_CHECKING:
     from argparse import _SubParsersAction
 
+    from ldb.cli import ArgumentParserT
+
 
 def tag_command(options: Namespace) -> None:
     paths = options.paths
@@ -44,7 +46,7 @@ def tag_command(options: Namespace) -> None:
 
 
 def add_parser(
-    subparsers: "_SubParsersAction[ArgumentParser]",
+    subparsers: "_SubParsersAction[ArgumentParserT]",
     parents: Iterable[ArgumentParser],
 ) -> None:
     parser = subparsers.add_parser(

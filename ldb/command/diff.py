@@ -16,6 +16,8 @@ from ldb.utils import DATA_OBJ_ID_PREFIX
 if TYPE_CHECKING:
     from argparse import _SubParsersAction
 
+    from ldb.cli import ArgumentParserT
+
 
 def diff_command(options: Namespace) -> None:
     ldb_dir = get_ldb_instance()
@@ -70,7 +72,7 @@ def annotation_version_str(annotation_version: int) -> str:
 
 
 def add_parser(
-    subparsers: "_SubParsersAction[ArgumentParser]",
+    subparsers: "_SubParsersAction[ArgumentParserT]",
     parents: Iterable[ArgumentParser],
 ) -> None:
     parser = subparsers.add_parser(

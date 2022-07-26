@@ -6,6 +6,8 @@ import shtab
 if TYPE_CHECKING:
     from argparse import _SubParsersAction
 
+    from ldb.cli import ArgumentParserT
+
 
 def completion_command(options: Namespace) -> None:
     from ldb.cli import (  # pylint: disable=import-outside-toplevel,cyclic-import # noqa: E501
@@ -18,7 +20,7 @@ def completion_command(options: Namespace) -> None:
 
 
 def add_parser(
-    subparsers: "_SubParsersAction[ArgumentParser]",
+    subparsers: "_SubParsersAction[ArgumentParserT]",
     parents: Iterable[ArgumentParser],
 ) -> None:
     parser = subparsers.add_parser(

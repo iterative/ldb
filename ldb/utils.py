@@ -55,6 +55,21 @@ class StrEnum(str, Enum):
     pass
 
 
+def print_error(
+    *values: object,
+    sep: Optional[str] = " ",
+    end: Optional[str] = "\n",
+    prefix: str = "error:",
+) -> None:
+    print(
+        prefix,
+        *values,
+        sep=sep,
+        end=end,
+        file=sys.stderr,
+    )
+
+
 @overload
 def get_first(
     container: "SupportsGetItem[_KT_contra, _VT_co]",

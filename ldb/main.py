@@ -1,13 +1,10 @@
 __all__ = ["main"]
 
 import sys
-import traceback
 import warnings
 from typing import List, Optional
 
-from ldb.cli import get_main_parser
-from ldb.exceptions import LDBException
-from ldb.params import InvalidParamError
+from ldb.cli import get_main_parser, handle_exception
 from ldb.warnings import SimpleWarningHandler
 
 MIN_PYTHON_VERSION_INFO = (3, 7)
@@ -26,7 +23,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         try:
             func = options.func
         except AttributeError:
-            main_parser.print_usage()
+            main_parser.print_help()
             return 1
         with warnings.catch_warnings():
             warnings.showwarning = SimpleWarningHandler.showwarning
@@ -34,23 +31,3 @@ def main(argv: Optional[List[str]] = None) -> int:
     except Exception as exc:  # pylint: disable=broad-except
         return handle_exception(exc, options.verbose)
     return 0
-
-
-def handle_exception(exception: BaseException, verbose: int = 0) -> int:
-    if isinstance(exception, (LDBException, InvalidParamError)):
-        print("ERROR:", exception, file=sys.stderr)
-    else:
-        print(
-            "ERROR:",
-            *traceback.format_exception_only(type(exception), exception),
-            end="",
-            file=sys.stderr,
-        )
-    if verbose > 1:
-        traceback.print_exception(
-            type(exception),
-            exception,
-            exception.__traceback__,
-            file=sys.stderr,
-        )
-    return 1
