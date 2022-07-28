@@ -18,6 +18,7 @@ def index(
     tags: Collection[str] = (),
     annot_merge_strategy: AnnotMergeStrategy = AnnotMergeStrategy.REPLACE,
     params: Optional[Mapping[str, str]] = None,
+    ephemeral_remote: bool = False,
 ) -> IndexingResult:
     if params is None:
         params = {}
@@ -41,6 +42,7 @@ def index(
                 fmt == Format.STRICT,
                 tags=tags,
                 annot_merge_strategy=annot_merge_strategy,
+                ephemeral_remote=ephemeral_remote,
             )
         elif fmt == Format.ANNOT:
             indexer = AnnotationOnlyIndexer(
@@ -48,6 +50,7 @@ def index(
                 preprocessor,
                 tags=tags,
                 annot_merge_strategy=annot_merge_strategy,
+                ephemeral_remote=ephemeral_remote,
             )
     elif fmt == Format.INFER:
         preprocessor = InferredPreprocessor(
@@ -63,6 +66,7 @@ def index(
             fmt == Format.STRICT,
             tags=tags,
             annot_merge_strategy=annot_merge_strategy,
+            ephemeral_remote=ephemeral_remote,
         )
     elif fmt == Format.LABEL_STUDIO:
         preprocessor = LabelStudioPreprocessor(
@@ -78,6 +82,7 @@ def index(
             fmt == Format.STRICT,
             tags=tags,
             annot_merge_strategy=annot_merge_strategy,
+            ephemeral_remote=ephemeral_remote,
         )
     else:
         raise ValueError(f"Not a valid indexing format: {fmt}")

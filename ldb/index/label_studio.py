@@ -111,6 +111,7 @@ class LabelStudioIndexer(PairIndexer):
         strict_format: bool,
         tags: Collection[str] = (),
         annot_merge_strategy: AnnotMergeStrategy = AnnotMergeStrategy.REPLACE,
+        ephemeral_remote: bool = False,
     ) -> None:
         self.preprocessor: LabelStudioPreprocessor
         if annot_merge_strategy == AnnotMergeStrategy.MERGE:
@@ -125,6 +126,7 @@ class LabelStudioIndexer(PairIndexer):
             strict_format,
             tags,
             annot_merge_strategy,
+            ephemeral_remote,
         )
 
     def _index(self) -> None:
