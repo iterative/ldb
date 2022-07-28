@@ -38,6 +38,7 @@ def index_command(options: Namespace) -> None:
         tags=tags,
         annot_merge_strategy=options.annot_merge_strategy,
         params=dict(options.params),
+        ephemeral_remote=options.ephemeral_remote,
     )
     print(result.summary())
 
@@ -79,6 +80,15 @@ def add_parser(
         ),
     )
     add_param_option(parser)
+    parser.add_argument(
+        "--ephemeral-remote",
+        action="store_true",
+        default=False,
+        help=(
+            "Allow non-storage cloud files to be indexed. They will be "
+            "copied to read-add storage."
+        ),
+    )
     parser.add_argument(  # type: ignore[attr-defined]
         "paths",
         metavar="<path>",

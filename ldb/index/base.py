@@ -159,11 +159,13 @@ class Indexer(ABC):
         preprocessor: Preprocessor,
         tags: Collection[str] = (),
         annot_merge_strategy: AnnotMergeStrategy = AnnotMergeStrategy.REPLACE,
+        ephemeral_remote: bool = False,
     ) -> None:
         self.ldb_dir = ldb_dir
         self.preprocessor = preprocessor
         self.tags = tags
         self.annot_merge_strategy = annot_merge_strategy
+        self.ephemeral_remote = ephemeral_remote
         self.result = IndexingResult()
         self.hashes: Dict[AbstractFileSystem, Dict[str, str]] = {}
 
@@ -190,8 +192,15 @@ class PairIndexer(Indexer):
         strict_format: bool,
         tags: Collection[str] = (),
         annot_merge_strategy: AnnotMergeStrategy = AnnotMergeStrategy.REPLACE,
+        ephemeral_remote: bool = False,
     ) -> None:
-        super().__init__(ldb_dir, preprocessor, tags, annot_merge_strategy)
+        super().__init__(
+            ldb_dir,
+            preprocessor,
+            tags,
+            annot_merge_strategy,
+            ephemeral_remote,
+        )
         self.read_any_cloud_location = read_any_cloud_location
         self.strict_format = strict_format
         self.old_to_new_files: Dict[
@@ -214,16 +223,26 @@ class PairIndexer(Indexer):
         self,
     ) -> Tuple[IndexingJobMapping, FSPathsMapping]:
         storage_locations = self.preprocessor.storage_locations
-        local_files, cloud_files = separate_local_and_cloud_files(
-            self.preprocessor.data_object_paths,
-        )
+        if self.ephemeral_remote:
+            possibly_ephemeral_files = self.preprocessor.data_object_paths
+            storage_only_files: FSPathsMapping = {}
+        else:
+            (
+                possibly_ephemeral_files,
+                storage_only_files,
+            ) = separate_local_and_cloud_files(
+                self.preprocessor.data_object_paths,
+            )
         if not self.read_any_cloud_location:
-            validate_locations_in_storage(cloud_files, storage_locations)
+            validate_locations_in_storage(
+                storage_only_files,
+                storage_locations,
+            )
         (
             local_storage_files,
             ephemeral_files,
         ) = separate_storage_and_non_storage_files(
-            local_files,
+            possibly_ephemeral_files,
             storage_locations,
         )
 
@@ -244,8 +263,9 @@ class PairIndexer(Indexer):
             ephemeral_files,
         )
         files = {
-            fs: cloud_files.get(fs, []) + local_storage_files.get(fs, [])
-            for fs in cloud_files.keys() | local_storage_files.keys()
+            fs: storage_only_files.get(fs, [])
+            + local_storage_files.get(fs, [])
+            for fs in storage_only_files.keys() | local_storage_files.keys()
         }
         annotation_paths = {
             fs: paths.copy()

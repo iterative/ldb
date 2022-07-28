@@ -106,6 +106,7 @@ class InferredIndexer(PairIndexer):
         strict_format: bool,
         tags: Collection[str] = (),
         annot_merge_strategy: AnnotMergeStrategy = AnnotMergeStrategy.REPLACE,
+        ephemeral_remote: bool = False,
     ) -> None:
         self.preprocessor: InferredPreprocessor
         super().__init__(
@@ -115,6 +116,7 @@ class InferredIndexer(PairIndexer):
             strict_format,
             tags,
             annot_merge_strategy,
+            ephemeral_remote,
         )
 
     def infer_annotations(
