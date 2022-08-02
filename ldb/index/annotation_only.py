@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import List, Mapping, Optional
 
 import fsspec
 from fsspec.utils import get_protocol
@@ -54,10 +54,20 @@ class AnnotationOnlyIndexingItem(AnnotationFileIndexingItem):
 
     @cached_property
     def data_object_hash(self) -> str:
+        annot = self.annotation_file_content
+        if not isinstance(annot, Mapping):
+            path = unstrip_protocol(  # type: ignore[unreachable]
+                *self.annotation_fsp,
+            )
+            raise ValueError(
+                "In the annotation-only format, by default each annotation is "
+                "expected to have a top-level JSON object. Found "
+                f"{type(annot).__name__} type instead: {path}",
+            )
         try:
-            return self.annotation_file_content[  # type: ignore[no-any-return]
-                "data-object-info"
-            ]["md5"]
+            return annot["data-object-info"][  # type: ignore[no-any-return]
+                "md5"
+            ]
         except KeyError:
             return ""
 

@@ -1,15 +1,11 @@
-from typing import Any, Dict, Mapping, Optional
-
-from typing_extensions import Protocol
+from typing import Any, Callable, Dict, Mapping, Optional
 
 
 class InvalidParamError(ValueError):
     pass
 
 
-class ParamFunc(Protocol):
-    def __call__(self, key: str) -> Any:
-        ...
+ParamFunc = Callable[[str], Any]
 
 
 class ParamConfig:

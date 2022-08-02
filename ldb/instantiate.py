@@ -25,6 +25,7 @@ import jmespath
 from funcy.objects import cached_property
 
 from ldb.add import TransformInfoMapping, paths_to_dataset
+from ldb.cli_utils import json_bool
 from ldb.data_formats import INSTANTIATE_FORMATS, Format
 from ldb.dataset import OpDef, get_annotation
 from ldb.exceptions import LDBException
@@ -72,6 +73,12 @@ class InstantiateResult(NamedTuple):
     num_annotations: int
 
 
+class AnnotOnlyParamConfig(ParamConfig):
+    PARAM_PROCESSORS = {
+        "single-file": json_bool,
+    }
+
+
 def instantiate(
     ldb_dir: Path,
     dest: Path,
@@ -93,6 +100,8 @@ def instantiate(
 
     if fmt == Format.INFER:
         processed_params = InferredParamConfig().process_params(params, fmt)
+    elif fmt == Format.ANNOT:
+        processed_params = AnnotOnlyParamConfig().process_params(params, fmt)
     else:
         processed_params = ParamConfig().process_params(params, fmt)
 
@@ -200,6 +209,12 @@ def instantiate_collection_directly(
             fmt == Format.STRICT,
         )
     if fmt == Format.ANNOT:
+        single_file = config.params.get("single-file", False)
+        if single_file:
+            return copy_single_annot(
+                config,
+                collection,
+            )
         return copy_annot(
             config,
             collection,
@@ -461,6 +476,15 @@ class AnnotationOnlyInstItem(RawPairInstItem):
 
 
 @dataclass
+class SingleAnnotationInstItem(AnnotationOnlyInstItem):
+    annotation_list: List[JSONDecoded] = field(default_factory=list)
+
+    def copy_annotation(self) -> str:
+        self.annotation_list.append(self.annotation_content)
+        return ""
+
+
+@dataclass
 class InferInstItem(RawPairInstItem):
     annotation_hash: str
     label_key: Sequence[str]
@@ -615,6 +639,36 @@ def copy_annot(
         annot_paths,
         0,
         len(annot_paths),
+    )
+
+
+def copy_single_annot(
+    config: InstConfig,
+    collection: Mapping[str, Optional[str]],
+) -> InstantiateResult:
+    items = []
+    annotation_list: List[JSONDecoded] = []
+    for data_object_hash, annotation_hash in collection.items():
+        if annotation_hash:
+            items.append(
+                SingleAnnotationInstItem(
+                    config,
+                    data_object_hash,
+                    annotation_hash,
+                    config.transform_infos.get(data_object_hash),
+                    annotation_list=annotation_list,
+                ),
+            )
+    instantiate_items(items)
+    annotation = serialize_annotation(annotation_list)
+    annotation_bytes = annotation.encode()
+    dest = Path(os.path.join(config.dest_dir, "dataset.json"))
+    write_data_file(dest, annotation_bytes)
+    return InstantiateResult(
+        [],
+        [],
+        0,
+        len(annotation_list),
     )
 
 
