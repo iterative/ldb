@@ -47,7 +47,7 @@ from ldb.index.utils import (
     separate_storage_and_non_storage_files,
     validate_locations_in_storage,
 )
-from ldb.params import ParamConfig
+from ldb.params import ParamConfig, ParamFunc
 from ldb.path import InstanceDir
 from ldb.storage import StorageLocation
 from ldb.typing import JSONDecoded, JSONObject
@@ -120,7 +120,9 @@ class Preprocessor(ParamConfig):
         storage_locations: Sequence[StorageLocation],
         params: Mapping[str, str],
         fmt: str,
+        param_processors: Optional[Mapping[str, Optional[ParamFunc]]] = None,
     ) -> None:
+        super().__init__(param_processors=param_processors)
         self.paths: List[str] = list(paths)
         self.storage_locations = storage_locations
         self.params = self.process_params(params, fmt)
