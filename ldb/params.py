@@ -11,6 +11,14 @@ ParamFunc = Callable[[str], Any]
 class ParamConfig:
     PARAM_PROCESSORS: Mapping[str, Optional[ParamFunc]] = {}
 
+    def __init__(
+        self,
+        param_processors: Optional[Mapping[str, Optional[ParamFunc]]] = None,
+    ) -> None:
+        self.param_processors = {**self.PARAM_PROCESSORS}
+        if param_processors is not None:
+            self.param_processors.update(param_processors)
+
     def process_params(
         self,
         params: Mapping[str, str],
@@ -19,12 +27,12 @@ class ParamConfig:
         result = {}
         for key, value in params.items():
             try:
-                func = self.PARAM_PROCESSORS[key]
+                func = self.param_processors[key]
             except KeyError as exc:
                 subject_msg = f" for {subject}" if subject else ""
                 base_msg = f"Invalid parameter: {key}"
-                if self.PARAM_PROCESSORS:
-                    params_str = " ".join(self.PARAM_PROCESSORS.keys())
+                if self.param_processors:
+                    params_str = " ".join(self.param_processors.keys())
                     supported_msg = (
                         f"Supported parameters{subject_msg} are: {params_str}"
                     )

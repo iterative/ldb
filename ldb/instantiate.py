@@ -25,11 +25,11 @@ import jmespath
 from funcy.objects import cached_property
 
 from ldb.add import TransformInfoMapping, paths_to_dataset
-from ldb.cli_utils import json_bool
 from ldb.data_formats import INSTANTIATE_FORMATS, Format
 from ldb.dataset import OpDef, get_annotation
 from ldb.exceptions import LDBException
 from ldb.fs.utils import FSProtocol, first_protocol, unstrip_protocol
+from ldb.index.annotation_only import AnnotOnlyParamConfig
 from ldb.index.inferred import InferredParamConfig
 from ldb.params import ParamConfig
 from ldb.path import InstanceDir, WorkspacePath
@@ -71,12 +71,6 @@ class InstantiateResult(NamedTuple):
     annotation_paths: Sequence[str]
     num_data_objects: int
     num_annotations: int
-
-
-class AnnotOnlyParamConfig(ParamConfig):
-    PARAM_PROCESSORS = {
-        "single-file": json_bool,
-    }
 
 
 def instantiate(

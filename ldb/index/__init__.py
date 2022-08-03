@@ -2,7 +2,11 @@ from pathlib import Path
 from typing import Collection, Mapping, Optional, Sequence
 
 from ldb.data_formats import INDEX_FORMATS, Format
-from ldb.index.annotation_only import AnnotationOnlyIndexer
+from ldb.index.annotation_only import (
+    AnnotationOnlyIndexer,
+    AnnotOnlyParamConfig,
+    SingleAnnotationIndexer,
+)
 from ldb.index.base import Indexer, IndexingResult, PairIndexer, Preprocessor
 from ldb.index.inferred import InferredIndexer, InferredPreprocessor
 from ldb.index.label_studio import LabelStudioIndexer, LabelStudioPreprocessor
@@ -27,7 +31,17 @@ def index(
     print(f"Data format: {fmt}")
     storage_locations = get_storage_locations(ldb_dir)
     if fmt in (Format.AUTO, Format.STRICT, Format.BARE, Format.ANNOT):
-        preprocessor = Preprocessor(paths, storage_locations, params, fmt)
+        if fmt == Format.ANNOT:
+            param_processors = AnnotOnlyParamConfig.PARAM_PROCESSORS
+        else:
+            param_processors = None
+        preprocessor = Preprocessor(
+            paths,
+            storage_locations,
+            params,
+            fmt,
+            param_processors=param_processors,
+        )
         if fmt == Format.AUTO:
             fmt = autodetect_format(
                 preprocessor.data_object_paths,
@@ -45,13 +59,22 @@ def index(
                 ephemeral_remote=ephemeral_remote,
             )
         elif fmt == Format.ANNOT:
-            indexer = AnnotationOnlyIndexer(
-                ldb_dir,
-                preprocessor,
-                tags=tags,
-                annot_merge_strategy=annot_merge_strategy,
-                ephemeral_remote=ephemeral_remote,
-            )
+            if preprocessor.params.get("single-file", False):
+                indexer = SingleAnnotationIndexer(
+                    ldb_dir,
+                    preprocessor,
+                    tags=tags,
+                    annot_merge_strategy=annot_merge_strategy,
+                    ephemeral_remote=ephemeral_remote,
+                )
+            else:
+                indexer = AnnotationOnlyIndexer(
+                    ldb_dir,
+                    preprocessor,
+                    tags=tags,
+                    annot_merge_strategy=annot_merge_strategy,
+                    ephemeral_remote=ephemeral_remote,
+                )
     elif fmt == Format.INFER:
         preprocessor = InferredPreprocessor(
             paths,

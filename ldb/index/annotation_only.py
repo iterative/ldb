@@ -1,10 +1,11 @@
-from dataclasses import dataclass
-from typing import List, Mapping, Optional
+from dataclasses import dataclass, field
+from typing import List, Mapping, Optional, Sequence
 
 import fsspec
 from fsspec.utils import get_protocol
 from funcy.objects import cached_property
 
+from ldb.cli_utils import json_bool
 from ldb.exceptions import DataObjectNotFoundError, IndexingException
 from ldb.fs.utils import unstrip_protocol
 from ldb.index.base import (
@@ -19,10 +20,17 @@ from ldb.index.utils import (
     FileSystemPath,
     get_annotation_content,
 )
+from ldb.params import ParamConfig
 from ldb.storage import get_containing_storage_location
 from ldb.transform import Transform, TransformInfo
 from ldb.typing import JSONObject
 from ldb.utils import DATA_OBJ_ID_PREFIX, current_time, load_data_file
+
+
+class AnnotOnlyParamConfig(ParamConfig):
+    PARAM_PROCESSORS = {
+        "single-file": json_bool,
+    }
 
 
 class AnnotationOnlyIndexer(Indexer):
@@ -38,6 +46,31 @@ class AnnotationOnlyIndexer(Indexer):
                     self.preprocessor,
                 )
                 self.result.append(item.index_data())
+
+
+class SingleAnnotationIndexer(Indexer):
+    def _index(self) -> None:
+        for fs, paths in self.preprocessor.annotation_paths.items():
+            for path in paths:
+                content = get_annotation_content(fs, path)
+                if not isinstance(content, Sequence):
+                    raise ValueError(
+                        "In the annotation-only format with the param "
+                        "single-file=true set, each annotation is "
+                        "expected to have a top-level array. Found "
+                        f"{type(content).__name__} type instead: {path}",
+                    )
+                for annot in content:
+                    item = SingleAnnotationIndexingItem(
+                        self.ldb_dir,
+                        current_time(),
+                        self.tags,
+                        self.annot_merge_strategy,
+                        FileSystemPath(fs, path),
+                        self.preprocessor,
+                        content=annot,  # type: ignore[arg-type]
+                    )
+                    self.result.append(item.index_data())
 
 
 @dataclass
@@ -60,7 +93,8 @@ class AnnotationOnlyIndexingItem(AnnotationFileIndexingItem):
                 *self.annotation_fsp,
             )
             raise ValueError(
-                "In the annotation-only format, by default each annotation is "
+                "In the annotation-only format, unless the param "
+                "single-file=true is set, each annotation is "
                 "expected to have a top-level JSON object. Found "
                 f"{type(annot).__name__} type instead: {path}",
             )
@@ -199,3 +233,12 @@ class AnnotationOnlyIndexingItem(AnnotationFileIndexingItem):
             annotation_hash=self.annotation_hash,
             transform_hashes=transform_hashes,
         )
+
+
+@dataclass
+class SingleAnnotationIndexingItem(AnnotationOnlyIndexingItem):
+    content: JSONObject = field(default_factory=dict)
+
+    @cached_property
+    def annotation_file_content(self) -> JSONObject:
+        return self.content
