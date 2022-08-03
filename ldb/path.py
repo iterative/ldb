@@ -21,6 +21,7 @@ class InstanceDir:
     TRANSFORM_MAPPINGS = OBJECTS / "transform_mappings"
     USER_FUNCTIONS = PurePath("custom_code") / "ldb_user_functions"
     USER_FILTERS = PurePath("custom_code") / "ldb_user_filters"
+    USER_TRANSFORMS = PurePath("custom_code") / "ldb_user_transforms"
 
 
 class WorkspacePath:
@@ -31,7 +32,7 @@ class WorkspacePath:
     TMP = BASE / "tmp"
 
 
-INSTANCE_DIRS = (
+REQUIRED_INSTANCE_DIRS = (
     InstanceDir.DATA_OBJECT_INFO,
     InstanceDir.DATASETS,
     InstanceDir.OBJECTS,
@@ -39,8 +40,12 @@ INSTANCE_DIRS = (
     InstanceDir.COLLECTIONS,
     InstanceDir.TRANSFORMS,
     InstanceDir.DATASET_VERSIONS,
+)
+INSTANCE_DIRS = (
+    *REQUIRED_INSTANCE_DIRS,
     InstanceDir.USER_FUNCTIONS,
     InstanceDir.USER_FILTERS,
+    InstanceDir.USER_TRANSFORMS,
 )
 
 

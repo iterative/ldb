@@ -165,7 +165,7 @@ def instantiate_collection(
                     fmt,
                 )
             if apply:
-                paths = [str(ldb_dir / InstanceDir.USER_FILTERS)]
+                paths = [str(ldb_dir / InstanceDir.USER_TRANSFORMS)]
                 apply_transform(
                     apply,
                     final_tmp_dir,
@@ -429,7 +429,14 @@ class PairInstItem(RawPairInstItem):
                 data_str = json.dumps(
                     {"transform_name": info.name, **data},
                 )
-                pipe_to_proc(data_str, info.transform.value)
+                pipe_to_proc(
+                    data_str,
+                    info.transform.value,
+                    paths=[
+                        str(self.config.ldb_dir / InstanceDir.USER_TRANSFORMS),
+                    ],
+                    set_cwd=True,
+                )
             else:
                 raise ValueError(
                     f"Invalid transform type: {info.transform.transform_type}",

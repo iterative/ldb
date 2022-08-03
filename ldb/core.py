@@ -7,7 +7,7 @@ from typing import Optional
 from ldb import config
 from ldb.config import get_default_instance_dir, get_global_base, get_ldb_dir
 from ldb.exceptions import LDBException, LDBInstanceNotFoundError
-from ldb.path import INSTANCE_DIRS, Filename, GlobalDir
+from ldb.path import INSTANCE_DIRS, REQUIRED_INSTANCE_DIRS, Filename, GlobalDir
 from ldb.storage import StorageLocation, add_storage
 
 
@@ -98,7 +98,7 @@ def add_public_data_lakes(ldb_dir: Path) -> None:
 
 
 def is_ldb_instance(path: Path) -> bool:
-    return all((path / subdir).is_dir() for subdir in INSTANCE_DIRS)
+    return all((path / subdir).is_dir() for subdir in REQUIRED_INSTANCE_DIRS)
 
 
 def get_ldb_instance(path: Optional[Path] = None) -> Path:
