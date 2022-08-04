@@ -105,7 +105,8 @@ def instantiate(
         paths,
         query_args,
         warn=warn,
-        include_transforms=fmt in (Format.STRICT, Format.BARE, Format.ANNOT),
+        include_transforms=fmt
+        in (Format.STRICT, Format.BARE, Format.ANNOT, Format.INFER),
     )
     return instantiate_collection(
         ldb_dir,
@@ -385,6 +386,8 @@ class PairInstItem(RawPairInstItem):
         return self.config.intermediate_dir
 
     def instantiate(self) -> ItemCopyResult:
+        # TODO: include in copy_result transform output files, not just
+        # raw instantiated files
         copy_result = self.copy_files()
         data = {
             "output_dir": self.config.dest_dir,
@@ -493,25 +496,11 @@ class InferInstItem(RawPairInstItem):
 
     @cached_property
     def base_dest(self) -> str:
-        parts: List[str] = []
-        key: str
-        label: Union[JSONObject, str]
-        try:
-            label = self.annotation_content  # type: ignore[assignment]
-            for key in self.label_key:
-                label = label[key]  # type: ignore[index]
-        except Exception as exc:
-            # TODO: convert self.label_key to jmespath expression for message
-            raise LDBException(
-                "Annotations for tensorflow-inferred format should contain "
-                f"key: {self.label_key}",
-            ) from exc
-
-        if label != self.base_label:
-            while isinstance(label, dict):
-                key, label = next(iter(label.items()))  # type: ignore[assignment] # noqa: E501
-                parts.append(key)
-            parts.append(label)
+        parts = infer_dir(
+            self.annotation_content,
+            self.label_key,
+            self.base_label,
+        )
         return os.path.join(
             self.dest_dir,
             *parts,
@@ -687,11 +676,30 @@ def copy_infer(
                 "Missing annotation for data object: "
                 f"{DATA_OBJ_ID_PREFIX}{data_object_hash}",
             )
-    items = []
-    for data_object_hash, annotation_hash in cast(
-        Mapping[str, str],
+    collection = cast(Mapping[str, str], collection)
+    if config.transform_infos:
+        return _copy_infer_with_transforms(
+            config,
+            collection,
+            label_key,
+            base_label,
+        )
+    return _copy_infer_without_transforms(
+        config,
         collection,
-    ).items():
+        label_key,
+        base_label,
+    )
+
+
+def _copy_infer_without_transforms(
+    config: InstConfig,
+    collection: Mapping[str, str],
+    label_key: Sequence[str],
+    base_label: str,
+) -> InstantiateResult:
+    items = []
+    for data_object_hash, annotation_hash in collection.items():
         items.append(
             InferInstItem(
                 config,
@@ -708,6 +716,91 @@ def copy_infer(
         len(data_obj_paths),
         0,
     )
+
+
+def _copy_infer_with_transforms(
+    config: InstConfig,
+    collection: Mapping[str, str],
+    label_key: Sequence[str],
+    base_label: str,
+) -> InstantiateResult:
+    result = copy_pairs(
+        config,
+        collection,
+        strict=False,
+    )
+
+    collection = {}
+    annotation_paths = set()
+    data_object_paths = set()
+    for path in os.listdir(config.dest_dir):
+        if path.endswith(".json"):
+            annotation_paths.add(os.path.join(config.dest_dir, path))
+        else:
+            data_object_paths.add(os.path.join(config.dest_dir, path))
+
+    for path in data_object_paths:
+        base, _ = os.path.splitext(path)
+        annot_path = f"{base}.json"
+        if annot_path in annotation_paths:
+            collection[path] = annot_path
+
+    pairs_to_inferred_dirs(
+        str(config.dest_dir),
+        collection.items(),
+        label_key,
+        base_label,
+    )
+    for path in annotation_paths | (data_object_paths - collection.keys()):
+        os.unlink(path)
+    return result
+
+
+def pairs_to_inferred_dirs(
+    dir_path: str,
+    path_mapping: Iterable[Tuple[str, str]],
+    label_key: Sequence[str],
+    base_label: str = "",
+) -> None:
+    for data_object_path, annotation_path in path_mapping:
+        with open(annotation_path, encoding="utf-8") as f:
+            raw_content = f.read()
+        annot = json.loads(raw_content)
+        path_parts = infer_dir(annot, label_key, base_label)
+        dest = os.path.join(
+            dir_path,
+            *path_parts,
+            os.path.basename(data_object_path),
+        )
+        os.makedirs(os.path.dirname(dest), exist_ok=True)
+        shutil.move(data_object_path, dest)
+
+
+def infer_dir(
+    annotation: JSONDecoded,
+    label_key: Sequence[str],
+    base_label: str = "",
+) -> List[str]:
+    parts: List[str] = []
+    key: str
+    label: Union[JSONObject, str]
+    try:
+        label = annotation  # type: ignore[assignment]
+        for key in label_key:
+            label = label[key]  # type: ignore[index]
+    except Exception as exc:
+        # TODO: convert self.label_key to jmespath expression for message
+        raise LDBException(
+            "Annotations for tensorflow-inferred format should contain "
+            f"key: {label_key}",
+        ) from exc
+
+    if label != base_label:
+        while isinstance(label, dict):
+            key, label = next(iter(label.items()))  # type: ignore[assignment] # noqa: E501
+            parts.append(key)
+        parts.append(label)
+    return parts
 
 
 def copy_label_studio(
