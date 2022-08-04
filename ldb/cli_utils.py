@@ -31,6 +31,12 @@ def simple_name_list(value: str) -> List[str]:
     return result
 
 
+def ws_path_identifier(ws_path: str) -> str:
+    if ws_path.startswith("ws:"):
+        return ws_path[3:]
+    raise ValueError("workspace path identifier must begin with 'ws:'")
+
+
 class ExtendAction(Action):
     def __call__(
         self,

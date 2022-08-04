@@ -9,6 +9,7 @@ from ldb.cli_utils import (
     add_param_option,
     choice_str,
     simple_name_list,
+    ws_path_identifier,
 )
 from ldb.config import ConfigType
 from ldb.core import get_ldb_instance
@@ -41,6 +42,7 @@ def index_command(options: Namespace) -> None:
         annot_merge_strategy=options.annot_merge_strategy,
         params=dict(options.params),
         ephemeral_remote=options.ephemeral_remote,
+        workspace_path=options.workspace_path,
     )
     print(result.summary())
 
@@ -89,6 +91,18 @@ def add_parser(
         help=(
             "Allow non-storage cloud files to be indexed. They will be "
             "copied to read-add storage."
+        ),
+    )
+    parser.add_argument(
+        "-a",
+        "--add",
+        metavar="<ws-path>",
+        dest="workspace_path",
+        type=ws_path_identifier,
+        help=(
+            "Add the indexed result to this workspace dataset. Argument must "
+            "be a path prefixed with 'ws:'. Use 'ws:.' for the current "
+            "workspace."
         ),
     )
     parser.add_argument(  # type: ignore[attr-defined]
