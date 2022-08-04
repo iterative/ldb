@@ -53,7 +53,7 @@ def get(
         paths,
         query_args,
         ldb_dir=ldb_dir,
-    )
+    ).collection
     transform_infos = paths_to_transforms(ldb_dir, paths)
     print("Instantiating data...\n")
     result = instantiate_collection(

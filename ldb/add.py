@@ -79,6 +79,22 @@ class AddInput(NamedTuple):
     transforms: Optional[Mapping[str, Sequence[str]]] = None
 
 
+class AddResult(NamedTuple):
+    collection: List[Tuple[str, str]]
+    num_data_objects: int
+    num_transforms: int
+    dataset_name: str
+    workspace_path: str
+
+    def summary(self) -> str:
+        ds_ident = format_dataset_identifier(self.dataset_name)
+        return (
+            f"Added {self.num_data_objects} data objects to {ds_ident} at "
+            f"ws:{self.workspace_path}\n"
+            f"Updated {self.num_transforms} transforms"
+        )
+
+
 def get_arg_type(paths: Sequence[str]) -> ArgType:
     if any(p.startswith(DATASET_PREFIX) for p in paths):
         return ArgType.DATASET
@@ -343,7 +359,7 @@ def add(
     query_args: Iterable[OpDef],
     ldb_dir: Optional[Path] = None,
     warn: bool = False,
-) -> List[Tuple[str, str]]:
+) -> AddResult:
     if not paths:
         if not query_args:
             raise LDBException(
@@ -402,10 +418,13 @@ def add(
         transform_dir_path,
         transform_data,
     )
-    ds_ident = format_dataset_identifier(ds_name)
-    print(f"Added {num_data_objects} data objects to {ds_ident}")
-    print(f"Updated {num_transforms} transforms")
-    return collection_list
+    return AddResult(
+        collection_list,
+        num_data_objects,
+        num_transforms,
+        ds_name,
+        str(workspace_path),
+    )
 
 
 def add_to_collection_dir(

@@ -12,11 +12,12 @@ if TYPE_CHECKING:
 
 
 def add_command(options: Namespace) -> None:
-    add(
+    result = add(
         Path("."),
         options.paths,
         options.query_args,
     )
+    print(result.summary())
 
 
 def add_parser(

@@ -3,6 +3,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from typing import (
+    TYPE_CHECKING,
     Any,
     Collection,
     Dict,
@@ -61,6 +62,9 @@ from ldb.utils import (
     write_data_file,
 )
 
+if TYPE_CHECKING:
+    from ldb.add import AddResult
+
 ENDING_DOUBLE_STAR_RE = r"(?:/+\*\*)+/*$"
 
 
@@ -84,8 +88,9 @@ class IndexingResult:
     num_new_data_object_paths: int = 0
     collection: Dict[str, str] = field(
         default_factory=dict,
-    )  # TODO: rename
+    )
     transforms: Dict[str, Sequence[str]] = field(default_factory=dict)
+    add_result: Optional["AddResult"] = None
 
     def append(self, item: IndexedObjectResult) -> None:
         self.num_found_data_objects += item.found_data_object
@@ -102,6 +107,11 @@ class IndexingResult:
             heading = "Finished indexing"
         else:
             heading = "Unable to finish indexing. Partial indexing results"
+
+        if self.add_result is None:
+            ending = ""
+        else:
+            ending = f"\n\n{self.add_result.summary()}"
         return (
             f"\n{heading}:\n"
             f"  Found data objects:    {self.num_found_data_objects:9d}\n"
@@ -110,6 +120,7 @@ class IndexingResult:
             f"  New annotations:       {self.num_new_annotations:9d}\n"
             f"  New data object paths: {self.num_new_data_object_paths:9d}\n"
             f"  Transform sets:        {len(self.transforms):9d}"
+            f"{ending}"
         )
 
 
