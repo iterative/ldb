@@ -285,9 +285,12 @@ class InstItem:
 
     @cached_property
     def base_dest(self) -> str:
+        prefix = self.prefix
+        obj_id = self.data_object_hash
+        name = prefix if prefix.endswith(obj_id) else f"{prefix}-{obj_id}"
         return os.path.join(
             self.dest_dir,
-            self.prefix + self.data_object_hash,
+            name,
         )
 
     @cached_property
@@ -501,10 +504,13 @@ class InferInstItem(RawPairInstItem):
             self.label_key,
             self.base_label,
         )
+        prefix = self.prefix
+        obj_id = self.data_object_hash
+        name = prefix if prefix.endswith(obj_id) else f"{prefix}-{obj_id}"
         return os.path.join(
             self.dest_dir,
             *parts,
-            self.prefix + self.data_object_hash,
+            name,
         )
 
     def copy_files(self) -> ItemCopyResult:
@@ -549,7 +555,7 @@ def serialize_annotation(annotation: JSONDecoded) -> str:
 def get_prefix_ext(path: str) -> Tuple[str, str]:
     prefix = path.rsplit("/", 1)[-1].rsplit("\\", 1)[-1]
     prefix, ext = os.path.splitext(prefix)
-    prefix = prefix.replace(".", "-") + "-"
+    prefix = prefix.replace(".", "-")
     return prefix, ext
 
 
