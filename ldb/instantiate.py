@@ -21,13 +21,15 @@ from typing import (
     cast,
 )
 
+import fsspec
 import jmespath
+from fsspec.utils import get_protocol
 from funcy.objects import cached_property
 
 from ldb.add import TransformInfoMapping, paths_to_dataset
 from ldb.data_formats import INSTANTIATE_FORMATS, Format
 from ldb.dataset import OpDef, get_annotation
-from ldb.exceptions import LDBException
+from ldb.exceptions import LDBException, WorkspaceError
 from ldb.fs.utils import FSProtocol, first_protocol, unstrip_protocol
 from ldb.index.annotation_only import AnnotOnlyParamConfig
 from ldb.index.inferred import InferredParamConfig
@@ -75,7 +77,7 @@ class InstantiateResult(NamedTuple):
 
 def instantiate(
     ldb_dir: Path,
-    dest: Path,
+    dest: str,
     paths: Sequence[str] = (),
     query_args: Iterable[OpDef] = (),
     fmt: str = Format.BARE,
@@ -92,6 +94,27 @@ def instantiate(
     if params is None:
         params = {}
 
+    dest_protocol = get_protocol(dest)
+    if dest_protocol == "file":
+        remote_fs = None
+        local_dest_path = Path(dest)
+    else:
+        remote_fs = fsspec.filesystem(dest_protocol)
+        try:
+            if remote_fs.isfile(dest) or remote_fs.ls(dest):
+                raise WorkspaceError(
+                    f"Not a workspace or an empty directory: {dest}",
+                )
+        except OSError:
+            pass
+        local_tmp_dir = (
+            tempfile.TemporaryDirectory(  # pylint: disable=consider-using-with
+                prefix="ldb-",
+            )
+        )
+        local_dest_path = Path(local_tmp_dir.name)
+        print(f"Using local temp dir: {local_tmp_dir.name}")
+
     if fmt == Format.INFER:
         processed_params = InferredParamConfig().process_params(params, fmt)
     elif fmt == Format.ANNOT:
@@ -99,7 +122,8 @@ def instantiate(
     else:
         processed_params = ParamConfig().process_params(params, fmt)
 
-    make_target_dir(dest, parents=make_parent_dirs)
+    if remote_fs is None:
+        make_target_dir(dest, parents=make_parent_dirs)
     collection, transform_infos = paths_to_dataset(
         ldb_dir,
         paths,
@@ -108,16 +132,20 @@ def instantiate(
         include_transforms=fmt
         in (Format.STRICT, Format.BARE, Format.ANNOT, Format.INFER),
     )
-    return instantiate_collection(
+    result = instantiate_collection(
         ldb_dir,
         dict(collection),
-        dest,
+        local_dest_path,
         transform_infos=transform_infos,
         fmt=fmt,
         force=force,
         apply=apply,
         params=processed_params,
     )
+    if remote_fs is not None:
+        print(f"Transferring to remote path: {dest}")
+        remote_fs.put(os.fspath(local_dest_path), dest, recursive=True)
+    return result
 
 
 def instantiate_collection(
