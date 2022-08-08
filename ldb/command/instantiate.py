@@ -1,5 +1,4 @@
 from argparse import ArgumentParser, Namespace
-from pathlib import Path
 from typing import TYPE_CHECKING, Iterable
 
 from ldb.cli_utils import add_instantiate_arguments
@@ -16,7 +15,7 @@ def instantiate_command(options: Namespace) -> None:
     ldb_dir = get_ldb_instance()
     result = instantiate(
         ldb_dir,
-        Path(options.target_dir),
+        options.target_dir,
         options.paths,
         options.query_args,
         fmt=options.format,
