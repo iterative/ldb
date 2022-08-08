@@ -5,9 +5,9 @@ from typing import Any, Tuple, Union
 
 from dvc_objects.fs.local import LocalFileSystem
 
-from ldb.dataset import Dataset
 from ldb.db.obj import ObjectDB
 from ldb.exceptions import DatasetNotFoundError
+from ldb.objects.dataset import Dataset
 from ldb.path import InstanceDir
 
 

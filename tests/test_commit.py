@@ -2,8 +2,9 @@ import getpass
 import os
 from pathlib import Path
 
-from ldb.dataset import CommitInfo, Dataset
+from ldb.dataset import CommitInfo
 from ldb.main import main
+from ldb.objects.dataset import Dataset
 from ldb.objects.dataset_version import DatasetVersion
 from ldb.path import InstanceDir
 from ldb.utils import current_time, load_data_file

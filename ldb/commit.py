@@ -3,15 +3,12 @@ import os
 from pathlib import Path
 from typing import Optional
 
-from ldb.dataset import (
-    CommitInfo,
-    Dataset,
-    ensure_all_collection_dir_keys_contained,
-)
+from ldb.dataset import CommitInfo, ensure_all_collection_dir_keys_contained
 from ldb.db.collection import CollectionDB
 from ldb.db.dataset import DatasetDB
 from ldb.db.dataset_version import DatasetVersionDB
 from ldb.exceptions import DatasetNotFoundError
+from ldb.objects.dataset import Dataset
 from ldb.objects.dataset_version import DatasetVersion
 from ldb.path import InstanceDir, WorkspacePath
 from ldb.transform import save_transform_object

@@ -8,9 +8,10 @@ from tomlkit.toml_document import TOMLDocument
 from ldb import config
 from ldb.config import ConfigType
 from ldb.core import get_ldb_instance
-from ldb.dataset import Dataset, get_collection_dir_items
+from ldb.dataset import get_collection_dir_items
 from ldb.exceptions import WorkspaceError
 from ldb.main import main
+from ldb.objects.dataset import Dataset
 from ldb.path import InstanceDir, WorkspacePath
 from ldb.stage import stage_with_instance
 from ldb.transform import get_transform_mapping_dir_items

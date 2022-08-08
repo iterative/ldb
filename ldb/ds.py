@@ -3,12 +3,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable, Iterator
 
-from ldb.dataset import (
-    Dataset,
-    get_all_dataset_version_identifiers,
-    iter_datasets,
-)
+from ldb.dataset import get_all_dataset_version_identifiers, iter_datasets
 from ldb.exceptions import DatasetNotFoundError
+from ldb.objects.dataset import Dataset
 from ldb.objects.dataset_version import DatasetVersion
 from ldb.path import InstanceDir
 from ldb.utils import (
