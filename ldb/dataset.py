@@ -2,14 +2,13 @@ import json
 import os
 import random
 from abc import ABC
-from collections import UserDict, abc, defaultdict
+from collections import abc, defaultdict
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from glob import iglob
 from itertools import tee
 from pathlib import Path
 from typing import (
-    TYPE_CHECKING,
     Any,
     Callable,
     Collection,
@@ -29,6 +28,7 @@ from funcy.objects import cached_property
 from ldb.collections import LDBMappingCache
 from ldb.exceptions import DataObjectNotFoundError, LDBException
 from ldb.iter_utils import take
+from ldb.objects.collection import CollectionObject
 from ldb.objects.dataset import Dataset
 from ldb.op_type import OpType
 from ldb.path import InstanceDir
@@ -46,8 +46,6 @@ from ldb.utils import (
     format_dataset_identifier,
     format_datetime,
     get_hash_path,
-    hash_data,
-    json_dumps,
     load_data_file,
     parse_datetime,
 )
@@ -79,37 +77,6 @@ class CommitInfo:
             commit_time=format_datetime(attr_dict.pop("commit_time")),
             **attr_dict,
         )
-
-
-if TYPE_CHECKING:
-    BaseCollectionObject = UserDict[str, Optional[str]]
-else:
-    BaseCollectionObject = UserDict
-
-
-class CollectionObject(BaseCollectionObject):
-    def __init__(
-        self,
-        dict: Optional[  # pylint: disable=redefined-builtin
-            Union[
-                Mapping[str, Optional[str]],
-                Iterable[Tuple[str, Optional[str]]],
-            ]
-        ] = None,
-        /,
-        **kwargs: Any,
-    ) -> None:
-        super().__init__(dict, **kwargs)
-        self.bytes: bytes = b""
-        self.oid: str = ""
-
-    def digest(self) -> None:
-        self.bytes = json_dumps(self.data).encode()
-        self.oid = hash_data(self.bytes)
-
-
-class ObjectIDMapping(Dict[str, str]):
-    pass
 
 
 def iter_collection_dir(collection_dir: Union[str, Path]) -> Iterator[str]:

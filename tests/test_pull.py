@@ -1,7 +1,7 @@
 import pytest
 
-from ldb.dataset import CollectionObject
 from ldb.main import main
+from ldb.objects.collection import CollectionObject
 from ldb.path import WorkspacePath
 from ldb.utils import DATASET_PREFIX, ROOT
 from ldb.workspace import collection_dir_to_object

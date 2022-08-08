@@ -3,8 +3,9 @@ from enum import IntEnum
 from pathlib import Path
 from typing import Iterable, Iterator, Mapping, Optional, Tuple
 
-from ldb.dataset import CollectionObject, get_collection
+from ldb.dataset import get_collection
 from ldb.exceptions import LDBException
+from ldb.objects.collection import CollectionObject
 from ldb.objects.dataset import Dataset
 from ldb.path import InstanceDir, WorkspacePath
 from ldb.utils import (
