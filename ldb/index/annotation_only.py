@@ -35,42 +35,63 @@ class AnnotOnlyParamConfig(ParamConfig):
 
 class AnnotationOnlyIndexer(Indexer):
     def _index(self) -> None:
-        for fs, paths in self.preprocessor.annotation_paths.items():
-            for path in paths:
-                item = AnnotationOnlyIndexingItem(
-                    self.ldb_dir,
-                    current_time(),
-                    self.tags,
-                    self.annot_merge_strategy,
-                    FileSystemPath(fs, path),
-                    self.preprocessor,
-                )
-                self.result.append(item.index_data())
-
-
-class SingleAnnotationIndexer(Indexer):
-    def _index(self) -> None:
-        for fs, paths in self.preprocessor.annotation_paths.items():
-            for path in paths:
-                content = get_annotation_content(fs, path)
-                if not isinstance(content, Sequence):
-                    raise ValueError(
-                        "In the annotation-only format with the param "
-                        "single-file=true set, each annotation is "
-                        "expected to have a top-level array. Found "
-                        f"{type(content).__name__} type instead: {path}",
-                    )
-                for annot in content:
-                    item = SingleAnnotationIndexingItem(
+        annotation_paths = self.preprocessor.annotation_paths
+        print("Indexing data...")
+        with self.progress_bar() as bar:
+            num_files = sum(
+                map(len, annotation_paths.values()),
+            )
+            task = bar.add_task("index_files", total=num_files)
+            for fs, paths in annotation_paths.items():
+                for path in paths:
+                    item = AnnotationOnlyIndexingItem(
                         self.ldb_dir,
                         current_time(),
                         self.tags,
                         self.annot_merge_strategy,
                         FileSystemPath(fs, path),
                         self.preprocessor,
-                        content=annot,  # type: ignore[arg-type]
                     )
                     self.result.append(item.index_data())
+                    bar.update(task, advance=1)
+
+
+class SingleAnnotationIndexer(Indexer):
+    def _index(self) -> None:
+        annotation_paths = self.preprocessor.annotation_paths
+        print("Indexing data...")
+        with self.progress_bar() as bar:
+            num_files = sum(
+                map(len, annotation_paths.values()),
+            )
+            task = bar.add_task("index_files", total=num_files)
+            for fs, paths in annotation_paths.items():
+                for path in paths:
+                    content = get_annotation_content(fs, path)
+                    if not isinstance(content, Sequence):
+                        raise ValueError(
+                            "In the annotation-only format with the param "
+                            "single-file=true set, each annotation is "
+                            "expected to have a top-level array. Found "
+                            f"{type(content).__name__} type instead: {path}",
+                        )
+                    annot_task = bar.add_task(
+                        "index_annotations",
+                        total=len(content),
+                    )
+                    for annot in content:
+                        item = SingleAnnotationIndexingItem(
+                            self.ldb_dir,
+                            current_time(),
+                            self.tags,
+                            self.annot_merge_strategy,
+                            FileSystemPath(fs, path),
+                            self.preprocessor,
+                            content=annot,  # type: ignore[arg-type]
+                        )
+                        self.result.append(item.index_data())
+                        bar.update(annot_task, advance=1)
+                    bar.update(task, advance=1)
 
 
 @dataclass

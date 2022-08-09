@@ -145,20 +145,24 @@ class LabelStudioIndexer(PairIndexer):
     ) -> None:
         annot_iter = iter(annotations)
 
-        for fs, jobs in indexing_jobs.items():
-            for config, path_seq in jobs:
-                for data_object_path in path_seq:
-                    obj_result = InferredIndexingItem(
-                        self.ldb_dir,
-                        current_time(),
-                        tags,
-                        AnnotMergeStrategy.REPLACE,
-                        FileSystemPath(fs, data_object_path),
-                        config.save_data_object_path_info,
-                        self.hashes,
-                        next(annot_iter),
-                    ).index_data()
-                    self.result.append(obj_result)
+        print("Indexing data...")
+        with self.progress_bar() as bar:
+            task = bar.add_task("index_files", total=len(annotations))
+            for fs, jobs in indexing_jobs.items():
+                for config, path_seq in jobs:
+                    for data_object_path in path_seq:
+                        obj_result = InferredIndexingItem(
+                            self.ldb_dir,
+                            current_time(),
+                            tags,
+                            AnnotMergeStrategy.REPLACE,
+                            FileSystemPath(fs, data_object_path),
+                            config.save_data_object_path_info,
+                            self.hashes,
+                            next(annot_iter),
+                        ).index_data()
+                        self.result.append(obj_result)
+                        bar.update(task, advance=1)
 
 
 def infer_data_object_path_key(annot: JSONObject) -> str:

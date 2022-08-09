@@ -1,4 +1,5 @@
 from abc import ABC
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
@@ -7,6 +8,7 @@ from typing import (
     Any,
     Collection,
     Dict,
+    Generator,
     Iterable,
     List,
     Mapping,
@@ -18,6 +20,7 @@ from typing import (
 
 from fsspec.spec import AbstractFileSystem
 from funcy.objects import cached_property
+from rich.progress import Progress
 
 from ldb.dataset import (
     get_annotation,
@@ -140,6 +143,7 @@ class Preprocessor(ParamConfig):
         self.params = self.process_params(params, fmt)
 
     def get_storage_files(self) -> FSPathsMapping:
+        print("Collecting paths...")
         return expand_indexing_paths(
             self.paths,
             self.storage_locations,
@@ -182,6 +186,7 @@ class Indexer(ABC):
         self.ephemeral_remote = ephemeral_remote
         self.result = IndexingResult()
         self.hashes: Dict[AbstractFileSystem, Dict[str, str]] = {}
+        self.disable_progress_bar = False
 
     def index(self) -> None:
         try:
@@ -195,6 +200,14 @@ class Indexer(ABC):
 
     def process_files(self) -> Any:
         raise NotImplementedError
+
+    @contextmanager
+    def progress_bar(self) -> Generator[Progress, None, None]:
+        with get_progressbar(
+            transient=True,
+            disable=self.disable_progress_bar,
+        ) as progress:
+            yield progress
 
 
 class PairIndexer(Indexer):
@@ -354,8 +367,9 @@ class PairIndexer(Indexer):
             for jobs in indexing_jobs.values()
             for _, path_seq in jobs
         )
-        with get_progressbar(transient=True) as progress:
-            task = progress.add_task("Index", total=num_files)
+        print("Indexing data...")
+        with self.progress_bar() as bar:
+            task = bar.add_task("index_files", total=num_files)
             for fs, jobs in indexing_jobs.items():
                 fs_annotation_paths = set(annotation_paths.get(fs, []))
                 for config, path_seq in jobs:
@@ -379,7 +393,7 @@ class PairIndexer(Indexer):
                                 self.annot_merge_strategy,
                             )
                             self.result.append(obj_result)
-                        progress.update(task, advance=1)
+                        bar.update(task, advance=1)
 
     def index_single_pair(
         self,
