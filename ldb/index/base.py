@@ -50,6 +50,7 @@ from ldb.index.utils import (
 )
 from ldb.params import ParamConfig, ParamFunc
 from ldb.path import InstanceDir
+from ldb.progress import get_progressbar
 from ldb.storage import StorageLocation
 from ldb.typing import JSONDecoded, JSONObject
 from ldb.utils import (
@@ -348,29 +349,37 @@ class PairIndexer(Indexer):
         indexing_jobs: IndexingJobMapping,
         annotation_paths: FSPathsMapping,
     ) -> None:
-        for fs, jobs in indexing_jobs.items():
-            fs_annotation_paths = set(annotation_paths.get(fs, []))
-            for config, path_seq in jobs:
-                for data_object_path in path_seq:
-                    annotation_path = data_object_path_to_annotation_path(
-                        data_object_path,
-                    )
-                    try:
-                        fs_annotation_paths.remove(
-                            annotation_path,
-                        )
-                    except KeyError:
-                        annotation_path = ""
-                    if not self.strict_format or annotation_path:
-                        obj_result = self.index_single_pair(
-                            fs,
+        num_files = sum(
+            len(path_seq)
+            for jobs in indexing_jobs.values()
+            for _, path_seq in jobs
+        )
+        with get_progressbar(transient=True) as progress:
+            task = progress.add_task("Index", total=num_files)
+            for fs, jobs in indexing_jobs.items():
+                fs_annotation_paths = set(annotation_paths.get(fs, []))
+                for config, path_seq in jobs:
+                    for data_object_path in path_seq:
+                        annotation_path = data_object_path_to_annotation_path(
                             data_object_path,
-                            config.save_data_object_path_info,
-                            annotation_path,
-                            self.tags,
-                            self.annot_merge_strategy,
                         )
-                        self.result.append(obj_result)
+                        try:
+                            fs_annotation_paths.remove(
+                                annotation_path,
+                            )
+                        except KeyError:
+                            annotation_path = ""
+                        if not self.strict_format or annotation_path:
+                            obj_result = self.index_single_pair(
+                                fs,
+                                data_object_path,
+                                config.save_data_object_path_info,
+                                annotation_path,
+                                self.tags,
+                                self.annot_merge_strategy,
+                            )
+                            self.result.append(obj_result)
+                        progress.update(task, advance=1)
 
     def index_single_pair(
         self,
