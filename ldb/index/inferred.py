@@ -65,6 +65,7 @@ class InferredPreprocessor(InferredParamConfig, Preprocessor):
         return file_seqs
 
     def get_storage_files(self) -> Dict[AbstractFileSystem, List[str]]:
+        print("\nCollecting paths...")
         return {
             fs: list(chain(*seqs.values()))
             for fs, seqs in self.dir_path_to_files.items()
@@ -203,25 +204,34 @@ class InferredIndexer(PairIndexer):
         tags: Collection[str],
         annot_merge_strategy: AnnotMergeStrategy = AnnotMergeStrategy.REPLACE,
     ) -> None:
-        for fs, jobs in indexing_jobs.items():
-            for config, path_seq in jobs:
-                for data_object_path in path_seq:
-                    annot = annotations_by_data_object_path[
-                        fs,
-                        data_object_path,
-                    ]
-                    if annot is not None:
-                        item = InferredIndexingItem(
-                            self.ldb_dir,
-                            current_time(),
-                            tags,
-                            annot_merge_strategy,
-                            FileSystemPath(fs, data_object_path),
-                            config.save_data_object_path_info,
-                            self.hashes,
-                            annot,
-                        )
-                        self.result.append(item.index_data())
+        print("Indexing data...")
+        with self.progress_bar() as bar:
+            num_files = sum(
+                len(path_seq)
+                for jobs in indexing_jobs.values()
+                for _, path_seq in jobs
+            )
+            task = bar.add_task("index_files", total=num_files)
+            for fs, jobs in indexing_jobs.items():
+                for config, path_seq in jobs:
+                    for data_object_path in path_seq:
+                        annot = annotations_by_data_object_path[
+                            fs,
+                            data_object_path,
+                        ]
+                        if annot is not None:
+                            item = InferredIndexingItem(
+                                self.ldb_dir,
+                                current_time(),
+                                tags,
+                                annot_merge_strategy,
+                                FileSystemPath(fs, data_object_path),
+                                config.save_data_object_path_info,
+                                self.hashes,
+                                annot,
+                            )
+                            self.result.append(item.index_data())
+                        bar.update(task, advance=1)
 
 
 @dataclass

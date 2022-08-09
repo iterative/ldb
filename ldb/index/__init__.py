@@ -121,7 +121,6 @@ def index(
     if indexer is None:
         raise ValueError(f"Not a valid indexing format: {fmt}")
 
-    print("\nIndexing paths...")
     indexer.index()
     if workspace_path is not None:
         from ldb.add import (  # pylint: disable=import-outside-toplevel
