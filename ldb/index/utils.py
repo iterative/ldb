@@ -23,6 +23,7 @@ from typing import (
 import fsspec
 from fsspec.spec import AbstractFileSystem
 from fsspec.utils import get_protocol
+from rich.progress import track
 
 from ldb.data_formats import Format
 from ldb.exceptions import IndexingException, NotAStorageLocationError
@@ -282,7 +283,7 @@ def copy_to_read_add_storage(
 
         fs_old_to_new_paths = {}
         fs_old_to_new_annot_paths = {}
-        for path in paths:
+        for path in track(paths, "Copying paths to storage path"):
             dest = create_storage_path(dest_fs, fs_base_dir, source_fs, path)
             annotation_dest = None
             annotation_path = data_object_path_to_annotation_path(path)
