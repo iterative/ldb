@@ -16,6 +16,7 @@ def ds_list_command(
     ldb_dir = get_ldb_instance()
     ds_listings = ds(
         ldb_dir,
+        all_versions=options.all,
     )
     num_listings = print_ds_listings(ds_listings)
     if not num_listings:
@@ -45,7 +46,17 @@ def add_parser(
     ds_list_parser = ds_subparsers.add_parser(
         "list",
         parents=parents,
-        help="List saved datasets",
+        help=(
+            "List saved datasets. By default the most recent version of each "
+            "dataset is listed"
+        ),
+    )
+    ds_list_parser.add_argument(
+        "-a",
+        "--all",
+        action="store_true",
+        default=False,
+        help="List all versions of each dataset, not just the most recent",
     )
     ds_list_parser.set_defaults(func=ds_list_command)
 
