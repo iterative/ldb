@@ -12,23 +12,36 @@ from ldb.utils import format_dataset_identifier, parse_dataset_identifier
 @dataclass
 class DSListing:
     name: str
-    latest_version: int
+    version_num: int
+    id: str
 
 
 def ds(
     ldb_dir: Path,
+    all_versions: bool = False,
 ) -> Iterator[DSListing]:
-    for dataset in iter_datasets(ldb_dir):
-        yield DSListing(
-            name=dataset.name,
-            latest_version=len(dataset.versions),
-        )
+    for dataset in sorted(iter_datasets(ldb_dir), key=lambda d: d.name):
+        versions = [
+            (i, v) for i, v in enumerate(dataset.versions, 1) if v is not None
+        ]
+        if not all_versions:
+            versions = versions[-1:]
+        for i, version_id in versions:
+            if version_id is not None:
+                yield DSListing(
+                    name=dataset.name,
+                    version_num=i,
+                    id=version_id,
+                )
 
 
-def print_ds_listings(ds_listings: Iterable[DSListing]) -> int:
+def print_ds_listings(
+    ds_listings: Iterable[DSListing],
+) -> int:
     num_listings = 0
     for item in ds_listings:
-        print(format_dataset_identifier(item.name, item.latest_version))
+        entry = format_dataset_identifier(item.name, item.version_num)
+        print(entry)
         num_listings += 1
     return num_listings
 
