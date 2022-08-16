@@ -21,9 +21,7 @@ def ds(
     all_versions: bool = False,
 ) -> Iterator[DSListing]:
     for dataset in sorted(iter_datasets(ldb_dir), key=lambda d: d.name):
-        versions = [
-            (i, v) for i, v in enumerate(dataset.versions, 1) if v is not None
-        ]
+        versions = list(dataset.numbered_versions().items())
         if not all_versions:
             versions = versions[-1:]
         for i, version_id in versions:

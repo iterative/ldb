@@ -1,5 +1,6 @@
 import os
 import re
+import shutil
 from collections import defaultdict
 from enum import Enum, unique
 from itertools import tee
@@ -31,6 +32,7 @@ from ldb.core import get_ldb_instance
 from ldb.dataset import (
     OpDef,
     apply_queries,
+    check_datasets_for_data_objects,
     combine_collections,
     get_collection_from_dataset_identifier,
     iter_collection_dir,
@@ -564,6 +566,7 @@ def delete(
         raise LDBException(
             "Must provide either a query or at least one path",
         )
+    ldb_dir = get_ldb_instance()
 
     workspace_path = Path(os.path.normpath(workspace_path))
     ds_name = load_workspace_dataset(workspace_path).dataset_name
@@ -571,15 +574,17 @@ def delete(
     collection_dir_path = workspace_path / WorkspacePath.COLLECTION
 
     data_object_hashes = select_data_object_hashes(
-        get_ldb_instance(),
+        ldb_dir,
         paths,
         query_args,
         warn=False,
     )
     data_object_hashes = list(data_object_hashes)
+
     num_deleted = delete_from_collection_dir(
         collection_dir_path,
         data_object_hashes,
+        root=False,
     )
     delete_from_collection_dir(
         workspace_path / WorkspacePath.TRANSFORM_MAPPING,
@@ -588,12 +593,60 @@ def delete(
     print(f"Deleted {num_deleted} data objects from {ds_ident}")
 
 
+def delete_from_index(
+    paths: Sequence[str],
+    query_args: Iterable[OpDef],
+) -> None:
+    if not paths and not query_args:
+        raise LDBException(
+            "Must provide either a query or at least one path",
+        )
+    ldb_dir = get_ldb_instance()
+
+    ds_ident = f"{DATASET_PREFIX}{ROOT}"
+    collection_dir_path = ldb_dir / InstanceDir.DATA_OBJECT_INFO
+    if not paths:
+        paths = [f"{DATASET_PREFIX}{ROOT}"]
+
+    data_object_hashes = select_data_object_hashes(
+        ldb_dir,
+        paths,
+        query_args,
+        warn=False,
+    )
+    data_object_hashes = list(data_object_hashes)
+    list(
+        check_datasets_for_data_objects(
+            ldb_dir,
+            data_object_hashes,
+            error=True,
+        ),
+    )
+    num_deleted = delete_from_collection_dir(
+        collection_dir_path,
+        data_object_hashes,
+        root=True,
+    )
+    print(f"Deleted {num_deleted} data objects from {ds_ident}")
+
+
 def delete_from_collection_dir(
     collection_dir_path: Path,
     data_object_hashes: Iterable[str],
+    root: bool = False,
 ) -> int:
     if not collection_dir_path.exists():
         return 0
+
+    if root:
+
+        def del_func(path: Path) -> None:
+            shutil.rmtree(path)
+
+    else:
+
+        def del_func(path: Path) -> None:
+            path.unlink()
 
     num_deleted = 0
     for data_object_hash in data_object_hashes:
@@ -602,7 +655,7 @@ def delete_from_collection_dir(
             data_object_hash,
         )
         if collection_member_path.exists():
-            collection_member_path.unlink()
+            del_func(collection_member_path)
             try:
                 collection_member_path.parent.rmdir()
             except OSError:
