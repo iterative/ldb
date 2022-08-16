@@ -25,6 +25,7 @@ from ldb.command import (
     sync,
     tag,
     transform,
+    unindex,
 )
 from ldb.exceptions import LDBException
 from ldb.params import InvalidParamError
@@ -119,6 +120,7 @@ def get_main_parser() -> ArgumentParser:
     sync.add_parser(subparsers, parents)
     tag.add_parser(subparsers, parents)
     transform.add_parser(subparsers, parents)
+    unindex.add_parser(subparsers, parents)
     return main_parser
 
 

@@ -135,6 +135,9 @@ class Dataset:
         created = format_datetime(attr_dict.pop("created"))
         return dict(created=created, **attr_dict)
 
+    def numbered_versions(self) -> Dict[int, str]:
+        return {i: v for i, v in enumerate(self.versions, 1) if v is not None}
+
 
 class ObjectIDMapping(Dict[str, str]):
     pass
@@ -281,6 +284,55 @@ def iter_dataset_dir(
 def iter_datasets(ldb_dir: Union[str, Path]) -> Iterator[Dataset]:
     for entry in iter_dataset_dir(ldb_dir):
         yield Dataset.parse(load_data_file(Path(entry.path)))
+
+
+def check_datasets_for_data_objects(
+    ldb_dir: Path,
+    data_object_hashes: Iterable[str],
+    error: bool = True,
+) -> Iterator[str]:
+    # collect data objects from datasets
+    ds_version_idents = get_all_dataset_version_identifiers(ldb_dir)
+    objects_in_datasets = {
+        d
+        for version_id in ds_version_idents.keys()
+        for d in get_collection(ldb_dir, version_id)
+    }
+    for data_obj_hash in data_object_hashes:
+        if data_obj_hash in objects_in_datasets:
+            if error:
+                raise LDBException(
+                    f"Data object id:{data_obj_hash} is contained in a saved "
+                    "dataset",
+                )
+        else:
+            yield data_obj_hash
+
+
+def get_all_dataset_version_identifiers(ldb_dir: Path) -> Dict[str, List[str]]:
+    """
+    Map each dataset version id to all dataset identifiers that point to it.
+
+    This could look something like this:
+        {
+            "0ef...": ["ds:cats.v5"],
+            "38f...": ["ds:cats.v1", ds:cat-images.v3"],
+            "ab3...": [],
+        }
+    """
+    result = defaultdict(list)
+    for dataset in iter_datasets(ldb_dir):
+        for i, version_id in dataset.numbered_versions().items():
+            result[version_id].append(
+                format_dataset_identifier(dataset.name, i),
+            )
+    ds_version_dir = str(ldb_dir / InstanceDir.DATASET_VERSIONS)
+    for parent in os.listdir(ds_version_dir):
+        for filename in os.listdir(os.path.join(ds_version_dir, parent)):
+            result[  # pylint: disable=pointless-statement
+                f"{parent}{filename}"
+            ]
+    return dict(result)
 
 
 def get_dataset_version_hash(
