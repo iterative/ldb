@@ -3,7 +3,12 @@ import os
 from pathlib import Path
 from typing import Optional
 
-from ldb.dataset import CommitInfo, Dataset, DatasetVersion
+from ldb.dataset import (
+    CommitInfo,
+    Dataset,
+    DatasetVersion,
+    ensure_all_collection_dir_keys_contained,
+)
 from ldb.path import InstanceDir, WorkspacePath
 from ldb.transform import save_transform_object
 from ldb.utils import (
@@ -55,6 +60,10 @@ def commit(
     ):
         print("Nothing to commit.")
         return
+    ensure_all_collection_dir_keys_contained(
+        workspace_path / WorkspacePath.COLLECTION,
+        ldb_dir / InstanceDir.DATA_OBJECT_INFO,
+    )
     collection_obj = collection_dir_to_object(
         workspace_path / WorkspacePath.COLLECTION,
     )
