@@ -7,7 +7,7 @@ from typing import List, Optional
 from ldb.cli import get_main_parser, handle_exception
 from ldb.warnings import SimpleWarningHandler
 
-MIN_PYTHON_VERSION_INFO = (3, 7)
+MIN_PYTHON_VERSION_INFO = (3, 8)
 MIN_PYTHON_VERSION = ".".join(map(str, MIN_PYTHON_VERSION_INFO))
 
 
