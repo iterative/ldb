@@ -49,6 +49,7 @@ module = [
     'shtab.*',
     'torchvision.*',
     'tqdm.*',
+    'dvc_objects.*',
 ]
 ignore_missing_imports = true
 

@@ -5,9 +5,9 @@ from typing import Iterable, Optional, Tuple
 from ldb.dataset import (
     DatasetVersion,
     get_collection_dir_items,
-    get_dataset,
     get_dataset_version_hash,
 )
+from ldb.db.dataset import DatasetDB
 from ldb.path import InstanceDir, WorkspacePath
 from ldb.utils import (
     ROOT,
@@ -49,7 +49,7 @@ def status(ldb_dir: Path, dataset: str) -> WorkspaceStatus:
             )
             auto_pull = False
         else:
-            dataset_obj = get_dataset(ldb_dir, ds_name)
+            dataset_obj = DatasetDB.from_ldb_dir(ldb_dir).get_obj(ds_name)
             if not ds_version:
                 ds_version = len(dataset_obj.versions)
             dataset_version_hash = get_dataset_version_hash(

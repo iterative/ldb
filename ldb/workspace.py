@@ -5,7 +5,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Iterator, List, Optional, Union
 
-from ldb.dataset import DatasetVersion, get_collection_dir_items
+from ldb.dataset import get_collection_dir_items
+from ldb.db.dataset_version import DatasetVersionDB
 from ldb.exceptions import WorkspaceDatasetNotFoundError, WorkspaceError
 from ldb.path import InstanceDir, WorkspacePath
 from ldb.utils import (
@@ -54,8 +55,8 @@ def workspace_dataset_is_clean(
     )
     if not workspace_dataset_obj.parent:
         return not ws_collection
-    dataset_version_obj = DatasetVersion.from_id(
-        ldb_dir,
+
+    dataset_version_obj = DatasetVersionDB.from_ldb_dir(ldb_dir).get_obj(
         workspace_dataset_obj.parent,
     )
     collection_obj = load_data_file(

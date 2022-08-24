@@ -9,6 +9,9 @@ from ldb.dataset import (
     DatasetVersion,
     ensure_all_collection_dir_keys_contained,
 )
+from ldb.db.dataset import DatasetDB
+from ldb.db.dataset_version import DatasetVersionDB
+from ldb.exceptions import DatasetNotFoundError
 from ldb.path import InstanceDir, WorkspacePath
 from ldb.transform import save_transform_object
 from ldb.utils import (
@@ -18,7 +21,6 @@ from ldb.utils import (
     get_hash_path,
     hash_data,
     json_dumps,
-    load_data_file,
     parse_dataset_identifier,
     write_data_file,
 )
@@ -83,10 +85,10 @@ def commit(
     curr_time = current_time()
     username = getpass.getuser()
 
-    dataset_file_path = ldb_dir / InstanceDir.DATASETS / dataset_name
+    dataset_db = DatasetDB.from_ldb_dir(ldb_dir)
     try:
-        dataset = Dataset.parse(load_data_file(dataset_file_path))
-    except FileNotFoundError:
+        dataset = dataset_db.get_obj(dataset_name)
+    except DatasetNotFoundError:
         dataset = Dataset(
             name=dataset_name,
             created_by=username,
@@ -94,6 +96,7 @@ def commit(
             versions=[],
         )
     auto_pull = workspace_ds.auto_pull if auto_pull is None else auto_pull
+
     dataset_version = DatasetVersion(
         version=len(dataset.versions) + 1,
         parent=workspace_ds.parent,
@@ -107,21 +110,17 @@ def commit(
         ),
         auto_pull=auto_pull,
     )
-    dataset_version_bytes = json_dumps(dataset_version.format()).encode()
-    dataset_version_hash = hash_data(dataset_version_bytes)
-    dataset_version_file_path = get_hash_path(
-        ldb_dir / InstanceDir.DATASET_VERSIONS,
-        dataset_version_hash,
+    dataset_version.digest()
+    dataset.versions.append(dataset_version.oid)
+    dataset.digest()
+
+    DatasetVersionDB.from_ldb_dir(ldb_dir).add_obj(
+        dataset_version,
     )
-    write_data_file(dataset_version_file_path, dataset_version_bytes)
-    dataset.versions.append(dataset_version_hash)
-    write_data_file(
-        dataset_file_path,
-        json_dumps(dataset.format()).encode(),
-        overwrite_existing=True,
-    )
+    dataset_db.add_obj(dataset)
+
     workspace_ds.staged_time = curr_time
-    workspace_ds.parent = dataset_version_hash
+    workspace_ds.parent = dataset_version.oid
     workspace_ds.dataset_name = dataset_name
     workspace_ds.auto_pull = auto_pull
     write_data_file(

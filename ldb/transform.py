@@ -26,10 +26,10 @@ from ldb.core import get_ldb_instance
 from ldb.dataset import (
     DatasetVersion,
     OpDef,
-    get_dataset,
     get_dataset_version_hash,
     iter_collection_dir,
 )
+from ldb.db.dataset import DatasetDB
 from ldb.exceptions import LDBException
 from ldb.path import Filename, InstanceDir, WorkspacePath
 from ldb.utils import (
@@ -452,7 +452,7 @@ def dataset_identifier_to_transform_ids(
     )
     if dataset_name == ROOT:
         return {}
-    dataset = get_dataset(ldb_dir, dataset_name)
+    dataset = DatasetDB.from_ldb_dir(ldb_dir).get_obj(dataset_name)
     dataset_version_hash = get_dataset_version_hash(
         dataset,
         dataset_version,

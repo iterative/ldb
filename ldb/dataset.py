@@ -3,7 +3,7 @@ import os
 import random
 from abc import ABC
 from collections import abc, defaultdict
-from dataclasses import asdict, dataclass, fields
+from dataclasses import asdict, dataclass
 from datetime import datetime
 from glob import iglob
 from itertools import tee
@@ -25,11 +25,7 @@ from typing import (
 from funcy.objects import cached_property
 
 from ldb.collections import LDBMappingCache
-from ldb.exceptions import (
-    DataObjectNotFoundError,
-    DatasetNotFoundError,
-    LDBException,
-)
+from ldb.exceptions import DataObjectNotFoundError, LDBException
 from ldb.iter_utils import take
 from ldb.op_type import OpType
 from ldb.path import InstanceDir
@@ -47,6 +43,8 @@ from ldb.utils import (
     format_dataset_identifier,
     format_datetime,
     get_hash_path,
+    hash_data,
+    json_dumps,
     load_data_file,
     parse_datetime,
 )
@@ -89,6 +87,12 @@ class DatasetVersion:
     tags: List[str]
     commit_info: CommitInfo
     auto_pull: bool = False
+    bytes: bytes = b""
+    oid: str = ""
+
+    def digest(self) -> None:
+        self.bytes = json_dumps(self.format()).encode()
+        self.oid = hash_data(self.bytes)
 
     @classmethod
     def parse(cls, attr_dict: Dict[str, Any]) -> "DatasetVersion":
@@ -98,28 +102,16 @@ class DatasetVersion:
             **attr_dict,
         )
 
-    @classmethod
-    def from_id(
-        cls,
-        ldb_dir: Path,
-        dataset_version_id: str,
-    ) -> "DatasetVersion":
-        return cls.parse(
-            load_data_file(
-                get_hash_path(
-                    ldb_dir / InstanceDir.DATASET_VERSIONS,
-                    dataset_version_id,
-                ),
-            ),
-        )
-
     def format(self) -> Dict[str, Any]:
-        attr_dict = {f.name: getattr(self, f.name) for f in fields(self)}
-        return dict(
-            commit_info=attr_dict.pop("commit_info").format(),
-            tags=attr_dict.pop("tags").copy(),
-            **attr_dict,
-        )
+        return {
+            "version": self.version,
+            "parent": self.parent,
+            "collection": self.collection,
+            "transform_mapping_id": self.transform_mapping_id,
+            "tags": self.tags.copy(),
+            "commit_info": self.commit_info.format(),
+            "auto_pull": self.auto_pull,
+        }
 
 
 @dataclass
@@ -128,17 +120,27 @@ class Dataset:
     created_by: str
     created: datetime
     versions: List[str]
+    bytes: bytes = b""
+    oid: str = ""
+
+    def digest(self) -> None:
+        self.bytes = json_dumps(self.format()).encode()
+        self.oid = self.name
 
     @classmethod
     def parse(cls, attr_dict: Dict[str, Any]) -> "Dataset":
         attr_dict = attr_dict.copy()
         created = parse_datetime(attr_dict.pop("created"))
-        return cls(created=created, **attr_dict)
+        versions = attr_dict.pop("versions").copy()
+        return cls(created=created, versions=versions, **attr_dict)
 
     def format(self) -> Dict[str, Any]:
-        attr_dict = asdict(self)
-        created = format_datetime(attr_dict.pop("created"))
-        return dict(created=created, **attr_dict)
+        return {
+            "name": self.name,
+            "created_by": self.created_by,
+            "created": format_datetime(self.created),
+            "versions": self.versions.copy(),
+        }
 
     def numbered_versions(self) -> Dict[int, str]:
         return {i: v for i, v in enumerate(self.versions, 1) if v is not None}
@@ -165,15 +167,14 @@ def get_root_collection(
 
 def get_collection(
     ldb_dir: Path,
-    dataset_version_hash: str,
+    dataset_version_id: str,
 ) -> Dict[str, Optional[str]]:
-    dataset_version_obj = DatasetVersion.parse(
-        load_data_file(
-            get_hash_path(
-                ldb_dir / InstanceDir.DATASET_VERSIONS,
-                dataset_version_hash,
-            ),
-        ),
+    from ldb.db.dataset_version import (  # pylint: disable=import-outside-toplevel # noqa: E501
+        DatasetVersionDB,
+    )
+
+    dataset_version_obj = DatasetVersionDB.from_ldb_dir(ldb_dir).get_obj(
+        dataset_version_id,
     )
     return load_data_file(  # type: ignore[no-any-return]
         get_hash_path(
@@ -190,7 +191,11 @@ def get_collection_from_dataset_identifier(
 ) -> Dict[str, Optional[str]]:
     if dataset_name == ROOT:
         return get_root_collection(ldb_dir)
-    dataset = get_dataset(ldb_dir, dataset_name)
+    from ldb.db.dataset import (  # pylint: disable=import-outside-toplevel # noqa: E501
+        DatasetDB,
+    )
+
+    dataset = DatasetDB.from_ldb_dir(ldb_dir).get_obj(dataset_name)
     dataset_version_hash = get_dataset_version_hash(dataset, dataset_version)
     return get_collection(ldb_dir, dataset_version_hash)
 
@@ -286,17 +291,6 @@ def combine_collections(
     return combined_collection
 
 
-def get_dataset(ldb_dir: Path, dataset_name: str) -> Dataset:
-    try:
-        return Dataset.parse(
-            load_data_file(ldb_dir / InstanceDir.DATASETS / dataset_name),
-        )
-    except FileNotFoundError as exc:
-        raise DatasetNotFoundError(
-            f"Dataset not found with name {dataset_name!r}",
-        ) from exc
-
-
 def iter_dataset_dir(
     ldb_dir: Union[str, Path],
 ) -> Iterator[os.DirEntry]:  # type: ignore[type-arg]
@@ -349,16 +343,16 @@ def get_all_dataset_version_identifiers(ldb_dir: Path) -> Dict[str, List[str]]:
             "ab3...": [],
         }
     """
-    ds_version_dir = os.path.join(ldb_dir, InstanceDir.DATASET_VERSIONS)
+    from ldb.db.dataset_version import (  # pylint: disable=import-outside-toplevel # noqa: E501
+        DatasetVersionDB,
+    )
+
+    ds_version_db = DatasetVersionDB.from_ldb_dir(ldb_dir)
     collection_dir = os.path.join(ldb_dir, InstanceDir.COLLECTIONS)
     result = defaultdict(list)
     for dataset in iter_datasets(ldb_dir):
         for i, version_id in dataset.numbered_versions().items():
-            version_path = get_hash_path(
-                Path(ds_version_dir),
-                version_id,
-            )
-            version_obj = DatasetVersion.parse(load_data_file(version_path))
+            version_obj = ds_version_db.get_obj(version_id)
             result[version_obj.collection].append(
                 format_dataset_identifier(dataset.name, i),
             )
