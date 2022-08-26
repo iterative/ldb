@@ -196,9 +196,11 @@ def parse_dataset_identifier(
 def format_dataset_identifier(
     name: str,
     version: Optional[int] = None,
+    commit_message: Optional[str] = None,
 ) -> str:
     version_suffix = f".v{version}" if version else ""
-    return f"{DATASET_PREFIX}{name}{version_suffix}"
+    commit_message = f'  "{commit_message}"' if commit_message else ""
+    return f"{DATASET_PREFIX}{name}{version_suffix}{commit_message}"
 
 
 def get_fsspec_path_suffix(path: str) -> str:
