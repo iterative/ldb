@@ -22,7 +22,7 @@ def validate_resnet() -> None:
         import torch  # pylint: disable=import-outside-toplevel,unused-import # noqa: E501, F401
         import torchvision  # pylint: disable=import-outside-toplevel,unused-import # noqa: E501, F401
     except ModuleNotFoundError as exc:
-        dependency_exc(exc, "clip-plugin")
+        dependency_exc(exc, "resnet-plugin")
 
 
 def clip_text() -> None:
