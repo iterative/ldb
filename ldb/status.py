@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import Iterable, Optional, Tuple
 
 from ldb.dataset import (
+    CommitInfo,
     DatasetVersion,
     get_collection_dir_items,
     get_dataset,
@@ -25,6 +26,7 @@ class WorkspaceStatus:
     num_data_objects: int
     num_annotations: int
     auto_pull: bool
+    commit_info: Optional[CommitInfo] = None
 
 
 def status(ldb_dir: Path, dataset: str) -> WorkspaceStatus:
@@ -39,6 +41,7 @@ def status(ldb_dir: Path, dataset: str) -> WorkspaceStatus:
             is_workspace=True,
         )
         auto_pull = workspace_ds.auto_pull
+        commit_info = None
     else:
         ds_name, opt_ds_version = parse_dataset_identifier(dataset)
         ds_version = opt_ds_version or 0
@@ -48,6 +51,7 @@ def status(ldb_dir: Path, dataset: str) -> WorkspaceStatus:
                 is_workspace=False,
             )
             auto_pull = False
+            commit_info = None
         else:
             dataset_obj = get_dataset(ldb_dir, ds_name)
             if not ds_version:
@@ -71,6 +75,7 @@ def status(ldb_dir: Path, dataset: str) -> WorkspaceStatus:
                 ),
             ).items()
             auto_pull = dataset_version_obj.auto_pull
+            commit_info = dataset_version_obj.commit_info
 
     num_data_objects = 0
     num_annotations = 0
@@ -83,4 +88,5 @@ def status(ldb_dir: Path, dataset: str) -> WorkspaceStatus:
         num_data_objects=num_data_objects,
         num_annotations=num_annotations,
         auto_pull=auto_pull,
+        commit_info=commit_info,
     )

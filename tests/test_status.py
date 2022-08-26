@@ -69,7 +69,7 @@ def test_cli_status_added_storage_location(
         "No unsaved changes.\n"
     )
     expected3 = (
-        "ds:my-dataset.v1\n"
+        f'ds:my-dataset.v1  "{dir_to_add}"\n'
         "  Num data objects:       32\n"
         "  Num annotations:        23\n"
         "\n"
