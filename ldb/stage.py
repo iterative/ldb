@@ -5,9 +5,10 @@ from typing import Dict, List, Mapping, Optional, Sequence, Tuple
 
 from ldb.config import get_ldb_dir
 from ldb.core import init_quickstart
-from ldb.dataset import CollectionObject, Dataset, DatasetVersion
+from ldb.dataset import CollectionObject, Dataset
 from ldb.db.collection import CollectionDB
 from ldb.exceptions import LDBException
+from ldb.objects.dataset_version import DatasetVersion
 from ldb.path import InstanceDir, WorkspacePath
 from ldb.pull import get_collection_with_updated_annotations
 from ldb.utils import (

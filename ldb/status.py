@@ -2,12 +2,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable, Optional, Tuple
 
-from ldb.dataset import (
-    DatasetVersion,
-    get_collection_dir_items,
-    get_dataset_version_hash,
-)
+from ldb.dataset import get_collection_dir_items, get_dataset_version_hash
 from ldb.db.dataset import DatasetDB
+from ldb.objects.dataset_version import DatasetVersion
 from ldb.path import InstanceDir, WorkspacePath
 from ldb.utils import (
     ROOT,

@@ -23,14 +23,10 @@ from funcy.objects import cached_property
 from ldb import config
 from ldb.config import load_first
 from ldb.core import get_ldb_instance
-from ldb.dataset import (
-    DatasetVersion,
-    OpDef,
-    get_dataset_version_hash,
-    iter_collection_dir,
-)
+from ldb.dataset import OpDef, get_dataset_version_hash, iter_collection_dir
 from ldb.db.dataset import DatasetDB
 from ldb.exceptions import LDBException
+from ldb.objects.dataset_version import DatasetVersion
 from ldb.path import Filename, InstanceDir, WorkspacePath
 from ldb.utils import (
     ROOT,

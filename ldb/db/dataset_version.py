@@ -5,8 +5,8 @@ from typing import Any, Union
 
 from dvc_objects.fs.local import LocalFileSystem
 
-from ldb.dataset import DatasetVersion
 from ldb.db.obj import ObjectDB
+from ldb.objects.dataset_version import DatasetVersion
 from ldb.path import InstanceDir
 
 
