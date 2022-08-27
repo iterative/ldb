@@ -1,9 +1,9 @@
 from dataclasses import dataclass
 from enum import IntEnum
 from pathlib import Path
-from typing import Dict, Iterable, Iterator, Optional, Tuple
+from typing import Iterable, Iterator, Mapping, Optional, Tuple
 
-from ldb.dataset import Dataset, get_collection
+from ldb.dataset import CollectionObject, Dataset, get_collection
 from ldb.exceptions import LDBException
 from ldb.path import InstanceDir, WorkspacePath
 from ldb.utils import (
@@ -42,7 +42,7 @@ class DiffItem(SimpleDiffItem):
 def get_diff_collection(
     ldb_dir: Path,
     dataset: str,
-) -> Dict[str, Optional[str]]:
+) -> CollectionObject:
     if dataset.startswith(DATASET_PREFIX):
         return get_collection(
             ldb_dir,
@@ -61,7 +61,7 @@ def get_diff_collections(
     dataset1: str = "",
     dataset2: str = "",
     workspace_path: str = ".",
-) -> Tuple[Dict[str, Optional[str]], Dict[str, Optional[str]]]:
+) -> Tuple[CollectionObject, CollectionObject]:
     if dataset1:
         collection1 = get_diff_collection(ldb_dir, dataset1)
         if dataset2:
@@ -73,7 +73,7 @@ def get_diff_collections(
         if workspace_dataset.parent:
             collection1 = get_collection(ldb_dir, workspace_dataset.parent)
         else:
-            collection1 = {}
+            collection1 = CollectionObject()
     collection2 = collection_dir_to_object(
         Path(workspace_path) / WorkspacePath.COLLECTION,
     )
@@ -204,8 +204,8 @@ def simple_diff(
 
 
 def simple_diff_on_collections(
-    collection1: Dict[str, Optional[str]],
-    collection2: Dict[str, Optional[str]],
+    collection1: Mapping[str, Optional[str]],
+    collection2: Mapping[str, Optional[str]],
 ) -> Iterator[SimpleDiffItem]:
     # pylint: disable=invalid-name
     iter1 = iter(sorted(collection1.items()))

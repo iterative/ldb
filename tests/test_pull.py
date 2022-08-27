@@ -1,5 +1,6 @@
 import pytest
 
+from ldb.dataset import CollectionObject
 from ldb.main import main
 from ldb.path import WorkspacePath
 from ldb.utils import DATASET_PREFIX, ROOT
@@ -160,7 +161,7 @@ def test_pull_specific_version(
     ws_collection = collection_dir_to_object(
         workspace_path / WorkspacePath.COLLECTION,
     )
-    expected = dict(
+    expected = CollectionObject(
         zip(
             DATA_OBJ_HASHES,
             [a[i] for a, i in zip(ANNOT_VERSION_HASHES, annot_indices)],

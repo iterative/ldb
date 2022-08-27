@@ -3,9 +3,9 @@ import shutil
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Iterator, List, Optional, Union
+from typing import Any, Dict, Iterator, List, Union
 
-from ldb.dataset import get_collection_dir_items
+from ldb.dataset import CollectionObject, get_collection_dir_items
 from ldb.db.dataset_version import DatasetVersionDB
 from ldb.exceptions import WorkspaceDatasetNotFoundError, WorkspaceError
 from ldb.path import InstanceDir, WorkspacePath
@@ -102,8 +102,8 @@ def load_workspace_dataset(workspace_path: Path) -> WorkspaceDataset:
     return workspace_ds
 
 
-def collection_dir_to_object(collection_dir: Path) -> Dict[str, Optional[str]]:
-    return dict(
+def collection_dir_to_object(collection_dir: Path) -> CollectionObject:
+    return CollectionObject(
         sorted(get_collection_dir_items(collection_dir, is_workspace=True)),
     )
 

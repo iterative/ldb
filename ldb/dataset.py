@@ -2,13 +2,14 @@ import json
 import os
 import random
 from abc import ABC
-from collections import abc, defaultdict
+from collections import UserDict, abc, defaultdict
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from glob import iglob
 from itertools import tee
 from pathlib import Path
 from typing import (
+    TYPE_CHECKING,
     Any,
     Callable,
     Collection,
@@ -17,6 +18,7 @@ from typing import (
     Iterable,
     Iterator,
     List,
+    Mapping,
     Optional,
     Tuple,
     Union,
@@ -146,6 +148,33 @@ class Dataset:
         return {i: v for i, v in enumerate(self.versions, 1) if v is not None}
 
 
+if TYPE_CHECKING:
+    BaseCollectionObject = UserDict[str, Optional[str]]
+else:
+    BaseCollectionObject = UserDict
+
+
+class CollectionObject(BaseCollectionObject):
+    def __init__(
+        self,
+        dict: Optional[  # pylint: disable=redefined-builtin
+            Union[
+                Mapping[str, Optional[str]],
+                Iterable[Tuple[str, Optional[str]]],
+            ]
+        ] = None,
+        /,
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(dict, **kwargs)
+        self.bytes: bytes = b""
+        self.oid: str = ""
+
+    def digest(self) -> None:
+        self.bytes = json_dumps(self.data).encode()
+        self.oid = hash_data(self.bytes)
+
+
 class ObjectIDMapping(Dict[str, str]):
     pass
 
@@ -156,8 +185,8 @@ def iter_collection_dir(collection_dir: Union[str, Path]) -> Iterator[str]:
 
 def get_root_collection(
     ldb_dir: Path,
-) -> Dict[str, Optional[str]]:
-    return dict(
+) -> CollectionObject:
+    return CollectionObject(
         get_collection_dir_items(
             ldb_dir / InstanceDir.DATA_OBJECT_INFO,
             is_workspace=False,
@@ -168,7 +197,10 @@ def get_root_collection(
 def get_collection(
     ldb_dir: Path,
     dataset_version_id: str,
-) -> Dict[str, Optional[str]]:
+) -> CollectionObject:
+    from ldb.db.collection import (  # pylint: disable=import-outside-toplevel # noqa: E501
+        CollectionDB,
+    )
     from ldb.db.dataset_version import (  # pylint: disable=import-outside-toplevel # noqa: E501
         DatasetVersionDB,
     )
@@ -176,11 +208,8 @@ def get_collection(
     dataset_version_obj = DatasetVersionDB.from_ldb_dir(ldb_dir).get_obj(
         dataset_version_id,
     )
-    return load_data_file(  # type: ignore[no-any-return]
-        get_hash_path(
-            ldb_dir / InstanceDir.COLLECTIONS,
-            dataset_version_obj.collection,
-        ),
+    return CollectionDB.from_ldb_dir(ldb_dir).get_obj(
+        dataset_version_obj.collection,
     )
 
 
@@ -188,7 +217,7 @@ def get_collection_from_dataset_identifier(
     ldb_dir: Path,
     dataset_name: str,
     dataset_version: Optional[int] = None,
-) -> Dict[str, Optional[str]]:
+) -> CollectionObject:
     if dataset_name == ROOT:
         return get_root_collection(ldb_dir)
     from ldb.db.dataset import (  # pylint: disable=import-outside-toplevel # noqa: E501
@@ -261,8 +290,8 @@ def get_workspace_collection_annotation_hash(
 
 def combine_collections(
     ldb_dir: Path,
-    collections: List[Dict[str, Optional[str]]],
-) -> Dict[str, str]:
+    collections: Iterable[Mapping[str, Optional[str]]],
+) -> CollectionObject:
     all_versions: DefaultDict[str, List[str]] = defaultdict(list)
     for collection in collections:
         for data_object_hash, annotation_hash in collection.items():
@@ -288,7 +317,7 @@ def combine_collections(
         else:
             latest_annotation_hash = ""
         combined_collection[data_object_hash] = latest_annotation_hash
-    return combined_collection
+    return CollectionObject(combined_collection)
 
 
 def iter_dataset_dir(

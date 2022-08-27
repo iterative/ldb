@@ -9,6 +9,7 @@ from ldb.dataset import (
     DatasetVersion,
     ensure_all_collection_dir_keys_contained,
 )
+from ldb.db.collection import CollectionDB
 from ldb.db.dataset import DatasetDB
 from ldb.db.dataset_version import DatasetVersionDB
 from ldb.exceptions import DatasetNotFoundError
@@ -18,8 +19,6 @@ from ldb.utils import (
     DATASET_PREFIX,
     current_time,
     format_dataset_identifier,
-    get_hash_path,
-    hash_data,
     json_dumps,
     parse_dataset_identifier,
     write_data_file,
@@ -69,17 +68,8 @@ def commit(
     collection_obj = collection_dir_to_object(
         workspace_path / WorkspacePath.COLLECTION,
     )
-    collection_obj_bytes = json_dumps(collection_obj).encode()
-    collection_hash = hash_data(collection_obj_bytes)
-    collection_path = get_hash_path(
-        ldb_dir / InstanceDir.COLLECTIONS,
-        collection_hash,
-    )
-    write_data_file(
-        collection_path,
-        collection_obj_bytes,
-        overwrite_existing=False,
-    )
+    collection_obj.digest()
+    CollectionDB.from_ldb_dir(ldb_dir).add_obj(collection_obj)
     transform_hash = save_transform_object(ldb_dir, workspace_path)
 
     curr_time = current_time()
@@ -100,7 +90,7 @@ def commit(
     dataset_version = DatasetVersion(
         version=len(dataset.versions) + 1,
         parent=workspace_ds.parent,
-        collection=collection_hash,
+        collection=collection_obj.oid,
         transform_mapping_id=transform_hash,
         tags=workspace_ds.tags.copy(),
         commit_info=CommitInfo(

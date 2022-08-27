@@ -5,7 +5,8 @@ from typing import Dict, List, Mapping, Optional, Sequence, Tuple
 
 from ldb.config import get_ldb_dir
 from ldb.core import init_quickstart
-from ldb.dataset import Dataset, DatasetVersion
+from ldb.dataset import CollectionObject, Dataset, DatasetVersion
+from ldb.db.collection import CollectionDB
 from ldb.exceptions import LDBException
 from ldb.path import InstanceDir, WorkspacePath
 from ldb.pull import get_collection_with_updated_annotations
@@ -154,14 +155,11 @@ def stage_with_instance(  # pylint: disable=too-many-statements
         workspace_ds_obj.parent = dataset_version_hash
         workspace_ds_obj.tags = dataset_version_obj.tags.copy()
         workspace_ds_obj.auto_pull = dataset_version_obj.auto_pull
-        collection_obj = load_data_file(
-            get_hash_path(
-                ldb_dir / InstanceDir.COLLECTIONS,
-                dataset_version_obj.collection,
-            ),
+        collection_obj = CollectionDB.from_ldb_dir(ldb_dir).get_obj(
+            dataset_version_obj.collection,
         )
         if workspace_ds_obj.auto_pull:
-            collection_obj = dict(
+            collection_obj = CollectionObject(
                 get_collection_with_updated_annotations(
                     ldb_dir,
                     collection_obj.keys(),
@@ -192,7 +190,7 @@ def stage_with_instance(  # pylint: disable=too-many-statements
 def stage_workspace(
     workspace_path: Path,
     workspace_ds_obj: WorkspaceDataset,
-    collection_obj: Optional[Dict[str, Optional[str]]] = None,
+    collection_obj: Optional[CollectionObject] = None,
     transform_obj: Optional[Dict[str, Sequence[str]]] = None,
 ) -> None:
     collection_path = workspace_path / WorkspacePath.COLLECTION
@@ -244,7 +242,7 @@ def transform_obj_to_path_items(
 
 def get_workspace_collection_path_data(
     path: Path,
-    collection_obj: Dict[str, Optional[str]],
+    collection_obj: Mapping[str, Optional[str]],
 ) -> List[Tuple[Path, str]]:
     return [
         (get_hash_path(path, data_object_hash), annotation_hash or "")

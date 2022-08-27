@@ -19,6 +19,7 @@ from typing import (
     Sequence,
     Set,
     Tuple,
+    cast,
 )
 
 from fsspec.core import get_fs_token_paths
@@ -254,7 +255,7 @@ def dataset_for_add(ldb_dir: Path, paths: Sequence[str]) -> AddInput:
     combined_collection = combine_collections(ldb_dir, collections)
     return AddInput(
         combined_collection.keys(),
-        combined_collection.values(),
+        cast(Iterable[str], combined_collection.values()),
         "",
     )
 
@@ -272,7 +273,7 @@ def workspace_dataset_for_add(ldb_dir: Path, paths: Sequence[str]) -> AddInput:
     combined_collection = combine_collections(ldb_dir, collections)
     return AddInput(
         combined_collection.keys(),
-        combined_collection.values(),
+        cast(Iterable[str], combined_collection.values()),
         "",
     )
 
