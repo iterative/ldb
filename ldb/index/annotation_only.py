@@ -143,6 +143,10 @@ class AnnotationOnlyIndexingItem(AnnotationFileIndexingItem):
         return self.annotation_file_content["annotation"]  # type: ignore[no-any-return] # noqa: E501
 
     @cached_property
+    def has_annotation(self) -> bool:
+        return True
+
+    @cached_property
     def transform_infos(self) -> Optional[List[TransformInfo]]:
         try:
             transforms = self.annotation_file_content["ldb-meta"]["transforms"]
@@ -263,3 +267,7 @@ class SingleAnnotationIndexingItem(AnnotationOnlyIndexingItem):
     @cached_property
     def annotation_file_content(self) -> JSONObject:
         return self.content
+
+    @cached_property
+    def has_annotation(self) -> bool:
+        return True

@@ -26,6 +26,7 @@ from typing import (
 from funcy.objects import cached_property
 
 from ldb.collections import LDBMappingCache
+from ldb.db.annotation import AnnotationDB
 from ldb.exceptions import DataObjectNotFoundError, LDBException
 from ldb.iter_utils import take
 from ldb.objects.collection import CollectionObject
@@ -319,16 +320,7 @@ def get_dataset_version_hash(
 def get_annotation(ldb_dir: Path, annotation_hash: str) -> JSONDecoded:
     if not annotation_hash:
         return None
-    user_annotation_file_path = (
-        get_hash_path(
-            ldb_dir / InstanceDir.ANNOTATIONS,
-            annotation_hash,
-        )
-        / "user"
-    )
-    with open(user_annotation_file_path, encoding="utf-8") as f:
-        data = f.read()
-    return json.loads(data)  # type: ignore[no-any-return]
+    return AnnotationDB.from_ldb_dir(ldb_dir).get_value(annotation_hash)
 
 
 def get_annotations(
@@ -336,9 +328,10 @@ def get_annotations(
     annotation_hashes: Iterable[str],
 ) -> List[JSONDecoded]:
     annotations = []
+    annotation_db = AnnotationDB.from_ldb_dir(ldb_dir)
     for annotation_hash in annotation_hashes:
         if annotation_hash:
-            annotations.append(get_annotation(ldb_dir, annotation_hash))
+            annotations.append(annotation_db.get_value(annotation_hash))
         else:
             annotations.append(None)
     return annotations

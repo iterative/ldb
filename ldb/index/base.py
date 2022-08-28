@@ -27,6 +27,7 @@ from ldb.dataset import (
     get_collection_dir_keys,
     get_root_collection_annotation_hash,
 )
+from ldb.db.annotation import AnnotationDB
 from ldb.exceptions import IndexingException, LDBException
 from ldb.fs.utils import get_file_hash, get_modified_time
 from ldb.index.utils import (
@@ -51,6 +52,7 @@ from ldb.index.utils import (
     separate_storage_and_non_storage_files,
     validate_locations_in_storage,
 )
+from ldb.objects.annotation import Annotation
 from ldb.params import ParamConfig, ParamFunc
 from ldb.path import InstanceDir
 from ldb.progress import get_progressbar
@@ -476,10 +478,7 @@ class IndexingItem(ABC):
     def annotation_ldb_content(
         self,
     ) -> JSONObject:
-        return {
-            "user_version": None,
-            "schema_version": None,
-        }
+        return self.annotation.meta
 
     @cached_property
     def annotation_meta(self) -> AnnotationMeta:
@@ -490,15 +489,29 @@ class IndexingItem(ABC):
         return None
 
     @cached_property
-    def annotation_content(self) -> JSONDecoded:
+    def annotation(self) -> Annotation:
         if self.annot_merge_strategy == AnnotMergeStrategy.REPLACE:
-            return self.raw_annotation_content
-        if self.annot_merge_strategy == AnnotMergeStrategy.MERGE:
-            return self.get_merged_annotation_content()
-        raise ValueError(
-            "Invalid annotation merge strategy: "
-            f"{self.annot_merge_strategy}",
+            value = self.raw_annotation_content
+        elif self.annot_merge_strategy == AnnotMergeStrategy.MERGE:
+            value = self.get_merged_annotation_content()
+        else:
+            raise ValueError(
+                "Invalid annotation merge strategy: "
+                f"{self.annot_merge_strategy}",
+            )
+        annot = Annotation(
+            value,
+            {
+                "user_version": None,
+                "schema_version": None,
+            },
         )
+        annot.digest()
+        return annot
+
+    @cached_property
+    def annotation_content(self) -> JSONDecoded:
+        return self.annotation.value
 
     def get_merged_annotation_content(self) -> JSONDecoded:
         if not isinstance(self.raw_annotation_content, Mapping):
@@ -571,21 +584,6 @@ class IndexingItem(ABC):
         to_write = [
             (self.annotation_meta_file_path, annotation_meta_bytes, True),
         ]
-        if not self.annotation_dir.is_dir():
-            to_write.append(
-                (
-                    self.annotation_dir / "ldb",
-                    self.annotation_ldb_content_bytes,
-                    False,
-                ),
-            )
-            to_write.append(
-                (
-                    self.annotation_dir / "user",
-                    self.annotation_content_bytes,
-                    False,
-                ),
-            )
         to_write.append(
             (
                 self.data_object_dir / "current",
@@ -599,6 +597,8 @@ class IndexingItem(ABC):
         self._to_write.extend(data)
 
     def write_data(self) -> None:
+        if self.has_annotation:
+            AnnotationDB.from_ldb_dir(self.ldb_dir).add_obj(self.annotation)
         for file_path, data, overwrite_existing in self._to_write:
             write_data_file(file_path, data, overwrite_existing)
 
