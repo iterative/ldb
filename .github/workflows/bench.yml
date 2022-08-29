@@ -42,16 +42,16 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install '.[test-setup,test]'
       - name: test data cache
-        id: test-data-cache
+        id: bench-data-cache
         uses: actions/cache@v3
         with:
           path: ./data
-          key: test-data-${{ hashFiles('data.dvc') }}
+          key: bench-data-${{ hashFiles('bench-data.dvc') }}
       - name: download test data
-        if: steps.test-data-cache.outputs.cache-hit != 'true'
+        if: steps.bench-data-cache.outputs.cache-hit != 'true'
         run: |
           [[ "$RUNNER_OS" != "Windows" ]] && source ./venv/bin/activate || source ./venv/Scripts/activate
-          dvc pull
+          dvc pull bench-data
       - name: ml model cache
         uses: actions/cache@v3
         with:
