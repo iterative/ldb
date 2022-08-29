@@ -64,6 +64,8 @@ jobs:
         run: |
           [[ "$RUNNER_OS" != "Windows" ]] && source ./venv/bin/activate || source ./venv/Scripts/activate
           pytest -n0 --benchmark-save ${{ runner.os }}-python${{ steps.setup-python.outputs.python-version }}-"$(date -u '+%Y-%m-%d-T-%H-%M-%S-%N')" --benchmark-group-by func tests/benchmarks
-      - name: save benchmarks
+      - name: create pr
+        env:
+          REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           cml pr .benchmarks
