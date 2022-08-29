@@ -1,0 +1,63 @@
+name: Benchmarks
+
+on:
+  pull_request:
+    branches:
+      - '*'
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  bench:
+    if: ${{ github.actor != 'dependabot[bot]' &&  github.actor != 'renovate[bot]' }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python-version: ['3.10']
+    steps:
+      - name: checkout repo
+        uses: actions/checkout@v3
+      - name: set up python ${{ matrix.python-version }}
+        id: setup-python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: venv cache
+        id: venv-cache
+        uses: actions/cache@v3
+        with:
+          path: ./venv
+          key: ${{ runner.os }}-python${{ steps.setup-python.outputs.python-version }}-venv-test-${{ hashFiles('setup.cfg') }}
+      - name: install dependencies
+        if: steps.venv-cache.outputs.cache-hit != 'true'
+        run: |
+          python -m venv ./venv
+          [[ "$RUNNER_OS" != "Windows" ]] && source ./venv/bin/activate || source ./venv/Scripts/activate
+          python -m pip install --upgrade pip
+          python -m pip install '.[test-setup,test]'
+      - name: test data cache
+        id: test-data-cache
+        uses: actions/cache@v3
+        with:
+          path: ./data
+          key: test-data-${{ hashFiles('data.dvc') }}
+      - name: download test data
+        if: steps.test-data-cache.outputs.cache-hit != 'true'
+        run: |
+          [[ "$RUNNER_OS" != "Windows" ]] && source ./venv/bin/activate || source ./venv/Scripts/activate
+          dvc pull
+      - name: ml model cache
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cache/clip/RN50.pt
+            ~/.cache/torch/hub/checkpoints/resnet18-f37072fd.pth
+          key: ldb-ml-models--clip-rn50--torch-rn18
+      - name: run tests
+        run: |
+          [[ "$RUNNER_OS" != "Windows" ]] && source ./venv/bin/activate || source ./venv/Scripts/activate
+          pytest -n0 tests/benchmarks

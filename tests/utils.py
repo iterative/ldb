@@ -28,6 +28,7 @@ from ldb.utils import chmod_minus_x, current_time, json_dumps, load_data_file
 from ldb.workspace import WorkspaceDataset, iter_workspace_dir
 
 DATA_DIR = Path(__file__).parent.parent / "data"
+BENCH_DATA_DIR = Path(__file__).parent.parent / "bench-data"
 SCRIPTS_DIR = Path(__file__).parent.parent / "scripts"
 DATA_OBJECT_KEYS = (
     "alternate_paths",

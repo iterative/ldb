@@ -19,6 +19,7 @@ from ldb.typing import JSONDecoded
 from ldb.utils import DATASET_PREFIX, ROOT
 
 from .utils import (
+    BENCH_DATA_DIR,
     DATA_DIR,
     SCRIPTS_DIR,
     add_user_filter,
@@ -114,6 +115,8 @@ def make_ldb_instance(path: Path) -> Path:
     init(instance_dir, auto_index=True)
     set_default_instance(instance_dir, overwrite_existing=True)
     storage_location = create_storage_location(path=os.fspath(DATA_DIR))
+    add_storage(instance_dir / Filename.STORAGE, storage_location)
+    storage_location = create_storage_location(path=os.fspath(BENCH_DATA_DIR))
     add_storage(instance_dir / Filename.STORAGE, storage_location)
     return instance_dir
 

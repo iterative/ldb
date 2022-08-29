@@ -136,7 +136,10 @@ dmypy.json
 
 # Cython debug symbols
 cython_debug/
-/data
 
 # PyAnnotate
 type_info.json
+
+# dvc data
+/bench-data
+/data

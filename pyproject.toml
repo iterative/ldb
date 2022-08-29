@@ -63,7 +63,7 @@ no_implicit_reexport = false
 
 [tool.pytest.ini_options]
 log_level = 'debug'
-addopts = '-ra --strict-markers --numprocesses auto'
+addopts = '-ra --strict-markers --numprocesses auto --ignore=tests/benchmarks/'
 markers = [
     "slow: marks tests as slow (deselect with \"-m 'not slow'\")",
 ]
