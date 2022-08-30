@@ -2,15 +2,15 @@ import json
 import os
 from pathlib import Path
 from typing import Any, Union
-from dvc_objects.fs.base import FileSystem
 
+from dvc_objects.fs.base import FileSystem
 from dvc_objects.fs.local import LocalFileSystem, localfs
 from dvc_objects.obj import Object
 from sqlalchemy.exc import DBAPIError, NoResultFound
 
-from ldb.db.duckdb.connection import get_db_path, get_session
-from ldb.db.sql import models
 from ldb.db.annotation import AnnotationDB
+from ldb.db.sql import models
+from ldb.db.sql.models import get_db_path, get_session
 from ldb.objects.annotation import Annotation
 from ldb.typing import JSONDecoded
 
@@ -37,19 +37,22 @@ class AnnotationDuckDB(AnnotationDB):
         raise NotImplementedError
 
     def add_obj(self, obj: Annotation) -> None:
+        assert obj.oid
         self.session.add(
             models.Annotation(value=obj.value, meta=obj.meta, id=obj.oid),
         )
         try:
             self.session.commit()
         except DBAPIError:
-            raise
             self.session.rollback()
 
     def get_obj(self, oid: str) -> Annotation:
         try:
-            print('here')
-            db_obj = self.session.query(models.Annotation).filter(models.Annotation.id == oid).one()
+            db_obj = (
+                self.session.query(models.Annotation)
+                .filter(models.Annotation.id == oid)
+                .one()
+            )
         except NoResultFound as e:
             raise NoResultFound(oid) from e
         return Annotation(
@@ -63,7 +66,15 @@ class AnnotationDuckDB(AnnotationDB):
 
     def get_value(self, oid: str) -> JSONDecoded:
         return self.get_obj(oid).value
-        return json.loads(self.session.query(models.Annotation.value).filter(models.Annotation.id == oid).one())
+        return json.loads(
+            self.session.query(models.Annotation.value)
+            .filter(models.Annotation.id == oid)
+            .one(),
+        )
 
     def get_meta(self, oid: str) -> JSONDecoded:
-        return json.loads(self.session.query(models.Annotation.meta).filter(models.Annotation.id == oid).one())
+        return json.loads(
+            self.session.query(models.Annotation.meta)
+            .filter(models.Annotation.id == oid)
+            .one(),
+        )

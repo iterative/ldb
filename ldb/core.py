@@ -50,7 +50,7 @@ def init(
             "auto_index": auto_index,
         }
     if db == "duckdb":
-        from ldb.db.duckdb.connection import init_db
+        from ldb.db.sql.models import init_db
 
         init_db(os.fspath(path))
 

@@ -598,7 +598,6 @@ class IndexingItem(ABC):
 
     def write_data(self) -> None:
         if self.has_annotation:
-            print('here')
             AnnotationDB.from_ldb_dir(self.ldb_dir).add_obj(self.annotation)
         for file_path, data, overwrite_existing in self._to_write:
             write_data_file(file_path, data, overwrite_existing)
