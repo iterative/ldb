@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 
 
 def init_command(options: Namespace) -> None:
-    init(options.path, force=options.force, read_any_cloud_location=False)
+    init(options.path, force=options.force, read_any_cloud_location=False, db=options.db)
     set_default_instance(options.path, overwrite_existing=False)
 
 
@@ -34,6 +34,19 @@ def add_parser(
         default=False,
         help="Overwrite an existing instance",
     )
+    db_choices = ("fs", "duckdb")
+    parser.add_argument(
+        "--db",
+        metavar="<db>",
+        dest="db",
+        default="duckdb",
+        choices=db_choices,
+        help=(
+            "Database to use for the LDB index. "
+            f"Choices: {db_choices}"
+        ),
+    )
+
     parser.add_argument(  # type: ignore[attr-defined]
         "path",
         metavar="<path>",

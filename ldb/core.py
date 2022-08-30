@@ -16,6 +16,7 @@ def init(
     force: bool = False,
     read_any_cloud_location: bool = False,
     auto_index: bool = False,
+    db: str = "duckdb",
 ) -> Path:
     """
     Create a new LDB instance.
@@ -48,7 +49,12 @@ def init(
             "read_any_cloud_location": read_any_cloud_location,
             "auto_index": auto_index,
         }
-    print(f"Initialized LDB instance at {repr(os.fspath(path))}")
+    if db == "duckdb":
+        from ldb.db.duckdb.connection import init_db
+
+        init_db(os.fspath(path))
+
+    print(f"Initialized LDB instance at {os.fspath(path)!r} with {db} backend")
     return path
 
 
