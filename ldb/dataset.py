@@ -470,7 +470,10 @@ class AnnotationQuery(Query):
         collection: Iterable[Tuple[str, str]],
     ) -> Iterator[JSONDecoded]:
         for _, annot_hash in collection:
-            yield self.cache[annot_hash]
+            if not annot_hash:
+                yield None
+            else:
+                yield self.cache[annot_hash]
 
 
 class FileQuery(Query):
@@ -501,7 +504,7 @@ class PathQuery(FileQuery):
 
 
 class PipelineData:
-    def __init__(self, ldb_dir: Path, annotation_hashes = None) -> None:
+    def __init__(self, ldb_dir: Path, annotation_hashes=None) -> None:
         self.ldb_dir = ldb_dir
         self.annotation_hashes = annotation_hashes
 
@@ -513,8 +516,10 @@ class PipelineData:
     def annotations(self) -> AnnotationCache:
         if self.annotation_hashes is None:
             return AnnotationDB.from_ldb_dir(self.ldb_dir).get_value_all()
-        return AnnotationDB.from_ldb_dir(self.ldb_dir).get_value_multi(self.annotation_hashes)
-        #return AnnotationCache(self.ldb_dir)
+        return AnnotationDB.from_ldb_dir(self.ldb_dir).get_value_multi(
+            self.annotation_hashes,
+        )
+        # return AnnotationCache(self.ldb_dir)
 
 
 class PipelineBuilder:
@@ -660,4 +665,6 @@ def apply_queries_to_collection(
     collection_dict = dict(collection)
     collection = collection_dict.items()
     data = PipelineData(ldb_dir, annotation_hashes=collection_dict.values())
-    return Pipeline.from_defs(ldb_dir, op_defs, data=data, warn=warn).run(collection)
+    return Pipeline.from_defs(ldb_dir, op_defs, data=data, warn=warn).run(
+        collection,
+    )
