@@ -67,14 +67,15 @@ class AnnotationSqliteDB(AnnotationFileSystemDB):
         return (
             self.session.query(models.Annotation.value)
             .filter(models.Annotation.id == oid)
-            .one()[0],
+            .one()[0]
         )
 
     def get_value_multi(self, oids):
         return {
             i: v
             for i, v in self.session.query(
-                models.Annotation.id, models.Annotation.value,
+                models.Annotation.id,
+                models.Annotation.value,
             )
             .filter(models.Annotation.id.in_(oids))
             .all()
@@ -84,7 +85,8 @@ class AnnotationSqliteDB(AnnotationFileSystemDB):
         return {
             i: v
             for i, v in self.session.query(
-                models.Annotation.id, models.Annotation.value,
+                models.Annotation.id,
+                models.Annotation.value,
             ).all()
         }
 
@@ -92,5 +94,5 @@ class AnnotationSqliteDB(AnnotationFileSystemDB):
         return (
             self.session.query(models.Annotation.meta)
             .filter(models.Annotation.id == oid)
-            .one()[0],
+            .one()[0]
         )
