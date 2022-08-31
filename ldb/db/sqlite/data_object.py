@@ -1,98 +1,114 @@
+import json
 import os
 from pathlib import Path
 from typing import Any, Union
 
-from dvc_objects.fs.base import FileSystem
-from dvc_objects.fs.local import LocalFileSystem, localfs
+from dvc_objects.fs.local import localfs
 from dvc_objects.obj import Object
 from sqlalchemy.exc import DBAPIError, NoResultFound
 
-from ldb.db.annotation import AnnotationFileSystemDB
+from ldb.db.data_object import DataObjectFileSystemDB
+from ldb.db.obj import ObjectDB
 from ldb.db.sql import models
-from ldb.db.sql.models import get_db_path, get_session
-from ldb.objects.annotation import Annotation
+from ldb.db.sql.base import BaseSqliteDB
+from ldb.objects.data_object import DataObjectMeta, PairMeta
+from ldb.path import InstanceDir
 from ldb.typing import JSONDecoded
 
 
-class AnnotationSqliteDB(AnnotationFileSystemDB):
-    def __init__(self, fs: "FileSystem", path: str, **kwargs):
-        assert isinstance(fs, LocalFileSystem)
-        super().__init__(fs, path, **kwargs)
-        self.session = get_session(path)
-
-    @classmethod
-    def from_ldb_dir(
-        cls,
-        ldb_dir: Union[str, Path],
-        **kwargs: Any,
-    ) -> "AnnotationDuckDB":
-        return cls(
-            localfs,
-            get_db_path(os.fspath(ldb_dir)),
-            **kwargs,
+class DataObjectSqliteDB(BaseSqliteDB, DataObjectFileSystemDB):
+    def add_meta(self, obj: DataObjectMeta) -> None:
+        m = models.DataObjectMeta
+        meta = m(id=obj.oid, meta=obj.data)
+        num = (
+            self.session.query(m)
+            .filter(m.id == meta.id)
+            .update({"meta": meta.meta})
         )
-
-    def oid_to_path(self, oid: str) -> str:
-        raise NotImplementedError
-
-    def add_obj(self, obj: Annotation) -> None:
-        assert obj.oid
-        self.session.add(
-            models.Annotation(value=obj.value, meta=obj.meta, id=obj.oid),
-        )
+        if not num:
+            self.session.add(meta)
         try:
             self.session.commit()
         except DBAPIError:
             self.session.rollback()
+            self.session.query(m).filter(m.id == meta.id).update(
+                {"meta": meta.meta},
+            )
+            self.session.commit()
 
-    def get_obj(self, oid: str) -> Annotation:
+    def get_meta(self, oid: str):
         try:
             db_obj = (
-                self.session.query(models.Annotation)
-                .filter(models.Annotation.id == oid)
+                self.session.query(models.DataObjectMeta)
+                .filter(models.DataObjectMeta.id == oid)
                 .one()
             )
         except NoResultFound as e:
             raise NoResultFound(oid) from e
-        return Annotation(
-            value=db_obj.value,
-            meta=db_obj.meta,
-            oid=db_obj.id,
-        )
+        return db_obj.meta
 
-    def get_part(self, obj_ref: Object, name: str) -> JSONDecoded:
+    def get_meta_multi(self, oids):
         raise NotImplementedError
 
-    def get_value(self, oid: str) -> JSONDecoded:
-        return (
-            self.session.query(models.Annotation.value)
-            .filter(models.Annotation.id == oid)
-            .one()[0]
+    def add_pair_meta(self, obj: PairMeta) -> None:
+        m = models.DataObjectAnnotation
+        meta = m(id=obj.oid, annot_id=obj.annot_oid, value=obj.data)
+        num = (
+            self.session.query(m)
+            .filter(m.id == meta.id, m.annot_id == meta.annot_id)
+            .update({"value": meta.value})
         )
-
-    def get_value_multi(self, oids):
-        return {
-            i: v
-            for i, v in self.session.query(
-                models.Annotation.id,
-                models.Annotation.value,
+        if not num:
+            self.session.add(meta)
+        try:
+            self.session.commit()
+        except DBAPIError:
+            self.session.rollback()
+            num = (
+                self.session.query(m)
+                .filter(m.id == meta.id, m.annot_id == meta.annot_id)
+                .update({"value": meta.value})
             )
-            .filter(models.Annotation.id.in_(oids))
-            .all()
-        }
+            self.session.commit()
 
-    def get_value_all(self):
-        return {
-            i: v
-            for i, v in self.session.query(
-                models.Annotation.id,
-                models.Annotation.value,
-            ).all()
-        }
+    def get_pair_meta(self, oid: str, annot_id: str):
+        try:
+            db_obj = (
+                self.session.query(models.DataObjectAnnotation)
+                .filter(
+                    models.DataObjectAnnotation.id == oid,
+                    models.DataObjectAnnotation.annot_id == annot_id,
+                )
+                .one()
+            )
+        except NoResultFound as e:
+            raise NoResultFound((oid, annot_id)) from e
+        return db_obj.value
 
-    def get_meta(self, oid: str) -> JSONDecoded:
-        return (
-            self.session.query(models.Annotation.meta)
-            .filter(models.Annotation.id == oid)
-            .one()[0]
+    def get_pair_meta_multi(self, oid_pairs):
+        raise NotImplementedError
+
+    def add_current_annot(self, oid: str, annot_id: str):
+        m = models.DataObjectCurrentAnnot
+        db_obj = m(id=oid, current_annotation=annot_id)
+        num = (
+            self.session.query(m)
+            .filter(m.id == db_obj.id)
+            .update({"current_annotation": db_obj.current_annotation})
         )
+        if not num:
+            self.session.add(db_obj)
+        try:
+            self.session.commit()
+        except DBAPIError:
+            self.session.rollback()
+            num = (
+                self.session.query(m)
+                .filter(m.id == db_obj.id)
+                .update({"current_annotation": db_obj.current_annotation})
+            )
+            self.session.commit()
+
+    def get_collection_members(self, *args):
+        m = models.DataObjectCurrentAnnot
+        return dict(self.session.query(m.id, m.current_annotation))

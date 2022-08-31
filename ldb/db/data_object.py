@@ -69,3 +69,25 @@ class DataObjectFileSystemDB(ObjectDB):
 
     def get_pair_meta_multi(self, oid_pairs):
         return {(i, a): self.get_pair_meta(i, a) for i, a in oid_pairs}
+
+    def add_current_annot(self, oid: str, annot_id: str):
+        self.add_bytes(
+            f"{oid}.current",
+            annot_id.encode(),
+        )
+
+    def get_collection_members(self):
+        result = {}
+        fs = self.fs
+        for p1 in fs.ls(self.path):
+            for p2 in fs.ls(p1):
+                annot_path = fs.path.join(p1, p2, "current")
+                a, b = fs.path.parts(annot_path)[-3:-1]
+                oid = a + b
+                try:
+                    with fs.open(annot_path) as f:
+                        annot_id = f.read()
+                except Exception:
+                    annot_id = ""
+                result[oid] = annot_id
+        return result

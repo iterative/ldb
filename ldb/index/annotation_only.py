@@ -234,7 +234,6 @@ class AnnotationOnlyIndexingItem(AnnotationFileIndexingItem):
             found_data_object = False
             new_data_object = False
             new_data_object_path = False
-            self.enqueue_data(self.data_object_to_write())
 
         if self.transform_infos is None:
             transform_hashes = None
@@ -246,7 +245,6 @@ class AnnotationOnlyIndexingItem(AnnotationFileIndexingItem):
             transform_hashes.sort()
 
         new_annotation = not self.annotation_meta_file_path.is_file()
-        self.enqueue_data(self.annotation_to_write())
         self.write_data()
         return IndexedObjectResult(
             found_data_object=found_data_object,

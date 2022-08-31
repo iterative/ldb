@@ -27,7 +27,7 @@ from ldb.dataset import (
     get_collection_dir_keys,
     get_root_collection_annotation_hash,
 )
-from ldb.db import AnnotationDB
+from ldb.db import AnnotationDB, DataObjectDB
 from ldb.exceptions import IndexingException, LDBException
 from ldb.fs.utils import get_file_hash, get_modified_time
 from ldb.index.utils import (
@@ -35,7 +35,9 @@ from ldb.index.utils import (
     INDEXED_EPHEMERAL_CONFIG,
     AnnotationMeta,
     AnnotMergeStrategy,
-    DataObjectMeta,
+)
+from ldb.index.utils import DataObjectMeta as DataObjectMetaT
+from ldb.index.utils import (
     DataToWrite,
     FileSystemPath,
     FSPathsMapping,
@@ -53,6 +55,7 @@ from ldb.index.utils import (
     validate_locations_in_storage,
 )
 from ldb.objects.annotation import Annotation
+from ldb.objects.data_object import DataObjectMeta, PairMeta
 from ldb.params import ParamConfig, ParamFunc
 from ldb.path import InstanceDir
 from ldb.progress import get_progressbar
@@ -471,7 +474,7 @@ class IndexingItem(ABC):
         )
 
     @cached_property
-    def data_object_meta(self) -> DataObjectMeta:
+    def data_object_meta(self) -> DataObjectMetaT:
         raise NotImplementedError
 
     @cached_property
@@ -550,13 +553,11 @@ class IndexingItem(ABC):
 
     def index_data(self) -> IndexedObjectResult:
         new_data_object = not self.data_object_dir.is_dir()
-        self.enqueue_data(self.data_object_to_write())
 
         found_annotation = self.has_annotation
         new_annotation = False
         if found_annotation:
             new_annotation = not self.annotation_meta_file_path.is_file()
-            self.enqueue_data(self.annotation_to_write())
 
         self.write_data()
         return IndexedObjectResult(
@@ -570,37 +571,25 @@ class IndexingItem(ABC):
             transform_hashes=None,
         )
 
-    def data_object_to_write(self) -> List[DataToWrite]:
-        return [
-            (
-                self.data_object_meta_file_path,
-                json_dumps(self.data_object_meta).encode(),
-                True,
-            ),
-        ]
-
-    def annotation_to_write(self) -> List[DataToWrite]:
-        annotation_meta_bytes = json_dumps(self.annotation_meta).encode()
-        to_write = [
-            (self.annotation_meta_file_path, annotation_meta_bytes, True),
-        ]
-        to_write.append(
-            (
-                self.data_object_dir / "current",
-                self.annotation_hash.encode(),
-                True,
-            ),
-        )
-        return to_write
-
-    def enqueue_data(self, data: Iterable[DataToWrite]) -> None:
-        self._to_write.extend(data)
-
     def write_data(self) -> None:
+        assert not self._to_write
+        data_obj_db = DataObjectDB.from_ldb_dir(self.ldb_dir)
         if self.has_annotation:
             AnnotationDB.from_ldb_dir(self.ldb_dir).add_obj(self.annotation)
-        for file_path, data, overwrite_existing in self._to_write:
-            write_data_file(file_path, data, overwrite_existing)
+            data_obj_db.add_pair_meta(
+                PairMeta(
+                    self.data_object_hash,
+                    self.annotation_hash,
+                    self.annotation_meta,
+                ),
+            )
+        data_obj_db.add_meta(
+            DataObjectMeta(self.data_object_hash, self.data_object_meta),
+        )
+        data_obj_db.add_current_annot(
+            self.data_object_hash,
+            self.annotation_hash,
+        )
 
 
 @dataclass
@@ -655,9 +644,9 @@ class DataObjectFileIndexingItem(IndexingItem):
         return hash_str
 
     @cached_property
-    def data_object_meta(self) -> DataObjectMeta:
+    def data_object_meta(self) -> DataObjectMetaT:
         if not self.save_data_object_path_info:
-            meta_contents: DataObjectMeta = load_data_file(
+            meta_contents: DataObjectMetaT = load_data_file(
                 self.data_object_meta_file_path,
             )
             meta_contents["last_indexed"] = self.current_timestamp

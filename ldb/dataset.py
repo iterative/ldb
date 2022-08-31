@@ -26,7 +26,7 @@ from typing import (
 from funcy.objects import cached_property
 
 from ldb.collections import LDBMappingCache
-from ldb.db import AnnotationDB
+from ldb.db import AnnotationDB, CollectionDB
 from ldb.exceptions import DataObjectNotFoundError, LDBException
 from ldb.iter_utils import take
 from ldb.objects.collection import CollectionObject
@@ -87,21 +87,13 @@ def iter_collection_dir(collection_dir: Union[str, Path]) -> Iterator[str]:
 def get_root_collection(
     ldb_dir: Path,
 ) -> CollectionObject:
-    return CollectionObject(
-        get_collection_dir_items(
-            ldb_dir / InstanceDir.DATA_OBJECT_INFO,
-            is_workspace=False,
-        ),
-    )
+    return CollectionDB.from_ldb_dir(ldb_dir).get_root(ldb_dir)
 
 
 def get_collection(
     ldb_dir: Path,
     dataset_version_id: str,
 ) -> CollectionObject:
-    from ldb.db.collection import (  # pylint: disable=import-outside-toplevel # noqa: E501
-        CollectionDB,
-    )
     from ldb.db.dataset_version import (  # pylint: disable=import-outside-toplevel # noqa: E501
         DatasetVersionDB,
     )

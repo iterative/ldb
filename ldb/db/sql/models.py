@@ -72,9 +72,31 @@ def configure_db(db_url: str):
 class Annotation(Base):
     __tablename__ = "annotation"
 
+    id = Column(String, primary_key=True)
     value = Column(JSON)
     meta = Column(JSON)
+
+
+class DataObjectMeta(Base):
+    __tablename__ = "data_object_meta"
+
     id = Column(String, primary_key=True)
+    meta = Column(JSON)
+
+
+class DataObjectCurrentAnnot(Base):
+    __tablename__ = "data_object_current_annot"
+
+    id = Column(String, primary_key=True)
+    current_annotation = Column(String)
+
+
+class DataObjectAnnotation(Base):
+    __tablename__ = "data_object_annotations"
+
+    id = Column(String, primary_key=True)
+    annot_id = Column(String, primary_key=True)
+    value = Column(JSON)
 
 
 # def get_engine(path: str):

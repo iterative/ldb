@@ -9,32 +9,13 @@ from sqlalchemy.exc import DBAPIError, NoResultFound
 
 from ldb.db.annotation import AnnotationFileSystemDB
 from ldb.db.sql import models
+from ldb.db.sql.base import BaseSqliteDB
 from ldb.db.sql.models import get_db_path, get_session
 from ldb.objects.annotation import Annotation
 from ldb.typing import JSONDecoded
 
 
-class AnnotationSqliteDB(AnnotationFileSystemDB):
-    def __init__(self, fs: "FileSystem", path: str, **kwargs):
-        assert isinstance(fs, LocalFileSystem)
-        super().__init__(fs, path, **kwargs)
-        self.session = get_session(path)
-
-    @classmethod
-    def from_ldb_dir(
-        cls,
-        ldb_dir: Union[str, Path],
-        **kwargs: Any,
-    ) -> "AnnotationDuckDB":
-        return cls(
-            localfs,
-            get_db_path(os.fspath(ldb_dir)),
-            **kwargs,
-        )
-
-    def oid_to_path(self, oid: str) -> str:
-        raise NotImplementedError
-
+class AnnotationSqliteDB(BaseSqliteDB, AnnotationFileSystemDB):
     def add_obj(self, obj: Annotation) -> None:
         assert obj.oid
         self.session.add(
@@ -42,7 +23,7 @@ class AnnotationSqliteDB(AnnotationFileSystemDB):
         )
         try:
             self.session.commit()
-        except DBAPIError:
+        except:
             self.session.rollback()
 
     def get_obj(self, oid: str) -> Annotation:
@@ -59,9 +40,6 @@ class AnnotationSqliteDB(AnnotationFileSystemDB):
             meta=db_obj.meta,
             oid=db_obj.id,
         )
-
-    def get_part(self, obj_ref: Object, name: str) -> JSONDecoded:
-        raise NotImplementedError
 
     def get_value(self, oid: str) -> JSONDecoded:
         if not oid:
