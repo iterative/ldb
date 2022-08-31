@@ -34,11 +34,25 @@ def get_session(path: str):
 
 
 def get_db_path(ldb_dir: str) -> str:
-    return os.path.join(ldb_dir, "duckdb", "index.duckdb")
+    from ldb.db import LDB_BACKEND
+
+    if LDB_BACKEND == "duckdb":
+        return os.path.join(ldb_dir, "duckdb", "index.duckdb")
+    elif LDB_BACKEND == "sqlite":
+        return os.path.join(ldb_dir, "sqlite", "index.db")
+    else:
+        raise ValueError("backend")
 
 
 def path_to_db_url(path: str) -> str:
-    return f"duckdb:///{path}"
+    from ldb.db import LDB_BACKEND
+
+    if LDB_BACKEND == "duckdb":
+        return f"duckdb:///{path}"
+    elif LDB_BACKEND == "sqlite":
+        return f"sqlite:///{path}"
+    else:
+        raise ValueError("backend")
 
 
 def init_db(ldb_dir: str):

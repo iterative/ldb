@@ -53,7 +53,7 @@ def init(
             "read_any_cloud_location": read_any_cloud_location,
             "auto_index": auto_index,
         }
-    if db == "duckdb":
+    if db == "duckdb" or db == "sqlite":
         from ldb.db.sql.models import init_db
 
         init_db(os.fspath(path))
