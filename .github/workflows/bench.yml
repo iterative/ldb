@@ -62,9 +62,9 @@ jobs:
         run: |
           [[ "$RUNNER_OS" != "Windows" ]] && source ./venv/bin/activate || source ./venv/Scripts/activate
           gitshortref="$(git rev-parse --short HEAD)"
-          LDB_BACKEND=fs pytest -n0 --benchmark-save "$gitshortref"-fs-${{ runner.os }}-python${{ steps.setup-python.outputs.python-version }}-"$(date -u '+%Y-%m-%d-T-%H-%M-%S-%N')" --benchmark-group-by func tests/benchmarks
-          LDB_BACKEND=duckdb pytest -n0 --benchmark-save "$gitshortref"-duckdb-${{ runner.os }}-python${{ steps.setup-python.outputs.python-version }}-"$(date -u '+%Y-%m-%d-T-%H-%M-%S-%N')" --benchmark-group-by func tests/benchmarks
-          LDB_BACKEND=sqlite pytest -n0 --benchmark-save "$gitshortref"-sqlite-${{ runner.os }}-python${{ steps.setup-python.outputs.python-version }}-"$(date -u '+%Y-%m-%d-T-%H-%M-%S-%N')" --benchmark-group-by func tests/benchmarks
+          LDB_BACKEND=fs pytest -n0 --benchmark-save fs-"$gitshortref"-${{ runner.os }}-python${{ steps.setup-python.outputs.python-version }}-"$(date -u '+%Y-%m-%d-T-%H-%M-%S-%N')" --benchmark-group-by func tests/benchmarks
+          LDB_BACKEND=duckdb pytest -n0 --benchmark-save duckdb-"$gitshortref"-${{ runner.os }}-python${{ steps.setup-python.outputs.python-version }}-"$(date -u '+%Y-%m-%d-T-%H-%M-%S-%N')" --benchmark-group-by func tests/benchmarks
+          LDB_BACKEND=sqlite pytest -n0 --benchmark-save sqlite-"$gitshortref"-${{ runner.os }}-python${{ steps.setup-python.outputs.python-version }}-"$(date -u '+%Y-%m-%d-T-%H-%M-%S-%N')" --benchmark-group-by func tests/benchmarks
       - name: create pr
         env:
           REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
