@@ -64,8 +64,10 @@ jobs:
       - name: run tests
         run: |
           [[ "$RUNNER_OS" != "Windows" ]] && source ./venv/bin/activate || source ./venv/Scripts/activate
-          LDB_BACKEND=fs pytest -n0 --benchmark-save fs-${{ matrix.test.name }}-"$(date -u '+%Y-%m-%d-T-%H-%M-%S-%N')" --benchmark-group-by func tests/benchmarks
-          LDB_BACKEND=duckdb pytest -n0 --benchmark-save duckdb-${{ matrix.test.name }}-"$(date -u '+%Y-%m-%d-T-%H-%M-%S-%N')" --benchmark-group-by func tests/benchmarks
+          gitshortref="$(git rev-parse --short HEAD)"
+          LDB_BACKEND=fs pytest -n0 --benchmark-save "$gitshortref"-fs-${{ matrix.test.name }}-"$(date -u '+%Y-%m-%d-T-%H-%M-%S-%N')" --benchmark-group-by func tests/benchmarks
+          LDB_BACKEND=duckdb pytest -n0 --benchmark-save "$gitshortref"-duckdb-${{ matrix.test.name }}-"$(date -u '+%Y-%m-%d-T-%H-%M-%S-%N')" --benchmark-group-by func tests/benchmarks
+          LDB_BACKEND=sqlite pytest -n0 --benchmark-save "$gitshortref"-sqlite-${{ matrix.test.name }}-"$(date -u '+%Y-%m-%d-T-%H-%M-%S-%N')" --benchmark-group-by func tests/benchmarks
       - name: save benchmarks
         run: |
           cml pr .benchmarks
