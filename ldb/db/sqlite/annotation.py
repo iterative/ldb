@@ -64,6 +64,8 @@ class AnnotationSqliteDB(AnnotationFileSystemDB):
         raise NotImplementedError
 
     def get_value(self, oid: str) -> JSONDecoded:
+        if not oid:
+            return None
         return (
             self.session.query(models.Annotation.value)
             .filter(models.Annotation.id == oid)
@@ -91,6 +93,8 @@ class AnnotationSqliteDB(AnnotationFileSystemDB):
         }
 
     def get_meta(self, oid: str) -> JSONDecoded:
+        if not oid:
+            return None
         return (
             self.session.query(models.Annotation.meta)
             .filter(models.Annotation.id == oid)
