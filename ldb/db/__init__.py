@@ -4,6 +4,7 @@ LDB_BACKEND = os.getenv("LDB_BACKEND", "fs")
 
 if LDB_BACKEND == "fs":
     from ldb.db.annotation import AnnotationFileSystemDB as AnnotationDB
+    from ldb.db.data_object import DataObjectFileSystemDB as DataObjectDB
 elif LDB_BACKEND == "duckdb":
     from ldb.db.duckdb.annotation import AnnotationDuckDB as AnnotationDB
 elif LDB_BACKEND == "sqlite":
