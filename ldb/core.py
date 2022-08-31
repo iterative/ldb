@@ -16,11 +16,15 @@ def init(
     force: bool = False,
     read_any_cloud_location: bool = False,
     auto_index: bool = False,
-    db: str = "duckdb",
+    db: str = "",
 ) -> Path:
     """
     Create a new LDB instance.
     """
+    if not db:
+        from ldb.db import LDB_BACKEND
+
+        db = LDB_BACKEND
     path = Path(os.path.normpath(path))
     if path.is_dir() and next(path.iterdir(), None) is not None:
         if is_ldb_instance(path):

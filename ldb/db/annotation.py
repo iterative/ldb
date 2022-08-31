@@ -57,5 +57,11 @@ class AnnotationFileSystemDB(ObjectDB):
     def get_value(self, oid: str) -> JSONDecoded:
         return self.get_part(self.get(oid), "user")
 
+    def get_value_multi(self, oids):
+        return {i: self.get_value(i) for i in oids}
+
+    def get_value_all(self):
+        raise NotImplementedError
+
     def get_meta(self, oid: str) -> JSONDecoded:
         return self.get_part(self.get(oid), "ldb")
