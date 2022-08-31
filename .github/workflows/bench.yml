@@ -18,7 +18,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        #os: [ubuntu-latest, windows-latest, macos-latest]
+        os: [ubuntu-latest]
         python-version: ['3.10']
     steps:
       - uses: iterative/setup-cml@v1
