@@ -27,7 +27,7 @@ from ldb.dataset import (
     get_collection_dir_keys,
     get_root_collection_annotation_hash,
 )
-from ldb.db.annotation import AnnotationDB
+from ldb.db import AnnotationDB
 from ldb.exceptions import IndexingException, LDBException
 from ldb.fs.utils import get_file_hash, get_modified_time
 from ldb.index.utils import (

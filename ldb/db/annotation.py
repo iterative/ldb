@@ -3,7 +3,7 @@ import os
 from pathlib import Path
 from typing import Any, Union, cast
 
-from dvc_objects.fs.local import LocalFileSystem, localfs
+from dvc_objects.fs.local import localfs
 from dvc_objects.obj import Object
 
 from ldb.db.obj import ObjectDB
@@ -12,13 +12,13 @@ from ldb.path import InstanceDir
 from ldb.typing import JSONDecoded, JSONObject
 
 
-class AnnotationDB(ObjectDB):
+class AnnotationFileSystemDB(ObjectDB):
     @classmethod
     def from_ldb_dir(
         cls,
         ldb_dir: Union[str, Path],
         **kwargs: Any,
-    ) -> "AnnotationDB":
+    ) -> "AnnotationFileSystemDB":
         return cls(
             localfs,
             os.path.join(ldb_dir, InstanceDir.ANNOTATIONS),
@@ -59,11 +59,3 @@ class AnnotationDB(ObjectDB):
 
     def get_meta(self, oid: str) -> JSONDecoded:
         return self.get_part(self.get(oid), "ldb")
-
-
-def g():
-    from ldb.db.duckdb.annotation import AnnotationDuckDB
-    return AnnotationDuckDB
-
-
-AnnotationDB = g()

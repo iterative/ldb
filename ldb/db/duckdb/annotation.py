@@ -8,14 +8,14 @@ from dvc_objects.fs.local import LocalFileSystem, localfs
 from dvc_objects.obj import Object
 from sqlalchemy.exc import DBAPIError, NoResultFound
 
-from ldb.db.annotation import AnnotationDB
+from ldb.db.annotation import AnnotationFileSystemDB
 from ldb.db.sql import models
 from ldb.db.sql.models import get_db_path, get_session
 from ldb.objects.annotation import Annotation
 from ldb.typing import JSONDecoded
 
 
-class AnnotationDuckDB(AnnotationDB):
+class AnnotationDuckDB(AnnotationFileSystemDB):
     def __init__(self, fs: "FileSystem", path: str, **kwargs):
         assert isinstance(fs, LocalFileSystem)
         super().__init__(fs, path, **kwargs)
@@ -26,7 +26,7 @@ class AnnotationDuckDB(AnnotationDB):
         cls,
         ldb_dir: Union[str, Path],
         **kwargs: Any,
-    ) -> "AnnotationDB":
+    ) -> "AnnotationDuckDB":
         return cls(
             localfs,
             get_db_path(os.fspath(ldb_dir)),
@@ -65,16 +65,32 @@ class AnnotationDuckDB(AnnotationDB):
         raise NotImplementedError
 
     def get_value(self, oid: str) -> JSONDecoded:
-        return self.get_obj(oid).value
         return json.loads(
             self.session.query(models.Annotation.value)
             .filter(models.Annotation.id == oid)
-            .one(),
+            .one()[0],
         )
+
+    def get_value_multi(self, oids):
+        return {
+            i: json.loads(v)
+            for i, v in
+            self.session.query(models.Annotation.id, models.Annotation.value)
+            .filter(models.Annotation.id.in_(oids))
+            .all()
+        }
+
+    def get_value_all(self):
+        return {
+            i: json.loads(v)
+            for i, v in
+            self.session.query(models.Annotation.id, models.Annotation.value)
+            .all()
+        }
 
     def get_meta(self, oid: str) -> JSONDecoded:
         return json.loads(
             self.session.query(models.Annotation.meta)
             .filter(models.Annotation.id == oid)
-            .one(),
+            .one()[0],
         )

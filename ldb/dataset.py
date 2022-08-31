@@ -26,7 +26,7 @@ from typing import (
 from funcy.objects import cached_property
 
 from ldb.collections import LDBMappingCache
-from ldb.db.annotation import AnnotationDB
+from ldb.db import AnnotationDB
 from ldb.exceptions import DataObjectNotFoundError, LDBException
 from ldb.iter_utils import take
 from ldb.objects.collection import CollectionObject
@@ -501,8 +501,9 @@ class PathQuery(FileQuery):
 
 
 class PipelineData:
-    def __init__(self, ldb_dir: Path) -> None:
+    def __init__(self, ldb_dir: Path, annotation_hashes = None) -> None:
         self.ldb_dir = ldb_dir
+        self.annotation_hashes = annotation_hashes
 
     @cached_property
     def data_object_metas(self) -> DataObjectMetaCache:
@@ -510,7 +511,10 @@ class PipelineData:
 
     @cached_property
     def annotations(self) -> AnnotationCache:
-        return AnnotationCache(self.ldb_dir)
+        if self.annotation_hashes is None:
+            return AnnotationDB.from_ldb_dir(self.ldb_dir).get_value_all()
+        return AnnotationDB.from_ldb_dir(self.ldb_dir).get_value_multi(self.annotation_hashes)
+        #return AnnotationCache(self.ldb_dir)
 
 
 class PipelineBuilder:
@@ -653,4 +657,7 @@ def apply_queries_to_collection(
     """
     Filter the given collection by the operations in `collection_ops`.
     """
-    return Pipeline.from_defs(ldb_dir, op_defs, warn=warn).run(collection)
+    collection_dict = dict(collection)
+    collection = collection_dict.items()
+    data = PipelineData(ldb_dir, annotation_hashes=collection_dict.values())
+    return Pipeline.from_defs(ldb_dir, op_defs, data=data, warn=warn).run(collection)
