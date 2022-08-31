@@ -25,6 +25,8 @@ class AnnotationDuckDB(AnnotationSqliteDB):
         )
 
     def get_value(self, oid: str) -> JSONDecoded:
+        if not oid:
+            return None
         return json.loads(
             self.session.query(models.Annotation.value)
             .filter(models.Annotation.id == oid)
@@ -35,7 +37,8 @@ class AnnotationDuckDB(AnnotationSqliteDB):
         return {
             i: json.loads(v)
             for i, v in self.session.query(
-                models.Annotation.id, models.Annotation.value,
+                models.Annotation.id,
+                models.Annotation.value,
             )
             .filter(models.Annotation.id.in_(oids))
             .all()
@@ -45,11 +48,14 @@ class AnnotationDuckDB(AnnotationSqliteDB):
         return {
             i: json.loads(v)
             for i, v in self.session.query(
-                models.Annotation.id, models.Annotation.value,
+                models.Annotation.id,
+                models.Annotation.value,
             ).all()
         }
 
     def get_meta(self, oid: str) -> JSONDecoded:
+        if not oid:
+            return None
         return json.loads(
             self.session.query(models.Annotation.meta)
             .filter(models.Annotation.id == oid)
