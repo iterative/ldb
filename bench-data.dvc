@@ -1,5 +1,5 @@
 outs:
-- md5: 5bd7a20efd3df348a5ff87954e5a6e6e.dir
-  size: 2177790
-  nfiles: 200000
+- md5: 3ea5fa265049413cf7e66301020804dd.dir
+  size: 197788
+  nfiles: 20000
   path: bench-data
