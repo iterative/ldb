@@ -5,7 +5,7 @@ from typing import Dict, List, Mapping, Optional, Sequence, Tuple
 
 from ldb.config import get_ldb_dir
 from ldb.core import init_quickstart
-from ldb.db.collection import CollectionDB
+from ldb.db import CollectionDB
 from ldb.exceptions import LDBException
 from ldb.objects.collection import CollectionObject
 from ldb.objects.dataset import Dataset

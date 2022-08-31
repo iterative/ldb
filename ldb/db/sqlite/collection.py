@@ -5,13 +5,13 @@ from typing import Any, Union
 
 from dvc_objects.fs.local import LocalFileSystem
 
-from ldb.db.collection import CollectionDB
+from ldb.db.collection import CollectionFileSystemDB
 from ldb.db.sqlite.data_object import DataObjectSqliteDB
 from ldb.objects.collection import CollectionObject
 from ldb.path import InstanceDir
 
 
-class CollectionSqliteDB(CollectionDB):
+class CollectionSqliteDB(CollectionFileSystemDB):
     # TODO use sql tables for collections
     @classmethod
     def from_ldb_dir(

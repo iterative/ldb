@@ -11,7 +11,7 @@ from ldb.objects.collection import CollectionObject
 from ldb.path import InstanceDir
 
 
-class CollectionDB(ObjectDB):
+class CollectionFileSystemDB(ObjectDB):
     @classmethod
     def from_ldb_dir(
         cls,
@@ -37,4 +37,4 @@ class CollectionDB(ObjectDB):
 
     def get_root(self, ldb_dir):
         db = DataObjectFileSystemDB.from_ldb_dir(ldb_dir)
-        return CollectionObject(db.get_collection_members(ldb_dir))
+        return CollectionObject(db.get_collection_members())
