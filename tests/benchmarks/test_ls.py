@@ -10,6 +10,10 @@ BENCH_DATA = {
 }
 
 
+def bench(bench_func, func):
+    return bench_func(func, warmup_rounds=1, rounds=2, iterations=3)
+
+
 @pytest.mark.parametrize(
     "args",
     BENCH_DATA.values(),
@@ -25,7 +29,7 @@ def test_cli_ls_root_dataset(
     def func():
         return main([*base_args, *args])
 
-    ret = benchmark.pedantic(func)
+    ret = bench(benchmark.pedantic, func)
     assert ret == 0
 
 
@@ -44,5 +48,5 @@ def test_cli_ls_dataset(
     def func():
         return main([*base_args, *args])
 
-    ret = benchmark.pedantic(func)
+    ret = bench(benchmark.pedantic, func)
     assert ret == 0
