@@ -7,7 +7,8 @@ if __name__ == "__main__":
     args = sys.argv[1:]
     out_prefix = args[0]
     n = int(args[1])
-    out_dir = f"{out_prefix}-{n}"
+    #out_dir = f"{out_prefix}-{n}"
+    out_dir = f"{out_prefix}"
     os.makedirs(out_dir)
     for i in range(1, n + 1):
         padded = f"{i:0>7}"

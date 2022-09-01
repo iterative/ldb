@@ -9,7 +9,6 @@ from typing import (
     Collection,
     Dict,
     Generator,
-    Iterable,
     List,
     Mapping,
     NamedTuple,
@@ -68,7 +67,6 @@ from ldb.utils import (
     hash_data,
     json_dumps,
     load_data_file,
-    write_data_file,
 )
 
 if TYPE_CHECKING:

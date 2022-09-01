@@ -4,4 +4,4 @@ LDB_BACKEND=fs pytest -n0 --benchmark-save fs-"$gitshortref"-local-"$(date -u '+
 LDB_BACKEND=duckdb pytest -n0 --benchmark-save duckdb-"$gitshortref"-local-"$(date -u '+%Y-%m-%d-T-%H-%M-%S-%N')" --benchmark-group-by func tests/benchmarks
 LDB_BACKEND=sqlite pytest -n0 --benchmark-save sqlite-"$gitshortref"-local-"$(date -u '+%Y-%m-%d-T-%H-%M-%S-%N')" --benchmark-group-by func tests/benchmarks
 
-pytest-benchmark compare
+pytest-benchmark compare --group-by name --columns mean

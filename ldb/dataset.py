@@ -27,7 +27,7 @@ from funcy.objects import cached_property
 
 from ldb.collections import LDBMappingCache
 from ldb.db import AnnotationDB, CollectionDB
-from ldb.exceptions import DataObjectNotFoundError, LDBException
+from ldb.exceptions import LDBException
 from ldb.iter_utils import take
 from ldb.objects.collection import CollectionObject
 from ldb.objects.dataset import Dataset
@@ -42,7 +42,6 @@ from ldb.query.search import (
 )
 from ldb.typing import JSONDecoded, JSONObject
 from ldb.utils import (
-    DATA_OBJ_ID_PREFIX,
     ROOT,
     format_dataset_identifier,
     format_datetime,
@@ -585,6 +584,22 @@ class PipelineBuilder:
         ).apply
 
     def path_query(self, pattern: str) -> CollectionFunc:
+        from ldb.db import LDB_BACKEND
+
+        if LDB_BACKEND == "sqlite":
+            from ldb.db import DataObjectDB
+
+            db = DataObjectDB.from_ldb_dir(self.ldb_dir)
+
+            def func(collection):
+                coll_dict = dict(collection)
+                oids = list(coll_dict.keys())
+                passing_ids = db.path_regex(pattern, oids)
+                for i in passing_ids:
+                    yield i, coll_dict[i]
+
+            return func
+
         return PathQuery(
             self.ldb_dir,
             self.data.data_object_metas,

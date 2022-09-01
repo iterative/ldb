@@ -77,11 +77,48 @@ class Annotation(Base):
     meta = Column(JSON)
 
 
+"""
+{
+  "alternate_paths": [
+    {
+      "fs_id": "",
+      "path": "/home/jon/data/numbers-10000/0007966.txt",
+      "protocol": "file"
+    }
+  ],
+  "first_indexed": "2022-08-29T15:47:14.692999+00:00",
+  "fs": {
+    "atime": "2022-08-29T15:46:23.656846+00:00",
+    "ctime": "2022-08-29T15:46:23.656846+00:00",
+    "fs_id": "",
+    "gid": 1000,
+    "mode": 33188,
+    "mtime": "2022-08-29T19:46:23.656846+00:00",
+    "path": "/home/jon/data/numbers-10000/0007966.txt",
+    "protocol": "file",
+    "size": 4,
+    "uid": 1000
+  },
+  "last_indexed": "2022-08-29T15:47:14.692999+00:00",
+  "last_indexed_by": "jon",
+  "tags": [],
+  "type": "txt"
+}
+"""
+
+
 class DataObjectMeta(Base):
     __tablename__ = "data_object_meta"
 
     id = Column(String, primary_key=True)
     meta = Column(JSON)
+
+
+class DataObjectPath(Base):
+    __tablename__ = "data_object_path"
+
+    id = Column(String, primary_key=True)
+    path = Column(String, primary_key=True)
 
 
 class DataObjectCurrentAnnot(Base):

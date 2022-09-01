@@ -1,19 +1,11 @@
-import json
-import os
-from pathlib import Path
-from typing import Any, Union
 
-from dvc_objects.fs.local import localfs
-from dvc_objects.obj import Object
+from sqlalchemy import select
 from sqlalchemy.exc import DBAPIError, NoResultFound
 
 from ldb.db.data_object import DataObjectFileSystemDB
-from ldb.db.obj import ObjectDB
 from ldb.db.sql import models
 from ldb.db.sql.base import BaseSqliteDB
 from ldb.objects.data_object import DataObjectMeta, PairMeta
-from ldb.path import InstanceDir
-from ldb.typing import JSONDecoded
 
 
 class DataObjectSqliteDB(BaseSqliteDB, DataObjectFileSystemDB):
@@ -35,6 +27,12 @@ class DataObjectSqliteDB(BaseSqliteDB, DataObjectFileSystemDB):
                 {"meta": meta.meta},
             )
             self.session.commit()
+        path_obj = models.DataObjectPath(id=obj.oid, path=obj.data["fs"]["path"])
+        self.session.add(path_obj)
+        try:
+            self.session.commit()
+        except DBAPIError:
+            self.session.rollback()
 
     def get_meta(self, oid: str):
         try:
@@ -130,3 +128,15 @@ class DataObjectSqliteDB(BaseSqliteDB, DataObjectFileSystemDB):
                 if i not in ids:
                     raise Exception(f"missing data object {i}")
             raise Exception("missing data object")
+
+    def path_regex(self, pattern: str, oids=None):
+        stmt = (
+            select(models.DataObjectPath.id)
+            .where(
+                models.DataObjectPath.path.regexp_match(pattern),
+                models.DataObjectPath.id.in_(oids),
+            )
+        )
+        return [
+            i[0] for i in self.session.execute(stmt).all()
+        ]
