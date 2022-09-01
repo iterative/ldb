@@ -112,3 +112,21 @@ class DataObjectSqliteDB(BaseSqliteDB, DataObjectFileSystemDB):
     def get_collection_members(self, *args):
         m = models.DataObjectCurrentAnnot
         return dict(self.session.query(m.id, m.current_annotation))
+
+    def ensure_all_ids_exist(self, oids):
+        num = (
+            self.session.query(models.DataObjectMeta.id)
+            .filter(models.DataObjectMeta.id.in_(oids))
+            .count()
+        )
+        if num != len(oids):
+            ids = {
+                i[0]
+                for i in self.session.query(models.DataObjectMeta.id).filter(
+                    models.DataObjectMeta.id.in_(oids),
+                )
+            }
+            for i in oids:
+                if i not in ids:
+                    raise Exception(f"missing data object {i}")
+            raise Exception("missing data object")

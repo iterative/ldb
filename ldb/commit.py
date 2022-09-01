@@ -3,14 +3,14 @@ import os
 from pathlib import Path
 from typing import Optional
 
-from ldb.dataset import CommitInfo, ensure_all_collection_dir_keys_contained
-from ldb.db import CollectionDB
+from ldb.dataset import CommitInfo
+from ldb.db import CollectionDB, DataObjectDB
 from ldb.db.dataset import DatasetDB
 from ldb.db.dataset_version import DatasetVersionDB
 from ldb.exceptions import DatasetNotFoundError
 from ldb.objects.dataset import Dataset
 from ldb.objects.dataset_version import DatasetVersion
-from ldb.path import InstanceDir, WorkspacePath
+from ldb.path import WorkspacePath
 from ldb.transform import save_transform_object
 from ldb.utils import (
     DATASET_PREFIX,
@@ -58,10 +58,14 @@ def commit(
     ):
         print("Nothing to commit.")
         return
-    ensure_all_collection_dir_keys_contained(
-        workspace_path / WorkspacePath.COLLECTION,
-        ldb_dir / InstanceDir.DATA_OBJECT_INFO,
-    )
+    ws_collection_dir = os.path.join(workspace_path, WorkspacePath.COLLECTION)
+    ids = {
+        p1 + p2
+        for p1 in os.listdir(ws_collection_dir)
+        for p2 in os.listdir(os.path.join(ws_collection_dir, p1))
+    }
+    data_obj_db = DataObjectDB.from_ldb_dir(ldb_dir)
+    data_obj_db.ensure_all_ids_exist(ids)
     collection_obj = collection_dir_to_object(
         workspace_path / WorkspacePath.COLLECTION,
     )

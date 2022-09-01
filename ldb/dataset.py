@@ -143,23 +143,6 @@ def get_collection_dir_items(
         yield path.parent.name + path.name, annotation_hash_func(path)
 
 
-def ensure_all_collection_dir_keys_contained(
-    collection_dir1: Path,
-    collection_dir2: Path,
-) -> None:
-    keys = {
-        (p1, p2)
-        for p1 in os.listdir(collection_dir2)
-        for p2 in os.listdir(os.path.join(collection_dir2, p1))
-    }
-    for p1 in os.listdir(collection_dir1):
-        for p2 in os.listdir(os.path.join(collection_dir1, p1)):
-            if (p1, p2) not in keys:
-                raise DataObjectNotFoundError(
-                    f"Data object not found: {DATA_OBJ_ID_PREFIX}{p1}{p2}",
-                )
-
-
 def get_collection_size(
     collection_dir: Union[str, Path],
 ) -> int:

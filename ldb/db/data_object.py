@@ -7,9 +7,10 @@ from dvc_objects.fs.local import localfs
 from dvc_objects.obj import Object
 
 from ldb.db.obj import ObjectDB
+from ldb.exceptions import DataObjectNotFoundError
 from ldb.objects.data_object import DataObjectMeta, PairMeta
 from ldb.path import InstanceDir
-from ldb.typing import JSONDecoded
+from ldb.utils import DATA_OBJ_ID_PREFIX
 
 
 class DataObjectFileSystemDB(ObjectDB):
@@ -91,3 +92,13 @@ class DataObjectFileSystemDB(ObjectDB):
                     annot_id = ""
                 result[oid] = annot_id
         return result
+
+    def ensure_all_ids_exist(self, oids):
+        for p1 in self.fs.ls(self.path):
+            for p2 in self.fs.ls(p1):
+                a, b = self.fs.path.parts(p2)[-2:]
+                oid = a + b
+                if oid not in oids:
+                    raise DataObjectNotFoundError(
+                        f"Data object not found: {DATA_OBJ_ID_PREFIX}{oid}",
+                    )
