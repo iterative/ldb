@@ -18,9 +18,10 @@ def ls_command(options: Namespace) -> None:
         options.paths,
         options.query_args,
         warn=False,
+        summarize=options.summary,
     )
     if options.summary:
-        print(len(ds_listings))
+        print(ds_listings)
     else:
         num_items = print_dataset_listings(
             ds_listings,

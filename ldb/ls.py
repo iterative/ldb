@@ -31,13 +31,17 @@ def ls(
     paths: Sequence[str],
     collection_ops: Iterable[OpDef],
     warn: bool = True,
+    summarize: bool = False,
 ) -> List[DatasetListing]:
+    print(1)
     collection, transform_infos = paths_to_dataset(
         ldb_dir,
         paths,
         collection_ops,
         warn=warn,
     )
+    if summarize:
+        return sum(1 for _ in collection)
     return ls_collection(ldb_dir, collection, transform_infos=transform_infos)
 
 
