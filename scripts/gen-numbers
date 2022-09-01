@@ -1,0 +1,21 @@
+#!/usr/bin/env python3
+import json
+import os
+import sys
+
+if __name__ == "__main__":
+    args = sys.argv[1:]
+    out_prefix = args[0]
+    n = int(args[1])
+    out_dir = f"{out_prefix}-{n}"
+    os.makedirs(out_dir)
+    for i in range(1, n + 1):
+        padded = f"{i:0>7}"
+        data_fname = os.path.join(out_dir, f"{padded}.txt")
+        annot_fname = os.path.join(out_dir, f"{padded}.json")
+        data_str = str(i)
+        annot_str = json.dumps({"number": i})
+        with open(data_fname, "x") as file:
+            file.write(data_str)
+        with open(annot_fname, "x") as file:
+            file.write(annot_str)

@@ -40,17 +40,18 @@ jobs:
           [[ "$RUNNER_OS" != "Windows" ]] && source ./venv/bin/activate || source ./venv/Scripts/activate
           python -m pip install --upgrade pip
           python -m pip install '.[bench,test-setup,test]'
-      - name: test data cache
-        id: bench-data-cache
-        uses: actions/cache@v3
-        with:
-          path: ./data
-          key: bench-data-${{ hashFiles('bench-data.dvc') }}
+      #- name: test data cache
+      #  id: bench-data-cache
+      #  uses: actions/cache@v3
+      #  with:
+      #    path: ./data
+      #    key: bench-data-${{ hashFiles('bench-data.dvc') }}
       - name: download test data
         if: steps.bench-data-cache.outputs.cache-hit != 'true'
         run: |
           [[ "$RUNNER_OS" != "Windows" ]] && source ./venv/bin/activate || source ./venv/Scripts/activate
-          dvc pull bench-data
+          #dvc pull bench-data
+          ./scripts/gen-numbers bench-data/numbers 100000
       - name: ml model cache
         uses: actions/cache@v3
         with:
