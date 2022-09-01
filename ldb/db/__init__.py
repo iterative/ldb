@@ -8,10 +8,12 @@ if LDB_BACKEND == "fs":
     from ldb.db.data_object import DataObjectFileSystemDB as DataObjectDB
 elif LDB_BACKEND == "duckdb":
     from ldb.db.duckdb.annotation import AnnotationDuckDB as AnnotationDB
-    from ldb.db.duckdb.collection import CollectionDuckDB as CollectionDB
-    from ldb.db.duckdb.data_object import (
-        DataObjectFileSystemDB as DataObjectDB,
-    )
+    #from ldb.db.duckdb.collection import CollectionDuckDB as CollectionDB
+    #from ldb.db.duckdb.data_object import (
+    #    DataObjectFileSystemDB as DataObjectDB,
+    #)
+    from ldb.db.collection import CollectionFileSystemDB as CollectionDB
+    from ldb.db.data_object import DataObjectFileSystemDB as DataObjectDB
 elif LDB_BACKEND == "sqlite":
     from ldb.db.sqlite.annotation import AnnotationSqliteDB as AnnotationDB
     from ldb.db.sqlite.collection import CollectionSqliteDB as CollectionDB
