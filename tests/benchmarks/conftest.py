@@ -32,7 +32,7 @@ def ldb_instance_bench_session(
 
 @pytest.fixture(scope="session")
 def numbers_ds_session(ldb_instance_session: Path) -> Path:
-    run(["index", "-m", "bare", os.fspath(BENCH_DATA_DIR / "numbers-10000")])
+    run(["index", "-m", "bare", os.fspath(BENCH_DATA_DIR / "numbers-100000")])
     ws_path = ldb_instance_session.parent / "workspace"
     stage_new_workspace(ws_path, "numbers")
     with chdir(ws_path):
