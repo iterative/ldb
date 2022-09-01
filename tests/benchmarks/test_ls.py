@@ -6,6 +6,7 @@ from ldb.utils import DATASET_PREFIX, ROOT
 BENCH_DATA = {
     "no-args": [],
     "query1": ["--query", "number <= `5000`"],
+    "path1": ["--path", r"3\.txt$"],
 }
 
 
