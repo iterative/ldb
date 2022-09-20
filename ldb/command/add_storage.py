@@ -60,6 +60,8 @@ def add_parser(
         action="store",
         default=False,
         type=json_bool,
+        choices=(True, False),
+        metavar="{true,false}",
         help="Use this location for adding objects",
     )
     parser.add_argument(
