@@ -1,7 +1,7 @@
 import json
 import os
 import random
-from abc import ABC
+from abc import ABC, abstractmethod
 from collections import abc, defaultdict
 from dataclasses import asdict, dataclass, fields
 from datetime import datetime
@@ -457,6 +457,7 @@ class DataObjectMetaCache(LDBMappingCache[str, JSONDecoded]):
 
 
 class CollectionOperation(ABC):
+    @abstractmethod
     def apply(
         self,
         collection: Iterable[Tuple[str, str]],

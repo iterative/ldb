@@ -1,4 +1,4 @@
-from abc import ABC
+from abc import ABC, abstractmethod
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -195,6 +195,7 @@ class Indexer(ABC):
             print(self.result.summary(finished=False), "\n", sep="")
             raise
 
+    @abstractmethod
     def _index(self) -> None:
         raise NotImplementedError
 
@@ -416,7 +417,7 @@ class PairIndexer(Indexer):
         ).index_data()
 
 
-@dataclass
+@dataclass  # type: ignore[misc]
 class IndexingItem(ABC):
     ldb_dir: Path
     curr_time: datetime
@@ -459,6 +460,7 @@ class IndexingItem(ABC):
         )
 
     @cached_property
+    @abstractmethod
     def data_object_hash(self) -> str:
         raise NotImplementedError
 
@@ -469,6 +471,7 @@ class IndexingItem(ABC):
         )
 
     @cached_property
+    @abstractmethod
     def data_object_meta(self) -> DataObjectMeta:
         raise NotImplementedError
 
@@ -603,7 +606,7 @@ class IndexingItem(ABC):
             write_data_file(file_path, data, overwrite_existing)
 
 
-@dataclass
+@dataclass  # type: ignore[misc]
 class AnnotationFileIndexingItem(IndexingItem):
     annotation_fsp: Optional[FileSystemPath]
 

@@ -1,4 +1,4 @@
-from abc import ABC
+from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Dict, Iterator, Mapping, TypeVar
 
@@ -18,6 +18,7 @@ class MappingCache(ABC, Mapping[KT, VT]):
             self._cache[key] = value
             return value
 
+    @abstractmethod
     def get_new(self, key: KT) -> VT:
         raise NotImplementedError
 
