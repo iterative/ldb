@@ -1,9 +1,8 @@
 import json
-import re
 from argparse import ArgumentParser, Namespace
-from typing import TYPE_CHECKING, Iterable, Union
+from typing import TYPE_CHECKING, Iterable
 
-from ldb.cli_utils import add_data_obj_params
+from ldb.cli_utils import add_data_obj_params, get_indent_value
 from ldb.core import get_ldb_instance
 from ldb.evaluate import evaluate
 from ldb.utils import DATA_OBJ_ID_PREFIX
@@ -28,16 +27,6 @@ def evaluate_command(options: Namespace) -> None:
             print(json.dumps(item, indent=indent))
         if not options.json_only:
             print()
-
-
-def get_indent_value(indent: str) -> Union[str, int, None]:
-    if indent == "none":
-        return None
-    if re.search(r"^\s*$", indent):
-        return indent
-    if re.search(r"^\d+$", indent):
-        return int(indent)
-    raise ValueError(f"Invalid indent string: {indent!r}")
 
 
 def add_parser(
