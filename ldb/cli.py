@@ -20,6 +20,7 @@ from ldb.command import (
     instantiate,
     ls,
     pull,
+    query,
     stage,
     status,
     sync,
@@ -115,6 +116,7 @@ def get_main_parser() -> ArgumentParser:
     instantiate.add_parser(subparsers, parents)
     ls.add_parser(subparsers, parents)
     pull.add_parser(subparsers, parents)
+    query.add_parser(subparsers, parents)
     stage.add_parser(subparsers, parents)
     status.add_parser(subparsers, parents)
     sync.add_parser(subparsers, parents)

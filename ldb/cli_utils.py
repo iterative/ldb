@@ -37,6 +37,16 @@ def ws_path_identifier(ws_path: str) -> str:
     raise ValueError("workspace path identifier must begin with 'ws:'")
 
 
+def get_indent_value(indent: str) -> Union[str, int, None]:
+    if indent == "none":
+        return None
+    if re.search(r"^\s*$", indent):
+        return indent
+    if re.search(r"^\d+$", indent):
+        return int(indent)
+    raise ValueError(f"Invalid indent string: {indent!r}")
+
+
 class ExtendAction(Action):
     def __call__(
         self,
