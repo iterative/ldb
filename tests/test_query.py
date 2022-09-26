@@ -5,52 +5,7 @@ import pytest
 
 from ldb.main import main
 
-QUERY_TEST_JSON_DATA = [
-    {
-        "type": "image",
-        "format": "png",
-        "subject": "cat",
-        "details": {
-            "width": 1024,
-            "height": 768,
-        },
-        "list_values": [1, 2, 3, 4, 5],
-    },
-    {
-        "type": "image",
-        "format": "jpg",
-        "subject": "dog",
-        "details": {
-            "width": 512,
-            "height": 512,
-        },
-        "list_values": [6, 7, 8, 9, 10],
-    },
-]
-
-
-@pytest.fixture(scope="session")
-def query_test_json() -> str:
-    filename = "query_test.json"
-    with open(filename, "w", encoding="utf-8") as f:
-        json.dump(QUERY_TEST_JSON_DATA[0], f)
-    return filename
-
-
-@pytest.fixture(scope="session")
-def query_test_json2() -> str:
-    filename = "query_test2.json"
-    with open(filename, "w", encoding="utf-8") as f:
-        json.dump(QUERY_TEST_JSON_DATA[1], f)
-    return filename
-
-
-@pytest.fixture(scope="session")
-def query_test_combined() -> str:
-    filename = "query_test_combined.json"
-    with open(filename, "w", encoding="utf-8") as f:
-        json.dump(QUERY_TEST_JSON_DATA, f)
-    return filename
+from .utils import QUERY_TEST_JSON_DATA
 
 
 @pytest.mark.parametrize(

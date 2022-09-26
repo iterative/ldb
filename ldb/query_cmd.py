@@ -43,7 +43,7 @@ def query_ops_to_filters(
 def show_ops_to_searches(
     show_args: Iterable[Tuple[str, str]],
     warn: bool = True,
-) -> Iterable[Optional[SearchFunc]]:
+) -> List[Optional[SearchFunc]]:
     searches: List[Optional[SearchFunc]] = []
     for op_type, arg in show_args:
         if op_type == OpType.ANNOTATION_QUERY:
@@ -64,11 +64,11 @@ def show_ops_to_searches(
 
 
 def load_json_with_unslurp(
-    fp: TextIO,
+    file_obj: TextIO,
     objects: List[JSONDecoded],
     unslurp: bool = False,
 ) -> None:
-    json_data: JSONDecoded = load(fp)
+    json_data: JSONDecoded = load(file_obj)
     if unslurp and isinstance(json_data, list):
         # This is for multiple objects passed in as a top-level array to stdin
         # or if each file has a top-level array to expand
@@ -90,6 +90,11 @@ def query(
 
     objects: List[JSONDecoded] = []
     if not paths:
+        if sys.stdin.isatty():
+            raise RuntimeError(
+                "Please specify JSON files for this query, or pipe in "
+                "JSON input to stdin",
+            )
         # Load from stdin
         load_json_with_unslurp(sys.stdin, objects, unslurp=unslurp)
     else:
@@ -109,10 +114,11 @@ def query(
     results: Iterable[Iterable[JSONDecoded]]
 
     if not searches:
-        results = [objects]
+        for obj in objects:
+            yield (obj,)
     else:
         # This interleaves results so that all search results for
         # a given object are grouped together
         results = zip(*(search(objects) for search in searches if search))
 
-    yield from results
+        yield from results
