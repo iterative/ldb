@@ -71,7 +71,7 @@ def add_parser(
     )
     parser.add_argument(
         "--show",
-        metavar="<query to show>",
+        metavar="<query>",
         const=OpType.ANNOTATION_QUERY,
         default=[],
         dest="show_args",
@@ -83,13 +83,13 @@ def add_parser(
     )
     parser.add_argument(
         "--jshow",
-        metavar="<query to show>",
+        metavar="<query>",
         const=OpType.JP_ANNOTATION_QUERY,
         default=[],
         dest="show_args",
         action=AppendConstValuesAction,
         help=(
-            "Fully compliant JMESPath query applied to to the "
+            "Fully compliant JMESPath query applied to the "
             "supplied JSON files and shown as results"
         ),
     )

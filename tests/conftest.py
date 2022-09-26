@@ -1,5 +1,6 @@
 import json
 import os
+import os.path
 import sys
 from pathlib import Path
 from typing import Dict, Generator, Mapping, NoReturn
@@ -20,6 +21,7 @@ from ldb.utils import DATASET_PREFIX, ROOT
 
 from .utils import (
     DATA_DIR,
+    QUERY_TEST_JSON_DATA,
     SCRIPTS_DIR,
     add_user_filter,
     create_data_lake,
@@ -299,3 +301,27 @@ def data_lake_factory(ldb_instance: Path, tmp_path: Path) -> DataLakeFactory:
         return data_lake_dir
 
     return create_tmp_data_lake
+
+
+@pytest.fixture(scope="session")
+def query_test_json(tmp_path_session: Path) -> str:
+    filename = os.path.join(tmp_path_session, "query_test.json")
+    with open(filename, "w", encoding="utf-8") as f:
+        json.dump(QUERY_TEST_JSON_DATA[0], f)
+    return filename
+
+
+@pytest.fixture(scope="session")
+def query_test_json2(tmp_path_session: Path) -> str:
+    filename = os.path.join(tmp_path_session, "query_test2.json")
+    with open(filename, "w", encoding="utf-8") as f:
+        json.dump(QUERY_TEST_JSON_DATA[1], f)
+    return filename
+
+
+@pytest.fixture(scope="session")
+def query_test_combined(tmp_path_session: Path) -> str:
+    filename = os.path.join(tmp_path_session, "query_test_combined.json")
+    with open(filename, "w", encoding="utf-8") as f:
+        json.dump(QUERY_TEST_JSON_DATA, f)
+    return filename

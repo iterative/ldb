@@ -64,6 +64,28 @@ DEFAULT_TAG_SEQS = (
     ("a", "b", "c"),
     ("b", "d"),
 )
+QUERY_TEST_JSON_DATA = [
+    {
+        "type": "image",
+        "format": "png",
+        "subject": "cat",
+        "details": {
+            "width": 1024,
+            "height": 768,
+        },
+        "list_values": [1, 2, 3, 4, 5],
+    },
+    {
+        "type": "image",
+        "format": "jpg",
+        "subject": "dog",
+        "details": {
+            "width": 512,
+            "height": 512,
+        },
+        "list_values": [6, 7, 8, 9, 10],
+    },
+]
 
 
 def is_data_object_meta_obj(data: Dict[str, Any]) -> bool:
