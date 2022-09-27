@@ -193,7 +193,7 @@ def test_evaluate_data_objects(
             )
         else:
             expected_annotation_result = (
-                {"label": 4, "inference": {"label": 4}},  # type: ignore[assignment] # noqa: E501
+                {"label": 4, "inference": {"label": 4}},
                 {"label": 3},
                 {"label": 7, "inference": {"label": 1}},
                 None,

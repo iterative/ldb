@@ -417,7 +417,7 @@ class PairIndexer(Indexer):
         ).index_data()
 
 
-@dataclass  # type: ignore[misc]
+@dataclass
 class IndexingItem(ABC):
     ldb_dir: Path
     curr_time: datetime
@@ -606,7 +606,7 @@ class IndexingItem(ABC):
             write_data_file(file_path, data, overwrite_existing)
 
 
-@dataclass  # type: ignore[misc]
+@dataclass
 class AnnotationFileIndexingItem(IndexingItem):
     annotation_fsp: Optional[FileSystemPath]
 
