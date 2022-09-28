@@ -153,6 +153,7 @@ class LabelStudioIndexer(PairIndexer):
                     for data_object_path in path_seq:
                         obj_result = InferredIndexingItem(
                             self.ldb_dir,
+                            self.db,
                             current_time(),
                             tags,
                             AnnotMergeStrategy.REPLACE,

@@ -9,7 +9,6 @@ from typing import (
     Collection,
     Dict,
     Generator,
-    Iterable,
     List,
     Mapping,
     NamedTuple,
@@ -27,6 +26,8 @@ from ldb.dataset import (
     get_collection_dir_keys,
     get_root_collection_annotation_hash,
 )
+from ldb.db.abstract import AbstractDB
+from ldb.db.file import FileDB
 from ldb.exceptions import IndexingException, LDBException
 from ldb.fs.utils import get_file_hash, get_modified_time
 from ldb.index.utils import (
@@ -34,8 +35,9 @@ from ldb.index.utils import (
     INDEXED_EPHEMERAL_CONFIG,
     AnnotationMeta,
     AnnotMergeStrategy,
-    DataObjectMeta,
-    DataToWrite,
+)
+from ldb.index.utils import DataObjectMeta as DataObjectMetaT
+from ldb.index.utils import (
     FileSystemPath,
     FSPathsMapping,
     IndexingJobMapping,
@@ -51,20 +53,13 @@ from ldb.index.utils import (
     separate_storage_and_non_storage_files,
     validate_locations_in_storage,
 )
+from ldb.objects.annotation import Annotation
 from ldb.params import ParamConfig, ParamFunc
 from ldb.path import InstanceDir
 from ldb.progress import get_progressbar
 from ldb.storage import StorageLocation
 from ldb.typing import JSONDecoded, JSONObject
-from ldb.utils import (
-    current_time,
-    format_datetime,
-    get_hash_path,
-    hash_data,
-    json_dumps,
-    load_data_file,
-    write_data_file,
-)
+from ldb.utils import current_time, format_datetime, get_hash_path, json_dumps
 
 if TYPE_CHECKING:
     from ldb.add import AddResult
@@ -178,6 +173,7 @@ class Indexer(ABC):
         tags: Collection[str] = (),
         annot_merge_strategy: AnnotMergeStrategy = AnnotMergeStrategy.REPLACE,
         ephemeral_remote: bool = False,
+        db: AbstractDB = None,
     ) -> None:
         self.ldb_dir = ldb_dir
         self.preprocessor = preprocessor
@@ -187,6 +183,7 @@ class Indexer(ABC):
         self.result = IndexingResult()
         self.hashes: Dict[AbstractFileSystem, Dict[str, str]] = {}
         self.disable_progress_bar = False
+        self.db = db if db is not None else FileDB(ldb_dir)
 
     def index(self) -> None:
         try:
@@ -407,6 +404,7 @@ class PairIndexer(Indexer):
     ) -> IndexedObjectResult:
         return PairIndexingItem(
             self.ldb_dir,
+            self.db,
             current_time(),
             tags,
             annot_merge_strategy,
@@ -420,11 +418,8 @@ class PairIndexer(Indexer):
 @dataclass
 class IndexingItem(ABC):
     ldb_dir: Path
+    db: AbstractDB
     curr_time: datetime
-    _to_write: List[DataToWrite] = field(
-        init=False,
-        default_factory=list,
-    )
     tags: Collection[str]
     annot_merge_strategy: AnnotMergeStrategy
     found_new_data_object_path: bool = field(init=False, default=False)
@@ -453,36 +448,24 @@ class IndexingItem(ABC):
         return self.annotation_meta_dir_path / self.annotation_hash
 
     @cached_property
-    def annotation_dir(self) -> Path:
-        return get_hash_path(
-            self.ldb_dir / InstanceDir.ANNOTATIONS,
-            self.annotation_hash,
-        )
-
-    @cached_property
     @abstractmethod
     def data_object_hash(self) -> str:
         raise NotImplementedError
 
     @cached_property
     def annotation_hash(self) -> str:
-        return hash_data(
-            self.annotation_ldb_content_bytes + self.annotation_content_bytes,
-        )
+        return self.annotation.oid
 
     @cached_property
     @abstractmethod
-    def data_object_meta(self) -> DataObjectMeta:
+    def data_object_meta(self) -> DataObjectMetaT:
         raise NotImplementedError
 
     @cached_property
     def annotation_ldb_content(
         self,
     ) -> JSONObject:
-        return {
-            "user_version": None,
-            "schema_version": None,
-        }
+        return self.annotation.meta
 
     @cached_property
     def annotation_meta(self) -> AnnotationMeta:
@@ -493,15 +476,29 @@ class IndexingItem(ABC):
         return None
 
     @cached_property
-    def annotation_content(self) -> JSONDecoded:
+    def annotation(self) -> Annotation:
         if self.annot_merge_strategy == AnnotMergeStrategy.REPLACE:
-            return self.raw_annotation_content
-        if self.annot_merge_strategy == AnnotMergeStrategy.MERGE:
-            return self.get_merged_annotation_content()
-        raise ValueError(
-            "Invalid annotation merge strategy: "
-            f"{self.annot_merge_strategy}",
+            value = self.raw_annotation_content
+        elif self.annot_merge_strategy == AnnotMergeStrategy.MERGE:
+            value = self.get_merged_annotation_content()
+        else:
+            raise ValueError(
+                "Invalid annotation merge strategy: "
+                f"{self.annot_merge_strategy}",
+            )
+        annot = Annotation(
+            value,
+            {
+                "user_version": None,
+                "schema_version": None,
+            },
         )
+        annot.digest()
+        return annot
+
+    @cached_property
+    def annotation_content(self) -> JSONDecoded:
+        return self.annotation.value
 
     def get_merged_annotation_content(self) -> JSONDecoded:
         if not isinstance(self.raw_annotation_content, Mapping):
@@ -540,13 +537,11 @@ class IndexingItem(ABC):
 
     def index_data(self) -> IndexedObjectResult:
         new_data_object = not self.data_object_dir.is_dir()
-        self.enqueue_data(self.data_object_to_write())
 
         found_annotation = self.has_annotation
         new_annotation = False
         if found_annotation:
             new_annotation = not self.annotation_meta_file_path.is_file()
-            self.enqueue_data(self.annotation_to_write())
 
         self.write_data()
         return IndexedObjectResult(
@@ -560,50 +555,19 @@ class IndexingItem(ABC):
             transform_hashes=None,
         )
 
-    def data_object_to_write(self) -> List[DataToWrite]:
-        return [
-            (
-                self.data_object_meta_file_path,
-                json_dumps(self.data_object_meta).encode(),
-                True,
-            ),
-        ]
-
-    def annotation_to_write(self) -> List[DataToWrite]:
-        annotation_meta_bytes = json_dumps(self.annotation_meta).encode()
-        to_write = [
-            (self.annotation_meta_file_path, annotation_meta_bytes, True),
-        ]
-        if not self.annotation_dir.is_dir():
-            to_write.append(
-                (
-                    self.annotation_dir / "ldb",
-                    self.annotation_ldb_content_bytes,
-                    False,
-                ),
-            )
-            to_write.append(
-                (
-                    self.annotation_dir / "user",
-                    self.annotation_content_bytes,
-                    False,
-                ),
-            )
-        to_write.append(
-            (
-                self.data_object_dir / "current",
-                self.annotation_hash.encode(),
-                True,
-            ),
-        )
-        return to_write
-
-    def enqueue_data(self, data: Iterable[DataToWrite]) -> None:
-        self._to_write.extend(data)
-
     def write_data(self) -> None:
-        for file_path, data, overwrite_existing in self._to_write:
-            write_data_file(file_path, data, overwrite_existing)
+        if self.has_annotation:
+            annot = self.annotation
+            annot_meta = self.annotation_meta
+        else:
+            annot = None
+            annot_meta = None
+        self.db.add_pair(
+            self.data_object_hash,
+            self.data_object_meta,
+            annot,
+            annot_meta,
+        )
 
 
 @dataclass
@@ -614,11 +578,12 @@ class AnnotationFileIndexingItem(IndexingItem):
     def annotation_meta(self) -> AnnotationMeta:
         if self.annotation_fsp is None:
             raise IndexingException("Missing annotation_fsp")
-        prev_annotation = (
-            load_data_file(self.annotation_meta_file_path)
-            if self.annotation_meta_file_path.exists()
-            else {}
+        print(self.annotation.oid)
+        prev_annotation = self.db.get_pair_meta(
+            self.data_object_hash, self.annotation.oid,
         )
+        if prev_annotation is None:
+            prev_annotation = {}
         return construct_annotation_meta(
             prev_annotation,
             self.current_timestamp,
@@ -658,10 +623,10 @@ class DataObjectFileIndexingItem(IndexingItem):
         return hash_str
 
     @cached_property
-    def data_object_meta(self) -> DataObjectMeta:
+    def data_object_meta(self) -> DataObjectMetaT:
         if not self.save_data_object_path_info:
-            meta_contents: DataObjectMeta = load_data_file(
-                self.data_object_meta_file_path,
+            meta_contents: DataObjectMetaT = self.db.get_data_object_meta(
+                self.data_object_hash,
             )
             meta_contents["last_indexed"] = self.current_timestamp
             meta_contents["tags"] = sorted(  # type: ignore[assignment]
@@ -669,11 +634,11 @@ class DataObjectFileIndexingItem(IndexingItem):
                 | set(self.tags),
             )
         else:
-            old_meta = (
-                load_data_file(self.data_object_meta_file_path)
-                if self.data_object_meta_file_path.exists()
-                else {}
+            old_meta: DataObjectMetaT = self.db.get_data_object_meta(
+                self.data_object_hash,
             )
+            if old_meta is None:
+                old_meta = {}
             (
                 self.found_new_data_object_path,
                 meta_contents,
