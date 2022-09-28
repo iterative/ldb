@@ -2,9 +2,14 @@ import json
 from argparse import ArgumentParser, Namespace
 from typing import TYPE_CHECKING, Iterable
 
-from ldb.cli_utils import add_data_obj_params, get_indent_value
+from ldb.cli_utils import (
+    AppendConstValuesAction,
+    add_data_obj_params,
+    get_indent_value,
+)
 from ldb.core import get_ldb_instance
 from ldb.evaluate import evaluate
+from ldb.op_type import OpType
 from ldb.utils import DATA_OBJ_ID_PREFIX
 
 if TYPE_CHECKING:
@@ -19,6 +24,7 @@ def evaluate_command(options: Namespace) -> None:
         get_ldb_instance(),
         options.paths,
         options.query_args,
+        options.show_args,
         warn=True,
     ):
         if not options.json_only:
@@ -53,6 +59,41 @@ def add_parser(
         help=(
             "Indentation for JSON output as a whitespace string or an "
             "integer specifying the number of spaces"
+        ),
+    )
+    parser.add_argument(
+        "--show",
+        metavar="<query>",
+        const=OpType.ANNOTATION_QUERY,
+        default=[],
+        dest="show_args",
+        action=AppendConstValuesAction,
+        help=(
+            "JMESPath-like query applied to annotations and shown as results"
+        ),
+    )
+    parser.add_argument(
+        "--jshow",
+        metavar="<query>",
+        const=OpType.JP_ANNOTATION_QUERY,
+        default=[],
+        dest="show_args",
+        action=AppendConstValuesAction,
+        help=(
+            "Fully compliant JMESPath query applied to annotations "
+            "and shown as results"
+        ),
+    )
+    parser.add_argument(
+        "--file-show",
+        metavar="<query>",
+        const=OpType.FILE_QUERY,
+        default=[],
+        dest="show_args",
+        action=AppendConstValuesAction,
+        help=(
+            "JMESPath-like query applied to data object file attributes "
+            "and shown as results"
         ),
     )
     add_data_obj_params(parser, dest="query_args")

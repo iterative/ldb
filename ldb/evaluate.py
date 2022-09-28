@@ -1,11 +1,8 @@
-from functools import partial
-from itertools import tee
 from pathlib import Path
 from typing import Iterable, Iterator, List, Optional, Sequence, Tuple, Union
 
 from ldb.add import process_args_for_ls
 from ldb.dataset import apply_queries, get_annotations, get_data_object_metas
-from ldb.func_utils import apply_optional
 from ldb.op_type import OpType
 from ldb.query.search import SearchFunc, get_search_func
 from ldb.typing import JSONDecoded
@@ -21,11 +18,10 @@ def evaluate(
     ldb_dir: Path,
     paths: Sequence[str],
     collection_ops: Iterable[Tuple[str, str]],
+    show_ops: Iterable[Tuple[str, str]],
     warn: bool = True,
 ) -> Iterator[EvaluateResult]:
-    search, file_search, collection_ops = process_query_args(
-        collection_ops,
-    )
+    searches, file_searches = process_show_args(show_ops)
     (
         data_object_hashes,
         annotation_hashes,
@@ -42,56 +38,52 @@ def evaluate(
         collection_ops,
         warn=warn,
     )
-    collection1, collection2 = tee(collection)
-    data_object_hashes1, data_object_hashes2 = tee(d for d, _ in collection1)
-    annotation_hashes = (a for _, a in collection2)
-    if search is None and file_search is None:
+    collection_list = list(collection)
+    annotation_hashes = (a for _, a in collection_list)
+    search_results: List[Iterable[JSONDecoded]]
+    if not searches and not file_searches:
         search_results = [get_annotations(ldb_dir, annotation_hashes)]
     else:
         search_results = []
-        if file_search is not None:
-            search_results.append(
-                file_search(  # type: ignore[arg-type]
-                    get_data_object_metas(ldb_dir, data_object_hashes1),
-                ),
+
+        if file_searches:
+            data_object_hashes = (d for d, _ in collection_list)
+            data_object_metas = get_data_object_metas(
+                ldb_dir,
+                data_object_hashes,
             )
-        if search is not None:
-            search_results.append(
-                search(get_annotations(ldb_dir, annotation_hashes)),  # type: ignore[arg-type] # noqa: E501
+            for file_search in file_searches:
+                search_results.append(file_search(data_object_metas))
+
+        if searches:
+            annotations = get_annotations(
+                ldb_dir,
+                annotation_hashes,
             )
+            for search in searches:
+                search_results.append(search(annotations))
 
     result: Iterator[EvaluateResult] = zip(  # type: ignore[assignment]
-        data_object_hashes2,
+        (d for d, _ in collection_list),
         *search_results,
     )
     yield from result
 
 
-def process_query_args(
-    query_args: Iterable[Tuple[str, str]],
+def process_show_args(
+    show_args: Iterable[Tuple[str, str]],
     warn: bool = True,
-) -> Tuple[Optional[SearchFunc], Optional[SearchFunc], List[Tuple[str, str]]]:
-    query_args = list(query_args)
-    search = None
-    file_search = None
-    if not query_args:
-        return search, file_search, query_args
-    op_type, arg = query_args.pop()
-    if op_type == OpType.ANNOTATION_QUERY:
-        search = apply_optional(
-            partial(get_search_func, use_custom=True, warn=warn),
-            arg,
-        )
-    elif op_type == OpType.JP_ANNOTATION_QUERY:
-        search = apply_optional(
-            partial(get_search_func, use_custom=False, warn=warn),
-            arg,
-        )
-    elif op_type == OpType.FILE_QUERY:
-        file_search = apply_optional(
-            partial(get_search_func, warn=warn),
-            arg,
-        )
-    else:
-        query_args.append((op_type, arg))
-    return search, file_search, query_args
+) -> Tuple[List[SearchFunc], List[SearchFunc]]:
+    show_args = list(show_args)
+    searches: List[SearchFunc] = []
+    file_searches: List[SearchFunc] = []
+    if not show_args:
+        return searches, file_searches
+    for op_type, arg in show_args:
+        if op_type == OpType.ANNOTATION_QUERY:
+            searches.append(get_search_func(arg, use_custom=True, warn=warn))
+        elif op_type == OpType.JP_ANNOTATION_QUERY:
+            searches.append(get_search_func(arg, use_custom=False, warn=warn))
+        elif op_type == OpType.FILE_QUERY:
+            file_searches.append(get_search_func(arg, warn=warn))
+    return searches, file_searches
