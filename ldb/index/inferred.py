@@ -28,7 +28,7 @@ from ldb.index.utils import (
 from ldb.jmespath.parser import parse_identifier_expression
 from ldb.params import ParamConfig
 from ldb.typing import JSONDecoded, JSONObject
-from ldb.utils import current_time, load_data_file
+from ldb.utils import current_time
 
 BASE_DIR_HELP = (
     "To index files in base dirs, provide a label, with the "
@@ -208,6 +208,7 @@ class InferredIndexer(PairIndexer):
                         if annot is not None:
                             item = InferredIndexingItem(
                                 self.ldb_dir,
+                                self.db,
                                 current_time(),
                                 tags,
                                 annot_merge_strategy,
@@ -226,13 +227,13 @@ class InferredIndexingItem(DataObjectFileIndexingItem):
 
     @cached_property
     def annotation_meta(self) -> AnnotationMeta:
-        prev_annotation = (
-            load_data_file(self.annotation_meta_file_path)
-            if self.annotation_meta_file_path.exists()
-            else {}
+        record = self.db.get_pair_meta(
+            self.data_object_hash,
+            self.annotation.oid,
         )
+        prev = record[2] if record is not None else {}
         return construct_annotation_meta(
-            prev_annotation,
+            prev,
             self.current_timestamp,
             self.annotation_version,
             None,
