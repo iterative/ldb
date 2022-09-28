@@ -1,12 +1,13 @@
-import os.path as osp
 import json
+import os.path as osp
 from typing import Optional, Tuple
 
 from ldb.db.abstract import AbstractDB
-from ldb.path import InstanceDir
+from ldb.index.utils import AnnotationMeta
+from ldb.index.utils import DataObjectMeta as DataObjectMetaT
 from ldb.objects.annotation import Annotation
+from ldb.path import InstanceDir
 from ldb.utils import json_dumps, load_data_file, write_data_file
-from ldb.index.utils import AnnotationMeta, DataObjectMeta as DataObjectMetaT
 
 
 class FileDB(AbstractDB):
@@ -29,7 +30,9 @@ class FileDB(AbstractDB):
         self.add_data_object_meta(data_object_hash, data_object_meta)
         if annotation is not None:
             self.add_annotation(annotation)
-            self.add_pair_meta(data_object_hash, annotation.oid, annotation_meta)
+            self.add_pair_meta(
+                data_object_hash, annotation.oid, annotation_meta,
+            )
             self.set_current_annot(data_object_hash, annotation.oid)
 
     def add_data_object_meta(self, id, obj):
@@ -58,11 +61,15 @@ class FileDB(AbstractDB):
             return None
 
     def add_pair_meta(self, id, annot_id, obj):
-        path = osp.join(self.data_object_dir, *self.oid_parts(id), "annotations", annot_id)
+        path = osp.join(
+            self.data_object_dir, *self.oid_parts(id), "annotations", annot_id,
+        )
         write_data_file(path, json_dumps(obj).encode(), True)
 
     def get_pair_meta(self, id: str, annot_id: str):
-        path = osp.join(self.data_object_dir, *self.oid_parts(id), "annotations", annot_id)
+        path = osp.join(
+            self.data_object_dir, *self.oid_parts(id), "annotations", annot_id,
+        )
         try:
             return load_data_file(path)
         except FileNotFoundError:

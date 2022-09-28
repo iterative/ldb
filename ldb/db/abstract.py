@@ -1,5 +1,6 @@
+from ldb.index.utils import AnnotationMeta
+from ldb.index.utils import DataObjectMeta as DataObjectMetaT
 from ldb.objects.annotation import Annotation
-from ldb.index.utils import AnnotationMeta, DataObjectMeta as DataObjectMetaT
 
 
 class AbstractDB:
