@@ -564,7 +564,6 @@ class AnnotationFileIndexingItem(IndexingItem):
     def annotation_meta(self) -> AnnotationMeta:
         if self.annotation_fsp is None:
             raise IndexingException("Missing annotation_fsp")
-        print(self.annotation.oid)
         prev_annotation = self.db.get_pair_meta(
             self.data_object_hash,
             self.annotation.oid,
