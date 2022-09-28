@@ -179,6 +179,7 @@ disable = [
     'deprecated-pragma',
     'file-ignored',
     'fixme',
+    'import-outside-toplevel',
     'line-too-long',  # covered by flake8
     'locally-disabled',
     'missing-class-docstring',
@@ -368,7 +369,7 @@ ignore-imports = 'yes'
 ignore-signatures = 'no'
 
 # Minimum lines number of a similarity.
-min-similarity-lines = 8
+min-similarity-lines = 12
 
 
 [tool.pylint.BASIC]
@@ -512,7 +513,7 @@ additional-builtins = []
 allow-global-unused-variables = 'yes'
 
 # List of names allowed to shadow builtins
-allowed-redefined-builtins = []
+allowed-redefined-builtins = ['id']
 
 # List of strings which can identify a callback function by name. A callback
 # name must start or end with one of those strings.
