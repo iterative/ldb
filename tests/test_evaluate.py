@@ -34,7 +34,7 @@ def test_cli_eval_counts_root_dataset(
             "eval",
             f"{DATASET_PREFIX}{ROOT}",
             *args,
-            "--query=@ != `null`",
+            "--show=@ != `null`",
         ],
     )
     out_lines = capsys.readouterr().out.splitlines()
@@ -43,6 +43,49 @@ def test_cli_eval_counts_root_dataset(
     assert ret == 0
     assert found_data_objs == data_objs
     assert found_annots == annots
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        (
+            ["--query=label == inference.label", "--show=label"],
+            [
+                "id:47149106168f7d88fcea9e168608f129",
+                "4",
+                "id:b5fba326c8247d9e62aa17a109146c02",
+                "6",
+            ],
+        ),
+        (
+            [
+                "--query=label == `7`",
+                "--jquery=inference.label != `null`",
+                "--show=label",
+                "--jshow=inference.label",
+            ],
+            ["id:a2430513e897d5abcf62a55b8df81355", "7", "1"],
+        ),
+    ],
+    ids=["label match", "multi filter and show"],
+)
+def test_cli_eval_multi_filter_show_dataset(
+    args,
+    expected,
+    fashion_mnist_session,
+    capsys,
+):
+    ret = main(
+        [
+            "eval",
+            f"{DATASET_PREFIX}{ROOT}",
+            *args,
+        ],
+    )
+    out_lines = capsys.readouterr().out.splitlines()
+    out_lines = [line for line in out_lines if line]
+    assert ret == 0
+    assert out_lines == expected
 
 
 @pytest.mark.parametrize(
@@ -71,7 +114,7 @@ def test_cli_eval_json_indent(
         [
             "eval",
             f"{DATASET_PREFIX}{ROOT}",
-            "--query=@",
+            "--show=@",
             "--json",
             *indent_args,
         ],
@@ -85,11 +128,11 @@ def test_cli_eval_json_indent(
     [
         (),
         ("--limit", "10"),
-        ("--query", "label"),
+        ("--show", "label"),
         ("--file", "fs.path"),
-        ("--query", "label", "--file", "fs.path"),
-        ("--limit", "4", "--query", "label", "--file", "fs.path"),
-        ("--query", "label", "--limit", "4", "--file", "fs.path"),
+        ("--show", "label", "--file", "fs.path"),
+        ("--limit", "4", "--show", "label", "--file", "fs.path"),
+        ("--show", "label", "--limit", "4", "--file", "fs.path"),
     ],
 )
 def test_cli_eval_root_dataset(args, ldb_instance, data_dir):
@@ -106,6 +149,7 @@ def test_evaluate_storage_location(ldb_instance, data_dir):
         evaluate(
             ldb_instance,
             [dir_to_eval],
+            [],
             [
                 (
                     OpType.ANNOTATION_QUERY,
@@ -144,15 +188,19 @@ def test_evaluate_data_objects(
     do_file_query,
 ):
     query_args = []
+    show_args = []
     if do_annotation_query:
-        query_args.append(
+        show_args.append(
             (
                 OpType.ANNOTATION_QUERY,
                 SIMPLE_MULTI_SELECT_QUERY,
             ),
         )
     if do_file_query:
-        query_args.append((OpType.FILE_QUERY, "@"))
+        if show_args:
+            query_args = show_args
+            show_args = []
+        show_args.append((OpType.FILE_QUERY, "@"))
     main(
         ["index", "-m", "bare", os.fspath(data_dir / "fashion-mnist/updates")],
     )
@@ -165,6 +213,7 @@ def test_evaluate_data_objects(
             "id:47149106168f7d88fcea9e168608f129",
         ],
         query_args,
+        show_args,
     )
     result_columns = list(zip(*result))
     file_meta_result: Sequence[Dict[str, Any]] = ()
@@ -234,6 +283,7 @@ def test_evaluate_datasets(ldb_instance, workspace_path, data_dir):
         evaluate(
             ldb_instance,
             ["ds:a", "ds:b"],
+            [],
             [
                 (
                     OpType.ANNOTATION_QUERY,
@@ -269,20 +319,17 @@ def test_evaluate_root_dataset(limit, ldb_instance, data_dir):
             os.fspath(data_dir / "fashion-mnist/updates"),
         ],
     )
-    query_args = []
-    if limit:
-        query_args.append((OpType.LIMIT, limit))
-    query_args.append(
-        (
-            OpType.ANNOTATION_QUERY,
-            SIMPLE_MULTI_SELECT_QUERY,
-        ),
-    )
     result = list(
         evaluate(
             ldb_instance,
             [f"{DATASET_PREFIX}{ROOT}"],
-            query_args,
+            [(OpType.LIMIT, limit)] if limit else [],
+            [
+                (
+                    OpType.ANNOTATION_QUERY,
+                    SIMPLE_MULTI_SELECT_QUERY,
+                ),
+            ],
         ),
     )
     expected = [
@@ -320,6 +367,7 @@ def test_evaluate_current_workspace(workspace_path, data_dir, ldb_instance):
         evaluate(
             ldb_instance,
             ["."],
+            [],
             [(OpType.ANNOTATION_QUERY, "[label, inference.label]")],
         ),
     )
@@ -352,6 +400,7 @@ def test_evaluate_another_workspace(
             evaluate(
                 ldb_instance,
                 [ws_ident],
+                [],
                 [
                     (
                         OpType.ANNOTATION_QUERY,
