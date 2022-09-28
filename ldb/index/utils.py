@@ -55,7 +55,6 @@ DataObjectMeta = Dict[
     str,
     Union[str, None, Dict[str, Union[str, List[str], int, None]]],
 ]
-DataToWrite = Tuple[Path, bytes, bool]
 IndexingJob = Tuple["IndexingConfig", List[str]]
 IndexingJobMapping = Dict[AbstractFileSystem, List[IndexingJob]]
 FSPathsMapping = Dict[AbstractFileSystem, List[str]]
