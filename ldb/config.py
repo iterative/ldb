@@ -161,17 +161,9 @@ def set_default_instance(path: Path, overwrite_existing: bool = False) -> None:
     config_file = config_dir / Filename.CONFIG
     with edit(config_file) as cfg:
         if "core" in cfg:
-            if (
-                not overwrite_existing
-                and "ldb_dir" in cfg["core"]  # type: ignore[operator]
-            ):
-                value: str = cfg["core"][  # type: ignore[index,assignment]
-                    "ldb_dir"
-                ]
-                print(
-                    "Not setting core.ldb_dir as it is already set "
-                    f"to {repr(value)}",
-                )
+            if not overwrite_existing and "ldb_dir" in cfg["core"]:  # type: ignore[operator]
+                value: str = cfg["core"]["ldb_dir"]  # type: ignore[index,assignment]
+                print(f"Not setting core.ldb_dir as it is already set to {repr(value)}")
                 return
         else:
             cfg["core"] = {}

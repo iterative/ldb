@@ -90,13 +90,11 @@ def load_workspace_dataset(workspace_path: Path) -> WorkspaceDataset:
         )
     except FileNotFoundError as exc:
         raise WorkspaceDatasetNotFoundError(
-            "No workspace dataset staged at "
-            f"{repr(os.fspath(workspace_path))}",
+            f"No workspace dataset staged at {repr(os.fspath(workspace_path))}"
         ) from exc
     if workspace_ds.dataset_name == ROOT:
         raise ValueError(
-            "Invalid workspace dataset name: "
-            f"{DATASET_PREFIX}{workspace_ds.dataset_name}",
+            f"Invalid workspace dataset name: {DATASET_PREFIX}{workspace_ds.dataset_name}"
         )
     return workspace_ds
 
@@ -125,7 +123,7 @@ def ensure_path_is_empty_workspace(
             load_workspace_dataset(Path(path))
         except WorkspaceDatasetNotFoundError as exc:
             raise WorkspaceDatasetNotFoundError(
-                f"Not a workspace or an empty directory: {os.fspath(path)}",
+                f"Not a workspace or an empty directory: {os.fspath(path)}"
             ) from exc
         if force:
             remove_workspace_contents(path)
@@ -133,7 +131,7 @@ def ensure_path_is_empty_workspace(
             raise WorkspaceError(
                 "Workspace is not empty: "
                 f"{os.fspath(path)!r}\n"
-                "Use the --force option to delete workspace contents",
+                "Use the --force option to delete workspace contents"
             )
 
 

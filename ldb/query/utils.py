@@ -65,8 +65,7 @@ def validate_arg_type(arg_type: str) -> None:
             )
     elif types[0] not in VALID_ARG_TYPES:
         raise ValueError(
-            f"Invalid arg type: {arg_type!r}\n"
-            f"Use one of: {VALID_ARG_TYPES}",
+            f"Invalid arg type: {arg_type!r}\nUse one of: {VALID_ARG_TYPES}",
         )
 
 

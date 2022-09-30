@@ -46,8 +46,7 @@ def transform_command(options: Namespace) -> None:
             ran_update = True
     if not ran_update:
         raise LDBException(
-            "Must provide at least one transform update option: --add, "
-            "--del, or --set",
+            "Must provide at least one transform update option: --add, --del, or --set",
         )
 
 

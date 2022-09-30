@@ -24,10 +24,7 @@ def init(
     if path.is_dir() and next(path.iterdir(), None) is not None:
         if is_ldb_instance(path):
             if force:
-                print(
-                    "Removing existing LDB instance at "
-                    f"{repr(os.fspath(path))}",
-                )
+                print(f"Removing existing LDB instance at {repr(os.fspath(path))}")
                 shutil.rmtree(path)
             else:
                 raise LDBException(

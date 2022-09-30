@@ -56,9 +56,7 @@ class InferredPreprocessor(InferredParamConfig, Preprocessor):
             fs_seq: Dict[str, List[str]] = file_seqs.setdefault(fs, {})
             for p in dir_paths:
                 file_paths: List[str] = [
-                    p
-                    for p in fs.find(p.rstrip("/"))
-                    if not is_hidden_fsspec_path(p)
+                    p for p in fs.find(p.rstrip("/")) if not is_hidden_fsspec_path(p)
                 ]
                 if file_paths:
                     fs_seq[p] = file_paths
@@ -66,10 +64,7 @@ class InferredPreprocessor(InferredParamConfig, Preprocessor):
 
     def get_storage_files(self) -> Dict[AbstractFileSystem, List[str]]:
         print("\nCollecting paths...")
-        return {
-            fs: list(chain(*seqs.values()))
-            for fs, seqs in self.dir_path_to_files.items()
-        }
+        return {fs: list(chain(*seqs.values())) for fs, seqs in self.dir_path_to_files.items()}
 
     @cached_property
     def files_by_type(self) -> Tuple[FSPathsMapping, FSPathsMapping]:
@@ -77,9 +72,7 @@ class InferredPreprocessor(InferredParamConfig, Preprocessor):
         for fs, path_seq in annotation_files.items():
             if path_seq:
                 first_path = unstrip_protocol(fs, path_seq[0])
-                num_annotation_files = sum(
-                    len(m) for m in annotation_files.values()
-                )
+                num_annotation_files = sum(len(m) for m in annotation_files.values())
                 raise IndexingException(
                     "No annotation files should be present for "
                     f"{Format.INFER} format.\n"
@@ -91,9 +84,7 @@ class InferredPreprocessor(InferredParamConfig, Preprocessor):
     @cached_property
     def data_object_paths(self) -> FSPathsMapping:
         return {
-            fs: [
-                path for dir_paths in path_maps.values() for path in dir_paths
-            ]
+            fs: [path for dir_paths in path_maps.values() for path in dir_paths]
             for fs, path_maps in self.dir_path_to_files.items()
         }
 
@@ -144,9 +135,7 @@ class InferredIndexer(PairIndexer):
             for dir_path, file_seq in seqs.items():
                 len_dir_path = len(dir_path)
                 for file in file_seq:
-                    raw_label = (
-                        file[len_dir_path:].rsplit("/", 1)[0].strip("/")
-                    )
+                    raw_label = file[len_dir_path:].rsplit("/", 1)[0].strip("/")
                     label_parts = list(
                         filter(None, raw_label.lstrip("/").split("/")),
                     )
@@ -156,8 +145,7 @@ class InferredIndexer(PairIndexer):
                     if not label_parts:
                         if not warning_count:
                             warnings.warn(
-                                "Skipping file(s) found in base dir.\n"
-                                f"{BASE_DIR_HELP}",
+                                "Skipping file(s) found in base dir.\n" f"{BASE_DIR_HELP}",
                                 RuntimeWarning,
                                 stacklevel=2,
                             )
@@ -207,9 +195,7 @@ class InferredIndexer(PairIndexer):
         print("Indexing data...")
         with self.progress_bar() as bar:
             num_files = sum(
-                len(path_seq)
-                for jobs in indexing_jobs.values()
-                for _, path_seq in jobs
+                len(path_seq) for jobs in indexing_jobs.values() for _, path_seq in jobs
             )
             task = bar.add_task("index_files", total=num_files)
             for fs, jobs in indexing_jobs.items():

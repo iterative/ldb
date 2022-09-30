@@ -255,10 +255,7 @@ class PairIndexer(Indexer):
             possibly_ephemeral_files = self.preprocessor.data_object_paths
             storage_only_files: FSPathsMapping = {}
         else:
-            (
-                possibly_ephemeral_files,
-                storage_only_files,
-            ) = separate_local_and_cloud_files(
+            possibly_ephemeral_files, storage_only_files = separate_local_and_cloud_files(
                 self.preprocessor.data_object_paths,
             )
         if not self.read_any_cloud_location:
@@ -266,10 +263,7 @@ class PairIndexer(Indexer):
                 storage_only_files,
                 storage_locations,
             )
-        (
-            local_storage_files,
-            ephemeral_files,
-        ) = separate_storage_and_non_storage_files(
+        local_storage_files, ephemeral_files = separate_storage_and_non_storage_files(
             possibly_ephemeral_files,
             storage_locations,
         )
@@ -291,13 +285,11 @@ class PairIndexer(Indexer):
             ephemeral_files,
         )
         files = {
-            fs: storage_only_files.get(fs, [])
-            + local_storage_files.get(fs, [])
+            fs: storage_only_files.get(fs, []) + local_storage_files.get(fs, [])
             for fs in storage_only_files.keys() | local_storage_files.keys()
         }
         annotation_paths = {
-            fs: paths.copy()
-            for fs, paths in self.preprocessor.annotation_paths.items()
+            fs: paths.copy() for fs, paths in self.preprocessor.annotation_paths.items()
         }
 
         if ephemeral_files:
@@ -315,10 +307,7 @@ class PairIndexer(Indexer):
                     "For more information, run:\n\n"
                     "\tldb add-storage --help\n",
                 )
-            (
-                self.old_to_new_files,
-                self.old_to_new_annot_files,
-            ) = copy_to_read_add_storage(
+            self.old_to_new_files, self.old_to_new_annot_files = copy_to_read_add_storage(
                 ephemeral_files,
                 self.preprocessor.annotation_paths,
                 read_add_location,
@@ -364,9 +353,7 @@ class PairIndexer(Indexer):
         annotation_paths: FSPathsMapping,
     ) -> None:
         num_files = sum(
-            len(path_seq)
-            for jobs in indexing_jobs.values()
-            for _, path_seq in jobs
+            len(path_seq) for jobs in indexing_jobs.values() for _, path_seq in jobs
         )
         print("Indexing data...")
         with self.progress_bar() as bar:
@@ -499,8 +486,7 @@ class IndexingItem(ABC):
         if self.annot_merge_strategy == AnnotMergeStrategy.MERGE:
             return self.get_merged_annotation_content()
         raise ValueError(
-            "Invalid annotation merge strategy: "
-            f"{self.annot_merge_strategy}",
+            "Invalid annotation merge strategy: " f"{self.annot_merge_strategy}",
         )
 
     def get_merged_annotation_content(self) -> JSONDecoded:
@@ -665,8 +651,7 @@ class DataObjectFileIndexingItem(IndexingItem):
             )
             meta_contents["last_indexed"] = self.current_timestamp
             meta_contents["tags"] = sorted(  # type: ignore[assignment]
-                set(meta_contents["tags"])  # type: ignore[arg-type]
-                | set(self.tags),
+                set(meta_contents["tags"]) | set(self.tags),  # type: ignore[arg-type]
             )
         else:
             old_meta = (
@@ -674,10 +659,7 @@ class DataObjectFileIndexingItem(IndexingItem):
                 if self.data_object_meta_file_path.exists()
                 else {}
             )
-            (
-                self.found_new_data_object_path,
-                meta_contents,
-            ) = construct_data_object_meta(
+            self.found_new_data_object_path, meta_contents = construct_data_object_meta(
                 *self.data_object,
                 old_meta,
                 self.current_timestamp,

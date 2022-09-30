@@ -69,7 +69,7 @@ markers = [
 testpaths = ['tests']
 
 [tool.black]
-line-length = 79
+line-length = 96
 include = '\.pyi?$'
 exclude = '''
 /(
@@ -87,7 +87,7 @@ exclude = '''
 '''
 
 [tool.autopep8]
-max_line_length = 79
+max_line_length = 96
 ignore = ['E203', 'E501']
 in-place = true
 recursive = true
@@ -553,7 +553,7 @@ indent-after-paren = 4
 indent-string = '    '
 
 # Maximum number of characters on a single line.
-max-line-length = 79
+max-line-length = 96
 
 # Maximum number of lines in a module.
 max-module-lines = 3000

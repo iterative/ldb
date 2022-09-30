@@ -76,10 +76,7 @@ def add_parser(
         default=[],
         dest="show_args",
         action=AppendConstValuesAction,
-        help=(
-            "JMESPath-like query applied to the supplied "
-            "JSON files and shown as results"
-        ),
+        help="JMESPath-like query applied to the supplied " "JSON files and shown as results",
     )
     parser.add_argument(
         "--jshow",
@@ -98,10 +95,7 @@ def add_parser(
         "--slurp",
         default=False,
         action="store_true",
-        help=(
-            "Place multiple files or objects in a top-level array "
-            "before running the query"
-        ),
+        help="Place multiple files or objects in a top-level array before running the query",
     )
     parser.add_argument(
         "-u",

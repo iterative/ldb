@@ -612,16 +612,12 @@ def test_ls_collection_with_workspace_dataset(
         "original/data_objects_only/00011.png",
         "updates/diff_inference/00002.png",
     ]
-    expected_paths = [
-        data_dir / "fashion-mnist" / p for p in expected_str_paths
-    ]
+    expected_paths = [data_dir / "fashion-mnist" / p for p in expected_str_paths]
     assert annot_versions == expected_annot_versions
     assert paths == expected_paths
     assert all(is_hash(d.data_object_hash) for d in ds_listings)
     assert all(
-        is_hash(d.annotation_hash)
-        if d.annotation_version
-        else d.annotation_hash == ""
+        is_hash(d.annotation_hash) if d.annotation_version else d.annotation_hash == ""
         for d in ds_listings
     )
 

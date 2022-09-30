@@ -26,8 +26,7 @@ def load_user_functions(
             user_functions.update(custom_functions)
     except Exception as exc:
         raise LDBException(
-            "Unable to load custom user functions: "
-            f"{type(exc).__name__}:\n{exc}",
+            f"Unable to load custom user functions: {type(exc).__name__}:\n{exc}"
         ) from exc
     return user_functions
 

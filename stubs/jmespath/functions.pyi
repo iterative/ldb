@@ -16,6 +16,4 @@ class FunctionRegistry(type):
 
 class Functions:
     FUNCTION_TABLE: Any
-    def call_function(
-        self, function_name: str, resolved_args: Sequence[Any]
-    ) -> Any: ...
+    def call_function(self, function_name: str, resolved_args: Sequence[Any]) -> Any: ...

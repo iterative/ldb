@@ -68,9 +68,7 @@ def add_parser(
         default=[],
         dest="show_args",
         action=AppendConstValuesAction,
-        help=(
-            "JMESPath-like query applied to annotations and shown as results"
-        ),
+        help="JMESPath-like query applied to annotations and shown as results",
     )
     parser.add_argument(
         "--jshow",
@@ -79,10 +77,7 @@ def add_parser(
         default=[],
         dest="show_args",
         action=AppendConstValuesAction,
-        help=(
-            "Fully compliant JMESPath query applied to annotations "
-            "and shown as results"
-        ),
+        help="Fully compliant JMESPath query applied to annotations and shown as results",
     )
     parser.add_argument(
         "--file-show",
@@ -91,10 +86,7 @@ def add_parser(
         default=[],
         dest="show_args",
         action=AppendConstValuesAction,
-        help=(
-            "JMESPath-like query applied to data object file attributes "
-            "and shown as results"
-        ),
+        help="JMESPath-like query applied to data object file attributes and shown as results",
     )
     add_data_obj_params(parser, dest="query_args")
     parser.set_defaults(func=evaluate_command)

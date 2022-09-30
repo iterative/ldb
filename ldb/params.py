@@ -33,9 +33,7 @@ class ParamConfig:
                 base_msg = f"Invalid parameter: {key}"
                 if self.param_processors:
                     params_str = " ".join(self.param_processors.keys())
-                    supported_msg = (
-                        f"Supported parameters{subject_msg} are: {params_str}"
-                    )
+                    supported_msg = f"Supported parameters{subject_msg} are: {params_str}"
                 else:
                     supported_msg = f"No parameters are supported{subject_msg}"
                 raise InvalidParamError(

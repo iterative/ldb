@@ -124,10 +124,7 @@ def add_base_data_object_options(parser: ArgumentParser, dest: str) -> None:
         default=[],
         dest=dest,
         action=AppendConstValuesAction,
-        help=(
-            "Python regular expression which must match one of the object's "
-            "indexing paths"
-        ),
+        help="Python regular expression which must match one of the object's indexing paths",
     )
     parser.add_argument(
         "--tag",
@@ -219,10 +216,7 @@ def add_data_format_arguments(
         default=default,
         metavar="<format>",
         choices=formats,
-        help=(
-            f"Data format to use. (default: {default}) "
-            f"Options: {choice_str(formats)}"
-        ),
+        help=f"Data format to use. (default: {default}) Options: {choice_str(formats)}",
     )
 
 
@@ -276,8 +270,7 @@ def param(option_str: str) -> Tuple[str, str]:
 def validate_param_key(key: str) -> None:
     if not re.search(PARAM_KEY_PATTERN, key):
         raise ValueError(
-            f"Invalid param key {key!r}, "
-            f"must match pattern, {PARAM_KEY_PATTERN!r}",
+            f"Invalid param key {key!r}, must match pattern, {PARAM_KEY_PATTERN!r}"
         )
 
 

@@ -51,10 +51,7 @@ class Path:
 
     def parents(self, path: str) -> Tuple[str, ...]:
         parts = self.parts(path)
-        return tuple(
-            self.join(*parts[:length])
-            for length in range(len(parts) - 1, 0, -1)
-        )
+        return tuple(self.join(*parts[:length]) for length in range(len(parts) - 1, 0, -1))
 
     def name(self, path: str) -> str:
         return self.parts(path)[-1]

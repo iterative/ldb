@@ -120,9 +120,7 @@ class AnnotationOnlyIndexingItem(AnnotationFileIndexingItem):
                 f"{type(annot).__name__} type instead: {path}",
             )
         try:
-            return annot["data-object-info"][  # type: ignore[no-any-return]
-                "md5"
-            ]
+            return annot["data-object-info"]["md5"]  # type: ignore[no-any-return]
         except KeyError:
             return ""
 
@@ -133,8 +131,7 @@ class AnnotationOnlyIndexingItem(AnnotationFileIndexingItem):
         )
         meta_content["last_indexed"] = self.current_timestamp
         meta_content["tags"] = sorted(  # type: ignore[assignment]
-            set(meta_content["tags"])  # type: ignore[arg-type]
-            | set(self.tags),
+            set(meta_content["tags"]) | set(self.tags),  # type: ignore[arg-type]
         )
         return meta_content
 
@@ -191,10 +188,7 @@ class AnnotationOnlyIndexingItem(AnnotationFileIndexingItem):
                 {},
             )
             if loc is None:
-                if (
-                    not self.data_object_hash
-                    and data_obj_item.data_object_dir.exists()
-                ):
+                if not self.data_object_hash and data_obj_item.data_object_dir.exists():
                     # if we didn't have the hash from the annotation file but
                     # the computed hash exists in the ldb index we have a
                     # previously indexed ephemeral file

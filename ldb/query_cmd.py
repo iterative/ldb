@@ -19,9 +19,7 @@ def run_query_filters(
     filter_functions: Iterable[BoolSearchFunc],
 ) -> List[JSONDecoded]:
     for filter_func in filter_functions:
-        objects = [
-            obj for obj, keep in zip(objects, filter_func(objects)) if keep
-        ]
+        objects = [obj for obj, keep in zip(objects, filter_func(objects)) if keep]
     return objects
 
 
@@ -92,8 +90,7 @@ def query(
     if not paths:
         if sys.stdin.isatty():
             raise RuntimeError(
-                "Please specify JSON files for this query, or pipe in "
-                "JSON input to stdin",
+                "Please specify JSON files for this query, or pipe in JSON input to stdin",
             )
         # Load from stdin
         load_json_with_unslurp(sys.stdin, objects, unslurp=unslurp)
