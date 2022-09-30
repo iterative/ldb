@@ -107,10 +107,8 @@ def instantiate(
                 )
         except OSError:
             pass
-        local_tmp_dir = (
-            tempfile.TemporaryDirectory(  # pylint: disable=consider-using-with
-                prefix="ldb-",
-            )
+        local_tmp_dir = tempfile.TemporaryDirectory(  # pylint: disable=consider-using-with
+            prefix="ldb-",
         )
         local_dest_path = Path(local_tmp_dir.name)
         print(f"Using local temp dir: {local_tmp_dir.name}")
@@ -129,8 +127,7 @@ def instantiate(
         paths,
         query_args,
         warn=warn,
-        include_transforms=fmt
-        in (Format.STRICT, Format.BARE, Format.ANNOT, Format.INFER),
+        include_transforms=fmt in (Format.STRICT, Format.BARE, Format.ANNOT, Format.INFER),
     )
     result = instantiate_collection(
         ldb_dir,
@@ -450,8 +447,7 @@ class PairInstItem(RawPairInstItem):
                         )
                 else:
                     raise ValueError(
-                        "Builtin transform does not exist: "
-                        f"{info.transform.value}",
+                        "Builtin transform does not exist: " f"{info.transform.value}",
                     )
             elif info.transform.transform_type == TransformType.EXEC:
                 if not isinstance(info.transform.value, Sequence):
@@ -825,13 +821,12 @@ def infer_dir(
     except Exception as exc:
         # TODO: convert self.label_key to jmespath expression for message
         raise LDBException(
-            "Annotations for tensorflow-inferred format should contain "
-            f"key: {label_key}",
+            "Annotations for tensorflow-inferred format should contain " f"key: {label_key}",
         ) from exc
 
     if label != base_label:
         while isinstance(label, dict):
-            key, label = next(iter(label.items()))  # type: ignore[assignment] # noqa: E501
+            key, label = next(iter(label.items()))  # type: ignore[assignment]
             parts.append(key)
         parts.append(label)
     return parts

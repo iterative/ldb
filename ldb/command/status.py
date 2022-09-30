@@ -24,9 +24,7 @@ def status_command(options: Namespace) -> None:
     ds_identifier = format_dataset_identifier(
         ws_status.dataset_name,
         ws_status.dataset_version,
-        ws_status.commit_info.commit_message
-        if ws_status.commit_info
-        else None,
+        ws_status.commit_info.commit_message if ws_status.commit_info else None,
     )
     workspace_path = Path(".")
     prefix = ""

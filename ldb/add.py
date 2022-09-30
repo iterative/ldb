@@ -282,9 +282,7 @@ def data_object_for_add(
     paths: Sequence[str],
 ) -> AddInput:
     try:
-        data_object_hashes = sorted(
-            parse_data_object_hash_identifier(p) for p in paths
-        )
+        data_object_hashes = sorted(parse_data_object_hash_identifier(p) for p in paths)
     except ValueError as exc:
         raise LDBException(
             "All paths must be the same type. "
@@ -324,9 +322,7 @@ def path_for_add(ldb_dir: Path, paths: Sequence[str]) -> AddInput:
         indexing_result = index(
             ldb_dir,
             paths,
-            read_any_cloud_location=(
-                cfg.get("core", {}).get("read_any_cloud_location", False)
-            ),
+            read_any_cloud_location=cfg.get("core", {}).get("read_any_cloud_location", False),
         )
         data_object_hashes = list(indexing_result.collection.keys())
         annotation_hashes = list(
@@ -378,12 +374,7 @@ def add(
     collection_dir_path.mkdir(exist_ok=True)
     transform_dir_path.mkdir(exist_ok=True)
 
-    (
-        data_object_hashes,
-        annotation_hashes,
-        message,
-        transform_obj,
-    ) = process_args_for_add(
+    data_object_hashes, annotation_hashes, message, transform_obj = process_args_for_add(
         ldb_dir,
         paths,
     )
@@ -703,9 +694,7 @@ def get_current_annotation_hashes(
     ldb_dir: Path,
     data_object_hashes: Iterable[str],
 ) -> List[str]:
-    return [
-        get_current_annotation_hash(ldb_dir, d) for d in data_object_hashes
-    ]
+    return [get_current_annotation_hash(ldb_dir, d) for d in data_object_hashes]
 
 
 def get_current_annotation_hashes_from_file_hashes(
@@ -719,7 +708,7 @@ def get_current_annotation_hashes_from_file_hashes(
         except DataObjectNotFoundError:
             fs, path = file_hash.fs_path
             path = unstrip_protocol(fs, path)
-            raise DataObjectNotFoundError(  # pylint: disable=raise-missing-from # noqa: E501
+            raise DataObjectNotFoundError(  # pylint: disable=raise-missing-from
                 "Data object not found: "
                 f"{DATA_OBJ_ID_PREFIX}{file_hash.value} "
                 f"(path={path})",
@@ -760,9 +749,7 @@ def path_for_ls(ldb_dir: Path, paths: Sequence[str]) -> AddInput:
             ) from exc
         hashes.append((data_object_hash, annotation_hash))
     if hashes:
-        data_object_hashes, annotation_hashes = (
-            list(x) for x in zip(*sorted(hashes))
-        )
+        data_object_hashes, annotation_hashes = (list(x) for x in zip(*sorted(hashes)))
     else:
         data_object_hashes, annotation_hashes = [], []
     return AddInput(

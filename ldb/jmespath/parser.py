@@ -39,10 +39,8 @@ class CustomParser(Parser):
         super().__init__(lookahead=lookahead)
 
     def _parse(self, expression: str) -> "CustomParsedResult":
-        self.tokenizer = (
-            lexer.Lexer().tokenize(  # type: ignore[func-returns-value]
-                expression,
-            )
+        self.tokenizer = lexer.Lexer().tokenize(  # type: ignore[func-returns-value]
+            expression,
         )
         self._tokens = list(self.tokenizer)
         self._index = 0
@@ -80,7 +78,7 @@ class CustomParsedResult(ParsedResult):
         options: Optional[Options] = None,
     ) -> JSONDecoded:
         interpreter = self._tree_interpreter_class(options)
-        result: JSONDecoded = interpreter.visit(  # type: ignore[no-untyped-call] # noqa: E501
+        result: JSONDecoded = interpreter.visit(  # type: ignore[no-untyped-call]
             self.parsed,
             value,
         )

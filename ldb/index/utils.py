@@ -150,11 +150,7 @@ def expand_single_indexing_path(
                     path_match_globs.append(p_without_ext + ".*")
                 else:
                     path_match_globs.append(p_without_ext + ".json")
-    paths = (
-        [i for p in path_match_globs for i in fs.glob(p)]
-        if path_match_globs
-        else []
-    )
+    paths = [i for p in path_match_globs for i in fs.glob(p)] if path_match_globs else []
     if protocol not in ("http", "https"):
         # capture everything under any directories the `path` glob matches
         for epath in fs.expand_path(path, recursive=True):
@@ -258,10 +254,8 @@ def copy_to_read_add_storage(
         read_add_location.protocol,
         **read_add_location.options,
     )
-    read_add_path = (
-        dest_fs._strip_protocol(  # pylint: disable=protected-access
-            read_add_location.path,
-        )
+    read_add_path = dest_fs._strip_protocol(  # pylint: disable=protected-access
+        read_add_location.path,
     )
     base_dir = dest_fs.sep.join(
         [
@@ -423,8 +417,7 @@ def validate_locations_in_storage(
             if not in_storage_locations(path, matching_locs):
                 full_path = unstrip_protocol(fs, path)
                 raise NotAStorageLocationError(
-                    "Found file outside of configured storage locations: "
-                    f"{full_path}",
+                    "Found file outside of configured storage locations: " f"{full_path}",
                 )
 
 
@@ -433,9 +426,7 @@ def filter_storage_locations(
     storage_locations: Sequence[StorageLocation],
 ) -> List[StorageLocation]:
     # TODO use fs_id
-    return [
-        s for s in storage_locations if has_protocol(fs.protocol, s.protocol)
-    ]
+    return [s for s in storage_locations if has_protocol(fs.protocol, s.protocol)]
 
 
 def in_storage_locations(
@@ -459,11 +450,7 @@ def max_datetime_info(
     *datetimes: Union[datetime, str, None],
 ) -> Optional[datetime]:
     return max(
-        (
-            parse_datetime(d) if isinstance(d, str) else d
-            for d in datetimes
-            if d is not None
-        ),
+        (parse_datetime(d) if isinstance(d, str) else d for d in datetimes if d is not None),
         default=None,
     )
 

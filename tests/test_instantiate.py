@@ -103,10 +103,7 @@ def test_instantiate_with_query(staged_ds_fashion, workspace_path):
             "id:b5fba326c8247d9e62aa17a109146c02",
             "id:e299594dc1f79f8e69c6d79a42699822",
             "--query",
-            (
-                "@ == `null` || type(inference.label) == 'number' "
-                "&& inference.label == label"
-            ),
+            "@ == `null` || type(inference.label) == 'number' && inference.label == label",
         ],
     )
     assert ret == 0

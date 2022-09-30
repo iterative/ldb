@@ -138,11 +138,7 @@ def iter_chunks(
 
 
 def get_hash_path(base_dir: Path, hash_str: str) -> Path:
-    return (
-        base_dir
-        / hash_str[:HASH_DIR_SPLIT_POINT]
-        / hash_str[HASH_DIR_SPLIT_POINT:]
-    )
+    return base_dir / hash_str[:HASH_DIR_SPLIT_POINT] / hash_str[HASH_DIR_SPLIT_POINT:]
 
 
 def normalize_datetime(dt_obj: datetime) -> datetime:
@@ -240,9 +236,7 @@ def chmod_minus_x(path: Union[str, bytes, Path]) -> int:
 
     Equivalent the unix `chmod -x`
     """
-    mode = os.stat(path).st_mode & ~(
-        stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH
-    )
+    mode = os.stat(path).st_mode & ~(stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
     os.chmod(path, mode)
     return mode
 

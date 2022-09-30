@@ -10,7 +10,7 @@ if TYPE_CHECKING:
 
 
 def completion_command(options: Namespace) -> None:
-    from ldb.cli import (  # pylint: disable=import-outside-toplevel,cyclic-import # noqa: E501
+    from ldb.cli import (  # pylint: disable=import-outside-toplevel,cyclic-import
         get_main_parser,
     )
 

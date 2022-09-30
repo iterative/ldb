@@ -38,16 +38,12 @@ def test_commit_new_dataset(
         load_data_file(dataset_version_file_paths[0]),
     )
     dataset_obj = Dataset.parse(load_data_file(dataset_file_paths[0]))
-    collection_hash = (
-        collection_file_paths[0].parent.name + collection_file_paths[0].name
-    )
+    collection_hash = collection_file_paths[0].parent.name + collection_file_paths[0].name
     transform_mapping_hash = (
-        transform_mapping_file_paths[0].parent.name
-        + transform_mapping_file_paths[0].name
+        transform_mapping_file_paths[0].parent.name + transform_mapping_file_paths[0].name
     )
     dataset_version_hash = (
-        dataset_version_file_paths[0].parent.name
-        + dataset_version_file_paths[0].name
+        dataset_version_file_paths[0].parent.name + dataset_version_file_paths[0].name
     )
 
     # skip checking the timestamps
@@ -119,20 +115,16 @@ def test_commit_multiple_versions(data_dir, ldb_instance, workspace_path):
 
     dataset_obj = Dataset.parse(load_data_file(dataset_file_paths[0]))
 
-    dataset_version_hashes = [
-        p.parent.name + p.name for p in dataset_version_file_paths
-    ]
+    dataset_version_hashes = [p.parent.name + p.name for p in dataset_version_file_paths]
     dataset_version_objects = [
-        DatasetVersion.parse(load_data_file(p))
-        for p in dataset_version_file_paths
+        DatasetVersion.parse(load_data_file(p)) for p in dataset_version_file_paths
     ]
 
     commit_times = [d.commit_info.commit_time for d in dataset_version_objects]
     auto_pull_values = [d.auto_pull for d in dataset_version_objects]
     expected_messages = [
         "add " + os.fspath(Path("fashion-mnist/original/has_both/test")),
-        "add "
-        + os.fspath(Path("fashion-mnist/original/has_both/train/000[01]*")),
+        "add " + os.fspath(Path("fashion-mnist/original/has_both/train/000[01]*")),
         "add " + os.fspath(Path("fashion-mnist/updates")),
     ]
     expected_dataset_obj = Dataset(
@@ -147,9 +139,7 @@ def test_commit_multiple_versions(data_dir, ldb_instance, workspace_path):
         d.collection for d in dataset_version_objects
     ]
     assert commit_times[0] < commit_times[1] < commit_times[2]
-    assert [
-        d.commit_info.commit_message for d in dataset_version_objects
-    ] == expected_messages
+    assert [d.commit_info.commit_message for d in dataset_version_objects] == expected_messages
     assert auto_pull_values == [False, True, False]
     assert dataset_obj == expected_dataset_obj
 

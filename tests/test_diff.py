@@ -19,9 +19,7 @@ def workspace_diff_setup(tmp_path, ldb_instance, workspace_path, data_dir):
         "00023.png",
         "00029.png",
     ]
-    file_paths1 = [
-        data_dir / "fashion-mnist/original/**" / f for f in filenames1
-    ]
+    file_paths1 = [data_dir / "fashion-mnist/original/**" / f for f in filenames1]
     filenames2 = [
         "00002.png",
         "00010.png",
@@ -30,9 +28,7 @@ def workspace_diff_setup(tmp_path, ldb_instance, workspace_path, data_dir):
         "00026.png",
         "00029.png",
     ]
-    file_paths2 = [
-        data_dir / "fashion-mnist/updates/**" / f for f in filenames2
-    ]
+    file_paths2 = [data_dir / "fashion-mnist/updates/**" / f for f in filenames2]
 
     path = tmp_path / "workspace"
     os.chdir(path)

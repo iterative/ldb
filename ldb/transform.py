@@ -120,10 +120,7 @@ class TransformInfo:
     @classmethod
     def all(cls, ldb_dir: Path) -> List["TransformInfo"]:
         transforms = Transform.all(ldb_dir)
-        transform_infos = {
-            t.transform.obj_id: t
-            for t in TransformInfo.all_configured(ldb_dir)
-        }
+        transform_infos = {t.transform.obj_id: t for t in TransformInfo.all_configured(ldb_dir)}
         result = []
         for transform in transforms:
             info = transform_infos.get(transform.obj_id)
@@ -151,8 +148,7 @@ class TransformInfo:
         if self.name and self.transform.transform_type == TransformType.EXEC:
             if self.name in BUILTIN_NAMES:
                 raise ValueError(
-                    "Cannot configure transform with reserved name: "
-                    f"{self.name!r}",
+                    f"Cannot configure transform with reserved name: {self.name!r}"
                 )
             if not isinstance(self.transform.value, Sequence):
                 raise ValueError(
@@ -264,9 +260,7 @@ def add_transform(
 
     if ldb_dir is None:
         ldb_dir = get_ldb_instance()
-    transforms = [
-        t.transform for t in get_transforms_by_name(ldb_dir, transform_names)
-    ]
+    transforms = [t.transform for t in get_transforms_by_name(ldb_dir, transform_names)]
     if not transforms:
         raise ValueError("Transform name list is empty")
 
@@ -294,19 +288,14 @@ def add_transform(
         update_verb = "Removed"
     elif update_type == UpdateType.SET:
         update_verb = "Set"
-    print(
-        f"{update_verb} transforms for {num_deleted} data objects in "
-        f"{ds_ident}",
-    )
+    print(f"{update_verb} transforms for {num_deleted} data objects in {ds_ident}")
 
 
 def get_transforms_by_name(
     ldb_dir: Path,
     names: Iterable[str],
 ) -> List[TransformInfo]:
-    transform_mapping = {
-        t.name: t for t in TransformInfo.all_configured(ldb_dir)
-    }
+    transform_mapping = {t.name: t for t in TransformInfo.all_configured(ldb_dir)}
     transforms_by_id = {t.obj_id: t for t in Transform.all(ldb_dir)}
     transforms = []
     for name in names:
@@ -330,9 +319,7 @@ def add_transforms_with_data_objects(
     transforms: Iterable[Transform] = (),
     update_type: UpdateType = UpdateType.ADD,
 ) -> int:
-    transform_mapping_dir_path = (
-        workspace_path / WorkspacePath.TRANSFORM_MAPPING
-    )
+    transform_mapping_dir_path = workspace_path / WorkspacePath.TRANSFORM_MAPPING
     transform_mapping_dir_path.mkdir(exist_ok=True)
     transform_obj_ids = []
     for t in transforms:
@@ -478,9 +465,7 @@ def get_transform_infos_from_items(
     transform_info_items: Iterable[Tuple[str, Collection[str]]],
 ) -> Dict[str, FrozenSet[TransformInfo]]:
     transform_info_items = list(transform_info_items)
-    unique_hashes = {
-        h for _, hash_seq in transform_info_items for h in hash_seq
-    }
+    unique_hashes = {h for _, hash_seq in transform_info_items for h in hash_seq}
     transform_infos = get_transform_infos_by_hash(ldb_dir, unique_hashes)
     return {
         d: frozenset({transform_infos[h] for h in hash_seq})

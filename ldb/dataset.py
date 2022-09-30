@@ -275,8 +275,7 @@ def combine_collections(
                 / "annotations"
             )
             latest_annotation_hash = max(
-                (load_data_file(annotation_dir / h)["version"], h)
-                for h in annotation_hashes
+                (load_data_file(annotation_dir / h)["version"], h) for h in annotation_hashes
             )[1]
         elif annotation_hashes:
             latest_annotation_hash = annotation_hashes[0]
@@ -364,9 +363,7 @@ def get_all_dataset_version_identifiers(ldb_dir: Path) -> Dict[str, List[str]]:
             )
     for parent in os.listdir(collection_dir):
         for filename in os.listdir(os.path.join(collection_dir, parent)):
-            result[  # pylint: disable=pointless-statement
-                f"{parent}{filename}"
-            ]
+            result[f"{parent}{filename}"]  # pylint: disable=pointless-statement
     return dict(result)
 
 
@@ -573,7 +570,7 @@ class TagQuery(FileQuery):
         collection: Iterable[Tuple[str, str]],
     ) -> Iterator[List[str]]:
         for data_obj_meta in super().get_search_input(collection):
-            yield data_obj_meta["tags"]  # type: ignore[index,call-overload,misc] # noqa: E501
+            yield data_obj_meta["tags"]  # type: ignore[index,call-overload,misc]
 
 
 class PathQuery(FileQuery):

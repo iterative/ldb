@@ -41,9 +41,7 @@ class LDBArgumentParser(ArgumentParser):
         super().__init__(**kwargs)
 
     def error(self, message: str) -> NoReturn:
-        parser = (
-            self if self.last_used_parser is None else self.last_used_parser
-        )
+        parser = self if self.last_used_parser is None else self.last_used_parser
         help_message = parser.format_help()
         args = {"prog": parser.prog, "message": message}
         message = gettext("%(prog)s: error: %(message)s\n") % args

@@ -111,12 +111,8 @@ def test_index_bare(ldb_instance, data_dir):
         annotation_meta_paths,
         annotation_paths,
     ) = get_indexed_data_paths(ldb_instance)
-    non_data_object_meta = [
-        p for p in data_object_meta_paths if not is_data_object_meta(p)
-    ]
-    non_annotation_meta = [
-        p for p in annotation_meta_paths if not is_annotation_meta(p)
-    ]
+    non_data_object_meta = [p for p in data_object_meta_paths if not is_data_object_meta(p)]
+    non_annotation_meta = [p for p in annotation_meta_paths if not is_annotation_meta(p)]
     non_annotation = [p for p in annotation_paths if not is_annotation(p)]
     tag_seqs = get_obj_tags(data_object_meta_paths)
 
@@ -164,13 +160,8 @@ def test_index_same_location_twice(ldb_instance, data_dir):
     assert ret1 == 0
     assert ret2 == 0
     assert paths1 == paths2
-    assert (
-        data_object_meta2["first_indexed"]
-        == data_object_meta1["first_indexed"]
-    )
-    assert (
-        data_object_meta2["last_indexed"] > data_object_meta1["last_indexed"]
-    )
+    assert data_object_meta2["first_indexed"] == data_object_meta1["first_indexed"]
+    assert data_object_meta2["last_indexed"] > data_object_meta1["last_indexed"]
     assert tag_seqs == [["img"]] * len(tag_seqs)
 
 
@@ -326,12 +317,8 @@ def test_index_ephemeral_location(ldb_instance, data_dir, tmp_path):
         annotation_meta_paths,
         annotation_paths,
     ) = get_indexed_data_paths(ldb_instance)
-    non_data_object_meta = [
-        p for p in data_object_meta_paths if not is_data_object_meta(p)
-    ]
-    non_annotation_meta = [
-        p for p in annotation_meta_paths if not is_annotation_meta(p)
-    ]
+    non_data_object_meta = [p for p in data_object_meta_paths if not is_data_object_meta(p)]
+    non_annotation_meta = [p for p in annotation_meta_paths if not is_annotation_meta(p)]
     non_annotation = [p for p in annotation_paths if not is_annotation(p)]
     tag_seqs = get_obj_tags(data_object_meta_paths)
 
@@ -357,12 +344,8 @@ def test_index_relative_path(ldb_instance, data_dir):
         annotation_meta_paths,
         annotation_paths,
     ) = get_indexed_data_paths(ldb_instance)
-    non_data_object_meta = [
-        p for p in data_object_meta_paths if not is_data_object_meta(p)
-    ]
-    non_annotation_meta = [
-        p for p in annotation_meta_paths if not is_annotation_meta(p)
-    ]
+    non_data_object_meta = [p for p in data_object_meta_paths if not is_data_object_meta(p)]
+    non_annotation_meta = [p for p in annotation_meta_paths if not is_annotation_meta(p)]
     non_annotation = [p for p in annotation_paths if not is_annotation(p)]
     tag_seqs = get_obj_tags(data_object_meta_paths)
 
@@ -384,12 +367,8 @@ def test_index_strict(ldb_instance, data_dir):
         annotation_meta_paths,
         annotation_paths,
     ) = get_indexed_data_paths(ldb_instance)
-    non_data_object_meta = [
-        p for p in data_object_meta_paths if not is_data_object_meta(p)
-    ]
-    non_annotation_meta = [
-        p for p in annotation_meta_paths if not is_annotation_meta(p)
-    ]
+    non_data_object_meta = [p for p in data_object_meta_paths if not is_data_object_meta(p)]
+    non_annotation_meta = [p for p in annotation_meta_paths if not is_annotation_meta(p)]
     non_annotation = [p for p in annotation_paths if not is_annotation(p)]
     tag_seqs = get_obj_tags(data_object_meta_paths)
 
@@ -427,12 +406,8 @@ def test_index_annotation_only(ldb_instance, data_dir):
         annotation_meta_paths,
         annotation_paths,
     ) = get_indexed_data_paths(ldb_instance)
-    non_data_object_meta = [
-        p for p in data_object_meta_paths if not is_data_object_meta(p)
-    ]
-    non_annotation_meta = [
-        p for p in annotation_meta_paths if not is_annotation_meta(p)
-    ]
+    non_data_object_meta = [p for p in data_object_meta_paths if not is_data_object_meta(p)]
+    non_annotation_meta = [p for p in annotation_meta_paths if not is_annotation_meta(p)]
     non_annotation = [p for p in annotation_paths if not is_annotation(p)]
     tag_seqs = get_obj_tags(data_object_meta_paths)
     unique_tag_seqs = set(map(tuple, tag_seqs))  # type: ignore[arg-type]
@@ -462,12 +437,8 @@ def test_index_inferred(ldb_instance, data_dir):
         annotation_meta_paths,
         annotation_paths,
     ) = get_indexed_data_paths(ldb_instance)
-    non_data_object_meta = [
-        p for p in data_object_meta_paths if not is_data_object_meta(p)
-    ]
-    non_annotation_meta = [
-        p for p in annotation_meta_paths if not is_annotation_meta(p)
-    ]
+    non_data_object_meta = [p for p in data_object_meta_paths if not is_data_object_meta(p)]
+    non_annotation_meta = [p for p in annotation_meta_paths if not is_annotation_meta(p)]
     non_annotation = [p for p in annotation_paths if not is_annotation(p)]
     tag_seqs = get_obj_tags(data_object_meta_paths)
 

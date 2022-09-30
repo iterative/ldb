@@ -77,7 +77,7 @@ class LabelStudioPreprocessor(Preprocessor):
 
                     protocol = get_protocol(orig_path)
                     fs_cls = fsspec.get_filesystem_class(protocol)
-                    path: str = fs_cls._strip_protocol(  # pylint: disable=protected-access # noqa: E501
+                    path: str = fs_cls._strip_protocol(  # pylint: disable=protected-access
                         orig_path,
                     )
                     obj_fs = get_filesystem(
@@ -170,8 +170,7 @@ def infer_data_object_path_key(annot: JSONObject) -> str:
         data = annot["data"]
     except KeyError as exc:
         raise IndexingException(
-            "Cannot infer data object path key. "
-            'Missing top-level "data" key',
+            'Cannot infer data object path key. Missing top-level "data" key',
         ) from exc
     data_keys: Set[str] = data.keys() - {"data-object-info"}
     if len(data_keys) != 1:

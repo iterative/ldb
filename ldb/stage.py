@@ -123,10 +123,7 @@ def stage_with_instance(  # pylint: disable=too-many-statements
             ) from exc
         collection_obj = None
         transform_obj = None
-        message = (
-            f"Staged new dataset {dataset_identifier} "
-            f"at {os.fspath(workspace_path)!r}"
-        )
+        message = f"Staged new dataset {dataset_identifier} at {os.fspath(workspace_path)!r}"
     else:
         if ds_version_num is None:
             dataset_version_hash = dataset_obj.versions[-1]
@@ -141,7 +138,7 @@ def stage_with_instance(  # pylint: disable=too-many-statements
                 )
                 raise LDBException(
                     f"{dataset_identifier} does not exist\n"
-                    f"The latest version is {latest_dataset}",
+                    f"The latest version is {latest_dataset}"
                 ) from exc
         dataset_version_obj = DatasetVersion.parse(
             load_data_file(
@@ -177,9 +174,7 @@ def stage_with_instance(  # pylint: disable=too-many-statements
             ds_name,
             ds_version_num,
         )
-        message = (
-            f"Staged {curr_dataset_ident} at {os.fspath(workspace_path)!r}"
-        )
+        message = f"Staged {curr_dataset_ident} at {os.fspath(workspace_path)!r}"
     stage_workspace(
         workspace_path,
         workspace_ds_obj,

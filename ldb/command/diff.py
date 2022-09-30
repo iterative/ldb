@@ -57,9 +57,7 @@ def format_diff_item(diff_item: DiffItem, verbose: bool) -> str:
     else:
         return ""
     data_object_path = (
-        diff_item.data_object_path
-        if verbose
-        else left_truncate(diff_item.data_object_path)
+        diff_item.data_object_path if verbose else left_truncate(diff_item.data_object_path)
     )
     return (
         f"{prefix} {DATA_OBJ_ID_PREFIX}{diff_item.data_object_hash:35} "

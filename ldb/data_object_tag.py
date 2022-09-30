@@ -29,10 +29,7 @@ def tag_data_objects(
             set_tags,
         )
         num_selected += 1
-    print(
-        f"  Data objects: {num_selected:8d}\n"
-        f"  Num updated:  {num_changed:8d}",
-    )
+    print(f"  Data objects: {num_selected:8d}\n  Num updated:  {num_changed:8d}")
     return num_selected, num_changed
 
 

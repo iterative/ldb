@@ -65,21 +65,14 @@ def print_dataset_listings(
     )
     for item in dataset_listings:
         annotation_version = str(item.annotation_version or "-")
-        path = (
-            item.data_object_path
-            if verbose
-            else left_truncate(item.data_object_path, 24)
-        )
+        path = item.data_object_path if verbose else left_truncate(item.data_object_path, 24)
         transform_infos = sorted(
             item.transform_info,
             key=transform_info_sort_key,
         )
         transforms = ",".join(t.display_name for t in transform_infos) or "-"
         data_obj = f"{DATA_OBJ_ID_PREFIX}{item.data_object_hash}"
-        print(
-            f" {data_obj:36}  "
-            f"{annotation_version:4}   {path:24}  {transforms}",
-        )
+        print(f" {data_obj:36}  {annotation_version:4}   {path:24}  {transforms}")
         num_items += 1
     return num_items
 
