@@ -72,10 +72,6 @@ class DuckDB(AbstractDB):
         #self.write_dataset_member()
 
     def write_data_object_meta(self):
-        # data_object_meta
-        # annotation
-        # data_object_annotation
-        # update
         if self.data_object_meta_list:
             df = pd.DataFrame(self.data_object_meta_list, columns=["id", "value"])
             self.conn.register("data_object_meta_df",  df)
@@ -133,16 +129,6 @@ class DuckDB(AbstractDB):
             self.conn.register("data_object_annotation_df",  df)
 
             self.conn.begin()
-            #self.conn.execute(
-            #    """
-            #    UPDATE data_object_annotation
-            #    SET value = data_object_annotation_df.value
-            #    FROM data_object_annotation_df
-            #    WHERE
-            #        data_object_annotation.data_object_id = data_object_annotation_df.data_object_id
-            #        AND data_object_annotation.annotation_id = data_object_annotation_df.annotation_id
-            #    """
-            #)
             self.conn.execute(
                 """
                 UPDATE data_object_annotation
@@ -166,7 +152,6 @@ class DuckDB(AbstractDB):
 
             self.data_object_annotation_list = []
 
-
     def add_pair(
         self,
         data_object_hash: str,
@@ -174,7 +159,6 @@ class DuckDB(AbstractDB):
         annotation: Optional[Annotation] = None,
         annotation_meta: Optional["AnnotationMeta"] = None,
     ) -> None:
-        """
         self.add_data_object_meta(data_object_hash, data_object_meta)
         if annotation is not None:
             self.add_annotation(annotation)
@@ -184,7 +168,6 @@ class DuckDB(AbstractDB):
                 annotation_meta,
             )
             self.set_current_annot(data_object_hash, annotation.oid)
-        """
 
     def add_data_object_meta(self, id, obj):
         self.data_object_meta_list.append((id, json_dumps(obj)))
@@ -211,7 +194,8 @@ class DuckDB(AbstractDB):
         ).fetchall()
 
     def add_annotation(self, obj: Annotation):
-        self.annotation_list.append(json_dumps(obj))
+        assert obj.oid
+        self.annotation_list.append((obj.oid, obj.value_str))
 
     def get_annotation(self, id: str):
         pass

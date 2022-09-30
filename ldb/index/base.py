@@ -1,3 +1,4 @@
+import os.path as osp
 from abc import ABC, abstractmethod
 from contextlib import contextmanager
 from dataclasses import dataclass, field
@@ -21,13 +22,13 @@ from fsspec.spec import AbstractFileSystem
 from funcy.objects import cached_property
 from rich.progress import Progress
 
+from ldb.core import LDBClient
 from ldb.dataset import (
     get_annotation,
     get_collection_dir_keys,
     get_root_collection_annotation_hash,
 )
 from ldb.db.abstract import AbstractDB
-from ldb.db.file import FileDB
 from ldb.exceptions import IndexingException, LDBException
 from ldb.fs.utils import get_file_hash, get_modified_time
 from ldb.index.utils import (
@@ -173,7 +174,6 @@ class Indexer(ABC):
         tags: Collection[str] = (),
         annot_merge_strategy: AnnotMergeStrategy = AnnotMergeStrategy.REPLACE,
         ephemeral_remote: bool = False,
-        db: AbstractDB = None,
     ) -> None:
         self.ldb_dir = ldb_dir
         self.preprocessor = preprocessor
@@ -183,7 +183,11 @@ class Indexer(ABC):
         self.result = IndexingResult()
         self.hashes: Dict[AbstractFileSystem, Dict[str, str]] = {}
         self.disable_progress_bar = False
-        self.db = db if db is not None else FileDB(ldb_dir)
+        self.client = LDBClient(ldb_dir)
+
+    @property
+    def db(self):
+        return self.client.db
 
     def index(self) -> None:
         try:
@@ -191,6 +195,8 @@ class Indexer(ABC):
         except Exception:
             print(self.result.summary(finished=False), "\n", sep="")
             raise
+        finally:
+            self.db.write_all()
 
     @abstractmethod
     def _index(self) -> None:

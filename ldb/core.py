@@ -1,14 +1,27 @@
 import os
+import os.path as osp
 import shlex
 import shutil
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Union
 
+from ldb.db.duckdb import DuckDB
 from ldb import config
 from ldb.config import get_default_instance_dir, get_global_base, get_ldb_dir
 from ldb.exceptions import LDBException, LDBInstanceNotFoundError
 from ldb.path import INSTANCE_DIRS, REQUIRED_INSTANCE_DIRS, Filename, GlobalDir
 from ldb.storage import StorageLocation, add_storage
+from funcy import cached_property
+
+
+class LDBClient:
+    def __init__(self, ldb_dir: Union[str, Path]):
+        self.ldb_dir = os.fspath(ldb_dir)
+        self.db_path = os.path.join(self.ldb_dir, "duckdb", "index.db")
+
+    @cached_property
+    def db(self):
+        return DuckDB(self.db_path)
 
 
 def init(
@@ -48,6 +61,9 @@ def init(
             "read_any_cloud_location": read_any_cloud_location,
             "auto_index": auto_index,
         }
+    client = LDBClient(path)
+    os.makedirs(osp.dirname(client.db_path))
+    client.db.init()
     print(f"Initialized LDB instance at {repr(os.fspath(path))}")
     return path
 
