@@ -5,13 +5,14 @@ import shutil
 from pathlib import Path
 from typing import Optional, Union
 
-from ldb.db.duckdb import DuckDB
+from funcy import cached_property
+
 from ldb import config
 from ldb.config import get_default_instance_dir, get_global_base, get_ldb_dir
+from ldb.db.duckdb import DuckDB
 from ldb.exceptions import LDBException, LDBInstanceNotFoundError
 from ldb.path import INSTANCE_DIRS, REQUIRED_INSTANCE_DIRS, Filename, GlobalDir
 from ldb.storage import StorageLocation, add_storage
-from funcy import cached_property
 
 
 class LDBClient:
@@ -20,7 +21,7 @@ class LDBClient:
         self.db_path = os.path.join(self.ldb_dir, "duckdb", "index.db")
 
     @cached_property
-    def db(self):
+    def db(self) -> DuckDB:
         return DuckDB(self.db_path)
 
 

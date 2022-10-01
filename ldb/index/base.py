@@ -193,10 +193,10 @@ class Indexer(ABC):
         try:
             self._index()
         except Exception:
+            self.db.write_all()
             print(self.result.summary(finished=False), "\n", sep="")
             raise
-        finally:
-            self.db.write_all()
+        self.db.write_all()
 
     @abstractmethod
     def _index(self) -> None:
