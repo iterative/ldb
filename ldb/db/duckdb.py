@@ -1,3 +1,5 @@
+import json
+from itertools import tee
 from typing import TYPE_CHECKING, Iterable, Optional, Tuple
 
 import pandas as pd
@@ -26,18 +28,18 @@ class DuckDB(AbstractDB):
     def init(self):
         self.conn.begin()
         self.conn.execute(
-            "CREATE TABLE IF NOT EXISTS data_object_meta(id VARCHAR PRIMARY KEY, value VARCHAR)"
+            "CREATE TABLE IF NOT EXISTS data_object_meta(id VARCHAR PRIMARY KEY, value JSON)"
         )
         self.conn.execute(
-            "CREATE TABLE IF NOT EXISTS annotation(id VARCHAR PRIMARY KEY, value VARCHAR)"
+            "CREATE TABLE IF NOT EXISTS annotation(id VARCHAR PRIMARY KEY, value JSON)"
         )
         self.conn.execute(
             """
             CREATE TABLE IF NOT EXISTS data_object_annotation(
                 data_object_id VARCHAR,
                 annotation_id VARCHAR,
-                value VARCHAR,
-                PRIMARY KEY (data_object_id, annotation_id),
+                value JSON,
+                -- PRIMARY KEY (data_object_id, annotation_id),
                 FOREIGN KEY (data_object_id) REFERENCES data_object_meta(id),
                 FOREIGN KEY (annotation_id) REFERENCES annotation(id)
             )
@@ -152,7 +154,7 @@ class DuckDB(AbstractDB):
                 INSERT INTO data_object_annotation (
                     SELECT * from data_object_annotation_df
                     WHERE (data_object_id, annotation_id) not in (
-                        SELECT data_object_id, annotation_id from data_object_annotation
+                        SELECT (data_object_id, annotation_id) from data_object_annotation
                     )
                 )
                 """
@@ -181,33 +183,7 @@ class DuckDB(AbstractDB):
                 columns=["name", "data_object_id", "annotation_id"],
             )
             self.conn.register("dataset_member_by_name_df", df)
-
-            # print(
-            #    self.conn.execute(
-            #        """
-            #        UPDATE dataset_member
-            #        SET annotation_id = t.aid
-            #        FROM
-            #        (
-            #            SELECT dataset_member.dataset_id as dataset_id, dataset_member.data_object_id as data_object_id, q.annotation_id as aid FROM dataset_member
-            #            JOIN
-            #            (
-            #                SELECT
-            #                    dataset.id as dataset_id,
-            #                    dataset_member_by_name_df.data_object_id as data_object_id,
-            #                    dataset_member_by_name_df.annotation_id as annotation_id
-            #                FROM dataset_member_by_name_df
-            #                JOIN dataset ON dataset_member_by_name_df.name = dataset.name
-            #            ) q
-            #            ON (dataset_member.dataset_id, dataset_member.data_object_id) = (q.dataset_id, q.data_object_id)
-            #        ) t
-            #        WHERE (dataset_member.dataset_id, dataset_member.data_object_id) = (t.dataset_id, t.data_object_id)
-            #        """
-            #    ).fetchall()
-            # )
-
             self.conn.begin()
-            # TODO fix this update query
             self.conn.execute(
                 """
                 UPDATE dataset_member
@@ -262,7 +238,8 @@ class DuckDB(AbstractDB):
             self.set_current_annot(data_object_hash, annotation.oid)
 
     def add_data_object_meta(self, id, obj):
-        self.data_object_meta_list.append((id, json_dumps(obj)))
+        #self.data_object_meta_list.append((id, json_dumps(obj)))
+        self.data_object_meta_list.append((id, obj))
 
     def get_data_object_meta(self, id):
         pass
@@ -287,7 +264,7 @@ class DuckDB(AbstractDB):
 
     def add_annotation(self, obj: Annotation):
         assert obj.oid
-        self.annotation_list.append((obj.oid, obj.value_str))
+        self.annotation_list.append((obj.oid, obj.value))
 
     def get_annotation(self, id: str):
         pass
@@ -311,13 +288,13 @@ class DuckDB(AbstractDB):
         ).fetchall()
 
     def add_pair_meta(self, id, annot_id, obj):
-        pass
+        self.data_object_annotation_list.append((id, annot_id, json.dumps(obj)))
 
     def get_pair_meta(self, id: str, annot_id: str):
         pass
 
     def get_pair_meta_many(self, collection: Iterable[Tuple[str, Optional[str]]]):
-        df = pd.DataFrame(collection, columns=["data_object_id", "annotation_id"])
+        df = pd.DataFrame(list(collection), columns=["data_object_id", "annotation_id"])
         self.conn.register("collection_df", df)
         result = self.conn.execute(
             """
@@ -328,10 +305,27 @@ class DuckDB(AbstractDB):
             """
         ).fetchall()
         self.conn.unregister("collection_df")
-        return result
+        for data_object_id, annotation_id, value in result:
+            yield data_object_id, annotation_id, json.loads(value)
+
+    def get_pair_meta_all(self):
+        result = self.conn.execute(
+            """
+            SELECT * FROM data_object_annotation
+            """
+        ).fetchall()
+        for data_object_id, annotation_id, value in result:
+            yield data_object_id, annotation_id, json.loads(value)
 
     def jp_search_pair_meta(self, query: str, collection: Iterable[Tuple[str, Optional[str]]]):
-        pass
+        from ldb.query.search import get_search_func
+
+        search = get_search_func(query)
+        data = self.get_pair_meta_many(collection)
+        iter1, iter2 = tee(data)
+        values = (v for _, _, v in iter1)
+        for (data_object_id, annotation_id, _), result in zip(iter2, search(values)):
+            yield data_object_id, annotation_id, result
 
     def add_dataset(self, name: str):
         self.dataset_set.add(name)
