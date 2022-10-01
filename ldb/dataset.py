@@ -193,9 +193,9 @@ def get_collection_from_dataset_identifier(
     dataset_version: Optional[int] = None,
 ) -> Dict[str, Optional[str]]:
     if dataset_name == ROOT:
-        from ldb.db.file import FileDB
+        from ldb.core import LDBClient
 
-        return FileDB(ldb_dir).get_root_collection()
+        return LDBClient(ldb_dir).db.get_root_collection()
     dataset = get_dataset(ldb_dir, dataset_name)
     dataset_version_hash = get_dataset_version_hash(dataset, dataset_version)
     return get_collection(ldb_dir, dataset_version_hash)
@@ -264,6 +264,11 @@ def combine_collections(
     ldb_dir: Path,
     collections: List[Dict[str, Optional[str]]],
 ) -> Dict[str, str]:
+    if not collections:
+        return {}
+    if len(collections) == 1:
+        return {k: v if v is not None else "" for k, v in collections[0].items()}
+
     all_versions: DefaultDict[str, List[str]] = defaultdict(list)
     for collection in collections:
         for data_object_hash, annotation_hash in collection.items():
@@ -273,6 +278,8 @@ def combine_collections(
     combined_collection = {}
     for data_object_hash, annotation_hashes in sorted(all_versions.items()):
         if len(annotation_hashes) > 1:
+            # TODO get_latest_annotation_version func to handle this
+            # get latest annotation (most recent unique version)
             annotation_dir = (
                 get_hash_path(
                     ldb_dir / InstanceDir.DATA_OBJECT_INFO,
