@@ -495,6 +495,7 @@ class IndexingItem(ABC):
     def get_merged_annotation_content(self) -> JSONDecoded:
         if not isinstance(self.raw_annotation_content, Mapping):
             return self.raw_annotation_content
+        # TODO use db
         last_annot_hash = get_root_collection_annotation_hash(
             get_hash_path(
                 self.ldb_dir / InstanceDir.DATA_OBJECT_INFO,
@@ -518,10 +519,7 @@ class IndexingItem(ABC):
 
     @cached_property
     def annotation_version(self) -> int:
-        try:
-            return len(list(self.annotation_meta_dir_path.iterdir())) + 1
-        except FileNotFoundError:
-            return 1
+        return self.db.count_pairs(self.data_object_hash) + 1
 
     @cached_property
     def has_annotation(self) -> bool:
