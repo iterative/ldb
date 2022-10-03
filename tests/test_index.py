@@ -449,11 +449,11 @@ def test_index_inferred(ldb_instance, data_dir):
             "def3cbcb30f3254a2a220e51ddf45375",
         ],
     )
-    annotations = get_annotations(ldb_instance, annot_hashes)
-    expected_annotations = [
-        {"label": {"blue": {"2": "a"}}},
-        {"label": {"red": "3"}},
-    ]
+    annotations = client.db.get_annotation_many(ldb_instance, annot_hashes)
+    expected_annotations = {
+        "31ed21a2633c6802e756dd06220b0b82": {"label": {"blue": {"2": "a"}}},
+        "def3cbcb30f3254a2a220e51ddf45375": {"label": {"red": "3"}},
+    }
     assert ret == 0
     assert len(data_object_meta_paths) == 23
     assert len(annotation_meta_paths) == 23
