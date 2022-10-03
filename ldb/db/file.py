@@ -1,11 +1,17 @@
+import os
 import os.path as osp
 from pathlib import Path
-from typing import TYPE_CHECKING, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Iterable, Optional, Tuple, Union
 
 from ldb.db.abstract import AbstractDB
 from ldb.objects.annotation import Annotation
-from ldb.path import InstanceDir
-from ldb.utils import json_dumps, load_data_file, write_data_file
+from ldb.path import INSTANCE_DIRS, InstanceDir
+from ldb.utils import (
+    get_hash_path,
+    json_dumps,
+    load_data_file,
+    write_data_file,
+)
 
 if TYPE_CHECKING:
     from ldb.index.utils import AnnotationMeta
@@ -21,6 +27,13 @@ class FileDB(AbstractDB):
     @staticmethod
     def oid_parts(id: str) -> Tuple[str, str]:
         return id[:3], id[3:]
+
+    def init(self):
+        for subdir in INSTANCE_DIRS:
+            os.makedirs(osp.join(self.ldb_dir, subdir))
+
+    def write_all(self):
+        pass
 
     def add_pair(
         self,
@@ -72,11 +85,8 @@ class FileDB(AbstractDB):
             return None
 
     def get_annotation_many(self, ids):
-        return {
-            id: value
-            for id in ids
-            if (value := self.get_annotation(id)) is not None
-        }
+        for id in ids:
+            yield id, self.get_annotation(id)
 
     def add_pair_meta(self, id, annot_id, obj):
         path = osp.join(
@@ -98,6 +108,35 @@ class FileDB(AbstractDB):
             return load_data_file(path)
         except FileNotFoundError:
             return None
+
+    def count_pairs(self, id: str) -> int:
+        path = osp.join(
+            self.data_object_dir,
+            *self.oid_parts(id),
+            "annotations",
+        )
+        try:
+            names = os.listdir(path)
+        except FileNotFoundError:
+            return 0
+        return len(names)
+
+    def ls_collection(self, collection: Iterable[Tuple[str, Optional[str]]]):
+        for data_object_hash, annotation_hash in collection:
+            data_object_dir = osp.join(
+                self.data_object_dir, *self.oid_parts(data_object_hash),
+            )
+            annotation_version = 0
+            if annotation_hash:
+                annotation_meta = load_data_file(
+                    osp.join(data_object_dir, "annotations", annotation_hash),
+                )
+                annotation_version = annotation_meta["version"]
+            data_object_path = load_data_file(
+                osp.join(data_object_dir, "meta"),
+            )["fs"]["path"]
+
+            yield data_object_hash, data_object_path, annotation_hash, annotation_version
 
     def set_current_annot(self, id: str, annot_id: str):
         path = osp.join(self.data_object_dir, *self.oid_parts(id), "current")
