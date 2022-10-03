@@ -5,6 +5,7 @@ from typing import NamedTuple
 import pytest
 
 from ldb.add import get_current_annotation_hashes
+from ldb.core import LDBClient
 from ldb.data_formats import Format
 from ldb.dataset import get_annotations
 from ldb.index import index
@@ -432,6 +433,7 @@ def test_index_inferred(ldb_instance, data_dir):
             os.fspath(data_dir / "inferred/multilevel"),
         ],
     )
+    client = LDBClient(ldb_instance)
     (
         data_object_meta_paths,
         annotation_meta_paths,
@@ -449,11 +451,11 @@ def test_index_inferred(ldb_instance, data_dir):
             "def3cbcb30f3254a2a220e51ddf45375",
         ],
     )
-    annotations = client.db.get_annotation_many(ldb_instance, annot_hashes)
-    expected_annotations = {
-        "31ed21a2633c6802e756dd06220b0b82": {"label": {"blue": {"2": "a"}}},
-        "def3cbcb30f3254a2a220e51ddf45375": {"label": {"red": "3"}},
-    }
+    annotations = [v for _, v in client.db.get_annotation_many(annot_hashes)]
+    expected_annotations = [
+        {"label": {"blue": {"2": "a"}}},
+        {"label": {"red": "3"}},
+    ]
     assert ret == 0
     assert len(data_object_meta_paths) == 23
     assert len(annotation_meta_paths) == 23
