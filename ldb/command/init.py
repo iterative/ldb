@@ -14,7 +14,12 @@ if TYPE_CHECKING:
 
 
 def init_command(options: Namespace) -> None:
-    init(options.path, force=options.force, read_any_cloud_location=False)
+    init(
+        options.path,
+        force=options.force,
+        read_any_cloud_location=False,
+        db_type=options.database,
+    )
     set_default_instance(options.path, overwrite_existing=False)
 
 
@@ -33,6 +38,13 @@ def add_parser(
         action="store_true",
         default=False,
         help="Overwrite an existing instance",
+    )
+    parser.add_argument(
+        "-d",
+        "--database",
+        default="",
+        choices=("file", "duckdb"),
+        help="Database backend to use",
     )
     parser.add_argument(  # type: ignore[attr-defined]
         "path",
