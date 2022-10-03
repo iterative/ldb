@@ -55,11 +55,13 @@ def init(
     force: bool = False,
     read_any_cloud_location: bool = False,
     auto_index: bool = False,
-    db_type: str = "file",
+    db_type: str = "",
 ) -> Path:
     """
     Create a new LDB instance.
     """
+    if not db_type:
+        db_type = os.getenv("LDB_DATABASE", "")
     path = Path(os.path.abspath(path))
     if path.is_dir() and next(path.iterdir(), None) is not None:
         if is_ldb_instance(path):
