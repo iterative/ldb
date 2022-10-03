@@ -267,7 +267,9 @@ def combine_collections(
     if not collections:
         return {}
     if len(collections) == 1:
-        return {k: v if v is not None else "" for k, v in collections[0].items()}
+        return {
+            k: v if v is not None else "" for k, v in collections[0].items()
+        }
 
     all_versions: DefaultDict[str, List[str]] = defaultdict(list)
     for collection in collections:
@@ -614,11 +616,11 @@ class PipelineData:
 
     @cached_property
     def data_object_metas(self) -> DataObjectMetaCache:
-        return self.db.get_data_object_meta_many(self.data_object_ids)
+        return dict(self.db.get_data_object_meta_many(self.data_object_ids))
 
     @cached_property
     def annotations(self) -> AnnotationCache:
-        return self.db.get_annotation_many(self.annotation_ids)
+        return dict(self.db.get_annotation_many(self.annotation_ids))
 
 
 class PipelineBuilder:
@@ -768,7 +770,7 @@ def apply_queries_to_collection(
     """
     Filter the given collection by the operations in `collection_ops`.
     """
-    from ldb.db.file import FileDB
+    from ldb.core import LDBClient
 
     collection = list(collection)
     if collection:
@@ -778,7 +780,9 @@ def apply_queries_to_collection(
     data = (
         data
         if data is not None
-        else PipelineData(FileDB(ldb_dir), data_object_ids, annotation_ids)
+        else PipelineData(
+            LDBClient(ldb_dir).db, data_object_ids, annotation_ids,
+        )
     )
     return Pipeline.from_defs(ldb_dir, op_defs, data=data, warn=warn).run(
         collection,

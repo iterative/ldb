@@ -275,7 +275,8 @@ class DuckDB(AbstractDB):
             """,
         ).fetchall()
         self.conn.unregister("data_object_meta_id")
-        return result
+        for id, value in result:
+            yield id, json.loads(value)
 
     def get_data_object_meta_all(self):
         return self.conn.execute(
@@ -309,7 +310,8 @@ class DuckDB(AbstractDB):
             """,
         ).fetchall()
         self.conn.unregister("annotation_ids")
-        return result
+        for id, value in result:
+            yield id, json.loads(value)
 
     def get_annotation_all(self):
         return self.conn.execute(
