@@ -3,7 +3,7 @@ from typing import Iterable, Iterator, List, Optional, Sequence, Tuple, Union
 
 from ldb.add import process_args_for_ls
 from ldb.core import LDBClient
-from ldb.dataset import PipelineData, apply_queries, get_data_object_metas
+from ldb.dataset import PipelineData, apply_queries
 from ldb.op_type import OpType
 from ldb.query.search import SearchFunc, get_search_func
 from ldb.typing import JSONDecoded
@@ -61,9 +61,7 @@ def evaluate(
 
         if file_searches:
             data_object_hashes = [d for d, _ in collection_list]
-            data_object_metas = [
-                data.data_object_metas[d] for d in data_object_hashes
-            ]
+            data_object_metas = [data.data_object_metas[d] for d in data_object_hashes]
             for file_search in file_searches:
                 search_results.append(file_search(data_object_metas))
 

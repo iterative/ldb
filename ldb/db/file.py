@@ -1,17 +1,13 @@
 import os
 import os.path as osp
 from pathlib import Path
-from typing import TYPE_CHECKING, Iterable, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Dict, Iterable, Optional, Tuple
 
 from ldb.db.abstract import AbstractDB
 from ldb.objects.annotation import Annotation
 from ldb.path import INSTANCE_DIRS, InstanceDir
-from ldb.utils import (
-    get_hash_path,
-    json_dumps,
-    load_data_file,
-    write_data_file,
-)
+from ldb.typing import JSONDecoded
+from ldb.utils import json_dumps, load_data_file, write_data_file
 
 if TYPE_CHECKING:
     from ldb.index.utils import AnnotationMeta
@@ -19,10 +15,11 @@ if TYPE_CHECKING:
 
 
 class FileDB(AbstractDB):
-    def __init__(self, ldb_dir: Union[str, Path]):
-        self.ldb_dir = str(ldb_dir)
-        self.annotation_dir = osp.join(ldb_dir, InstanceDir.ANNOTATIONS)
-        self.data_object_dir = osp.join(ldb_dir, InstanceDir.DATA_OBJECT_INFO)
+    def __init__(self, path: str):
+        super().__init__(path)
+        self.ldb_dir = path
+        self.annotation_dir = osp.join(self.ldb_dir, InstanceDir.ANNOTATIONS)
+        self.data_object_dir = osp.join(self.ldb_dir, InstanceDir.DATA_OBJECT_INFO)
 
     @staticmethod
     def oid_parts(id: str) -> Tuple[str, str]:
@@ -31,9 +28,6 @@ class FileDB(AbstractDB):
     def init(self):
         for subdir in INSTANCE_DIRS:
             os.makedirs(osp.join(self.ldb_dir, subdir))
-
-    def write_all(self):
-        pass
 
     def add_pair(
         self,
@@ -56,19 +50,15 @@ class FileDB(AbstractDB):
         path = osp.join(self.data_object_dir, *self.oid_parts(id), "meta")
         write_data_file(path, json_dumps(obj).encode(), True)
 
-    def get_data_object_meta(self, id):
+    def get_data_object_meta(self, id) -> JSONDecoded:
         path = osp.join(self.data_object_dir, *self.oid_parts(id), "meta")
         try:
             return load_data_file(path)
         except FileNotFoundError:
             return None
 
-    def get_data_object_meta_many(self, ids):
-        return {
-            id: value
-            for id in ids
-            if (value := self.get_data_object_meta(id)) is not None
-        }
+    def get_data_object_meta_many(self, ids) -> Dict[str, JSONDecoded]:
+        return {id: value for id in ids if (value := self.get_data_object_meta(id)) is not None}
 
     def add_annotation(self, obj: Annotation):
         dir_path = osp.join(self.annotation_dir, *self.oid_parts(obj.oid))
@@ -124,7 +114,8 @@ class FileDB(AbstractDB):
     def ls_collection(self, collection: Iterable[Tuple[str, Optional[str]]]):
         for data_object_hash, annotation_hash in collection:
             data_object_dir = osp.join(
-                self.data_object_dir, *self.oid_parts(data_object_hash),
+                self.data_object_dir,
+                *self.oid_parts(data_object_hash),
             )
             annotation_version = 0
             if annotation_hash:
@@ -132,9 +123,9 @@ class FileDB(AbstractDB):
                     osp.join(data_object_dir, "annotations", annotation_hash),
                 )
                 annotation_version = annotation_meta["version"]
-            data_object_path = load_data_file(
-                osp.join(data_object_dir, "meta"),
-            )["fs"]["path"]
+            data_object_path = load_data_file(osp.join(data_object_dir, "meta"),)[
+                "fs"
+            ]["path"]
 
             yield data_object_hash, data_object_path, annotation_hash, annotation_version
 

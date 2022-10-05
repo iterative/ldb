@@ -1,4 +1,3 @@
-import os.path as osp
 from abc import ABC, abstractmethod
 from contextlib import contextmanager
 from dataclasses import dataclass, field
@@ -475,9 +474,7 @@ class IndexingItem(ABC):
         elif self.annot_merge_strategy == AnnotMergeStrategy.MERGE:
             value = self.get_merged_annotation_content()
         else:
-            raise ValueError(
-                f"Invalid annotation merge strategy: {self.annot_merge_strategy}"
-            )
+            raise ValueError(f"Invalid annotation merge strategy: {self.annot_merge_strategy}")
         annot = Annotation(
             value,
             {

@@ -267,9 +267,7 @@ def combine_collections(
     if not collections:
         return {}
     if len(collections) == 1:
-        return {
-            k: v if v is not None else "" for k, v in collections[0].items()
-        }
+        return {k: v if v is not None else "" for k, v in collections[0].items()}
 
     all_versions: DefaultDict[str, List[str]] = defaultdict(list)
     for collection in collections:
@@ -778,7 +776,9 @@ def apply_queries_to_collection(
         data
         if data is not None
         else PipelineData(
-            LDBClient(ldb_dir).db, data_object_ids, annotation_ids,
+            LDBClient(ldb_dir).db,
+            data_object_ids,
+            annotation_ids,
         )
     )
     return Pipeline.from_defs(ldb_dir, op_defs, data=data, warn=warn).run(
