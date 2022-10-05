@@ -196,7 +196,7 @@ def get_collection_from_dataset_identifier(
     if dataset_name == ROOT:
         from ldb.core import LDBClient
 
-        return LDBClient(ldb_dir).db.get_root_collection()
+        return dict(LDBClient(ldb_dir).db.get_root_collection())
     dataset = get_dataset(ldb_dir, dataset_name)
     dataset_version_hash = get_dataset_version_hash(dataset, dataset_version)
     return get_collection(ldb_dir, dataset_version_hash)

@@ -369,7 +369,7 @@ class DuckDB(AbstractDB):
 
     def ls_collection(
         self, collection: Iterable[Tuple[str, Optional[str]]]
-    ) -> Iterator[Tuple[str, str, int, int]]:
+    ) -> Iterable[Tuple[str, str, int, int]]:
         df = pd.DataFrame(
             list(collection),
             columns=["data_object_id", "annotation_id"],

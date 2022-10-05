@@ -177,5 +177,5 @@ class AbstractDB:
     @abstractmethod
     def ls_collection(
         self, collection: Iterable[Tuple[str, Optional[str]]]
-    ) -> Iterator[Tuple[str, str, int, int]]:
+    ) -> Iterable[Tuple[str, str, int, int]]:
         ...

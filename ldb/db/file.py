@@ -120,7 +120,9 @@ class FileDB(AbstractDB):
             return 0
         return len(names)
 
-    def ls_collection(self, collection: Iterable[Tuple[str, Optional[str]]]):
+    def ls_collection(
+        self, collection: Iterable[Tuple[str, Optional[str]]]
+    ) -> Iterable[Tuple[str, str, int, int]]:
         for data_object_hash, annotation_hash in collection:
             data_object_dir = osp.join(
                 self.data_object_dir,
