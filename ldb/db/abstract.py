@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 
 DataObjectMetaRecord = Tuple[str, "DataObjectMetaT"]
 AnnotationRecord = Tuple[str, JSONDecoded]
-DataObjectAnnotationRecord = Tuple[str, str, JSONDecoded]
+DataObjectAnnotationRecord = Tuple[str, str, "AnnotationMeta"]
 DatasetRecord = Tuple[int, str]
 DatasetMemberRecord = Tuple[int, str, str]
 
@@ -59,14 +59,14 @@ class AbstractDB:
             self.set_current_annot(data_object_hash, annotation.oid)
 
     def add_data_object_meta(self, id: str, value: "DataObjectMetaT") -> None:
-        self.data_object_meta_list.append((id, json.dumps(value)))
+        self.data_object_meta_list.append((id, value))
 
     @abstractmethod
     def write_data_object_meta(self) -> None:
         ...
 
     @abstractmethod
-    def get_data_object_meta(self, id: str) -> DataObjectMetaRecord:
+    def get_data_object_meta(self, id: str) -> Optional[DataObjectMetaRecord]:
         ...
 
     @abstractmethod
@@ -80,14 +80,14 @@ class AbstractDB:
     def add_annotation(self, annotation: "Annotation") -> None:
         if not annotation.oid:
             raise ValueError(f"Invalid Annotation oid: {annotation.oid}")
-        self.annotation_list.append((annotation.oid, annotation.value_str))
+        self.annotation_list.append(annotation)
 
     @abstractmethod
     def write_annotation(self) -> None:
         ...
 
     @abstractmethod
-    def get_annotation(self, id: str) -> AnnotationRecord:
+    def get_annotation(self, id: str) -> Optional[AnnotationRecord]:
         ...
 
     @abstractmethod
@@ -108,7 +108,7 @@ class AbstractDB:
         ...
 
     @abstractmethod
-    def get_pair_meta(self, id: str, annot_id: str) -> DataObjectAnnotationRecord:
+    def get_pair_meta(self, id: str, annot_id: str) -> Optional[DataObjectAnnotationRecord]:
         ...
 
     @abstractmethod

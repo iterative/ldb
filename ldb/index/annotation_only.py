@@ -127,7 +127,13 @@ class AnnotationOnlyIndexingItem(AnnotationFileIndexingItem):
 
     @cached_property
     def data_object_meta(self) -> DataObjectMeta:
-        meta_content = self.db.get_data_object_meta(self.data_object_hash)
+        data_object_id = self.data_object_hash
+        record = self.db.get_data_object_meta(data_object_id)
+        if record is None:
+            raise DataObjectNotFoundError(
+                f"Data object not found: {DATA_OBJ_ID_PREFIX}{data_object_id}"
+            )
+        meta_content = record[1]
         meta_content["last_indexed"] = self.current_timestamp
         meta_content["tags"] = sorted(  # type: ignore[assignment]
             set(meta_content["tags"]) | set(self.tags),  # type: ignore[arg-type]

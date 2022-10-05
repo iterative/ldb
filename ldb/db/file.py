@@ -35,16 +35,12 @@ class FileDB(AbstractDB):
         for subdir in INSTANCE_DIRS:
             os.makedirs(osp.join(self.ldb_dir, subdir))
 
-    # def add_data_object_meta(self, id: str, value: "DataObjectMetaT") -> None:
-    #    super().add_data_object_meta(id, value)
-    #    self.write_data_object_meta()
-
     def write_data_object_meta(self) -> None:
         for id, value in self.data_object_meta_list:
             path = osp.join(self.data_object_dir, *self.oid_parts(id), "meta")
             write_data_file(path, json.dumps(value).encode(), True)
 
-    def get_data_object_meta(self, id: str) -> DataObjectMetaRecord:
+    def get_data_object_meta(self, id: str) -> Optional[DataObjectMetaRecord]:
         path = osp.join(self.data_object_dir, *self.oid_parts(id), "meta")
         try:
             return id, load_data_file(path)
@@ -65,7 +61,7 @@ class FileDB(AbstractDB):
             write_data_file(value_path, obj.value_bytes, False)
             write_data_file(meta_path, obj.meta_bytes, False)
 
-    def get_annotation(self, id: str) -> AnnotationRecord:
+    def get_annotation(self, id: str) -> Optional[AnnotationRecord]:
         path = osp.join(self.annotation_dir, *self.oid_parts(id), "user")
         try:
             return id, load_data_file(path)
@@ -88,7 +84,7 @@ class FileDB(AbstractDB):
             )
             write_data_file(path, json.dumps(value).encode(), True)
 
-    def get_pair_meta(self, id: str, annot_id: str) -> DataObjectAnnotationRecord:
+    def get_pair_meta(self, id: str, annot_id: str) -> Optional[DataObjectAnnotationRecord]:
         path = osp.join(
             self.data_object_dir,
             *self.oid_parts(id),
@@ -132,14 +128,9 @@ class FileDB(AbstractDB):
             )
             annotation_version = 0
             if annotation_hash:
-                annotation_meta = load_data_file(
-                    osp.join(data_object_dir, "annotations", annotation_hash),
-                )
+                annotation_meta = self.get_pair_meta(data_object_hash, annotation_hash)[2]
                 annotation_version = annotation_meta["version"]
-            data_object_path = load_data_file(osp.join(data_object_dir, "meta"),)[
-                "fs"
-            ]["path"]
-
+            data_object_path = self.get_data_object_meta(data_object_hash)[1]["fs"]["path"]
             yield data_object_hash, data_object_path, annotation_hash, annotation_version
 
     def set_current_annot(self, id: str, annot_id: str):

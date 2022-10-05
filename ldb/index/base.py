@@ -28,7 +28,11 @@ from ldb.dataset import (
     get_root_collection_annotation_hash,
 )
 from ldb.db.abstract import AbstractDB
-from ldb.exceptions import IndexingException, LDBException
+from ldb.exceptions import (
+    DataObjectNotFoundError,
+    IndexingException,
+    LDBException,
+)
 from ldb.fs.utils import get_file_hash, get_modified_time
 from ldb.index.utils import (
     DEFAULT_CONFIG,
@@ -59,7 +63,13 @@ from ldb.path import InstanceDir
 from ldb.progress import get_progressbar
 from ldb.storage import StorageLocation
 from ldb.typing import JSONDecoded, JSONObject
-from ldb.utils import current_time, format_datetime, get_hash_path, json_dumps
+from ldb.utils import (
+    DATA_OBJ_ID_PREFIX,
+    current_time,
+    format_datetime,
+    get_hash_path,
+    json_dumps,
+)
 
 if TYPE_CHECKING:
     from ldb.add import AddResult
@@ -565,14 +575,16 @@ class AnnotationFileIndexingItem(IndexingItem):
     def annotation_meta(self) -> AnnotationMeta:
         if self.annotation_fsp is None:
             raise IndexingException("Missing annotation_fsp")
-        prev_annotation = self.db.get_pair_meta(
+        record = self.db.get_pair_meta(
             self.data_object_hash,
             self.annotation.oid,
         )
-        if prev_annotation is None:
-            prev_annotation = {}
+        if record is None:
+            prev = {}
+        else:
+            prev = record[2]
         return construct_annotation_meta(
-            prev_annotation,
+            prev,
             self.current_timestamp,
             self.annotation_version,
             get_modified_time(
@@ -611,20 +623,23 @@ class DataObjectFileIndexingItem(IndexingItem):
 
     @cached_property
     def data_object_meta(self) -> DataObjectMetaT:
+        data_object_id = self.data_object_hash
+        record = self.db.get_data_object_meta(data_object_id)
         if not self.save_data_object_path_info:
-            meta_contents: DataObjectMetaT = self.db.get_data_object_meta(
-                self.data_object_hash,
-            )
+            if record is None:
+                raise DataObjectNotFoundError(
+                    f"Data object not found: {DATA_OBJ_ID_PREFIX}{data_object_id}"
+                )
+            meta_contents = record[1]
             meta_contents["last_indexed"] = self.current_timestamp
             meta_contents["tags"] = sorted(  # type: ignore[assignment]
                 set(meta_contents["tags"]) | set(self.tags),  # type: ignore[arg-type]
             )
         else:
-            old_meta: DataObjectMetaT = self.db.get_data_object_meta(
-                self.data_object_hash,
-            )
-            if old_meta is None:
-                old_meta = {}
+            if record is None:
+                old_meta: DataObjectMetaT = {}
+            else:
+                old_meta = record[1]
             self.found_new_data_object_path, meta_contents = construct_data_object_meta(
                 *self.data_object,
                 old_meta,

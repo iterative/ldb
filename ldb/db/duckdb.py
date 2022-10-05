@@ -105,7 +105,7 @@ class DuckDB(AbstractDB):
             self.conn.unregister("data_object_meta_df")
             self.data_object_meta_list = []
 
-    def get_data_object_meta(self, id: str) -> DataObjectMetaRecord:
+    def get_data_object_meta(self, id: str) -> Optional[DataObjectMetaRecord]:
         result = self.conn.execute(
             """
             SELECT value from data_object_meta
@@ -143,7 +143,8 @@ class DuckDB(AbstractDB):
 
     def write_annotation(self) -> None:
         if self.annotation_list:
-            df = pd.DataFrame(self.annotation_list, columns=["id", "value"])
+            data = [(a.oid, a.value_str) for a in self.annotation_list]
+            df = pd.DataFrame(data, columns=["id", "value"])
             self.conn.register("annotation_df", df)
 
             self.conn.begin()
@@ -168,7 +169,7 @@ class DuckDB(AbstractDB):
             self.conn.unregister("annotation_df")
             self.annotation_list = []
 
-    def get_annotation(self, id: str) -> AnnotationRecord:
+    def get_annotation(self, id: str) -> Optional[AnnotationRecord]:
         result = self.conn.execute(
             """
             SELECT * from annotation
@@ -245,7 +246,7 @@ class DuckDB(AbstractDB):
             self.conn.unregister("data_object_annotation_df")
             self.data_object_annotation_list = []
 
-    def get_pair_meta(self, id: str, annot_id: str) -> DataObjectAnnotationRecord:
+    def get_pair_meta(self, id: str, annot_id: str) -> Optional[DataObjectAnnotationRecord]:
         result = self.conn.execute(
             """
             SELECT value from data_object_annotation

@@ -227,12 +227,16 @@ class InferredIndexingItem(DataObjectFileIndexingItem):
 
     @cached_property
     def annotation_meta(self) -> AnnotationMeta:
-        prev_annotation = self.db.get_pair_meta(
+        record = self.db.get_pair_meta(
             self.data_object_hash,
             self.annotation.oid,
         )
+        if record is None:
+            prev = {}
+        else:
+            prev = record[2]
         return construct_annotation_meta(
-            prev_annotation,
+            prev,
             self.current_timestamp,
             self.annotation_version,
             None,

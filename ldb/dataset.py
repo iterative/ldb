@@ -54,6 +54,7 @@ from ldb.utils import (
 
 if TYPE_CHECKING:
     from ldb.db.abstract import AbstractDB
+    from ldb.index.utils import DataObjectMeta as DataObjectMetaT
 
 OpDef = Tuple[str, Union[str, int, float, List[str]]]
 CollectionFunc = Callable[
@@ -610,11 +611,11 @@ class PipelineData:
         self.annotation_ids = annotation_ids
 
     @cached_property
-    def data_object_metas(self) -> DataObjectMetaCache:
+    def data_object_metas(self) -> Dict[str, "DataObjectMetaT"]:
         return dict(self.db.get_data_object_meta_many(self.data_object_ids))
 
     @cached_property
-    def annotations(self) -> AnnotationCache:
+    def annotations(self) -> Dict[str, JSONDecoded]:
         return dict(self.db.get_annotation_many(self.annotation_ids))
 
 
