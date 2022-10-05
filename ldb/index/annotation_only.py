@@ -183,6 +183,7 @@ class AnnotationOnlyIndexingItem(AnnotationFileIndexingItem):
             fs = fs_cls(**loc.options) if loc is not None else fs_cls()
             data_obj_item = DataObjectFileIndexingItem(
                 self.ldb_dir,
+                self.db,
                 current_time(),
                 self.tags,
                 self.annot_merge_strategy,

@@ -1,9 +1,15 @@
+import json
 import os
 import os.path as osp
 from pathlib import Path
 from typing import TYPE_CHECKING, Dict, Iterable, Optional, Tuple
 
-from ldb.db.abstract import AbstractDB
+from ldb.db.abstract import (
+    AbstractDB,
+    AnnotationRecord,
+    DataObjectAnnotationRecord,
+    DataObjectMetaRecord,
+)
 from ldb.objects.annotation import Annotation
 from ldb.path import INSTANCE_DIRS, InstanceDir
 from ldb.typing import JSONDecoded
@@ -15,7 +21,7 @@ if TYPE_CHECKING:
 
 
 class FileDB(AbstractDB):
-    def __init__(self, path: str):
+    def __init__(self, path: str) -> None:
         super().__init__(path)
         self.ldb_dir = path
         self.annotation_dir = osp.join(self.ldb_dir, InstanceDir.ANNOTATIONS)
@@ -29,65 +35,60 @@ class FileDB(AbstractDB):
         for subdir in INSTANCE_DIRS:
             os.makedirs(osp.join(self.ldb_dir, subdir))
 
-    def add_pair(
-        self,
-        data_object_hash: str,
-        data_object_meta: "DataObjectMetaT",
-        annotation: Optional[Annotation] = None,
-        annotation_meta: Optional["AnnotationMeta"] = None,
-    ) -> None:
-        self.add_data_object_meta(data_object_hash, data_object_meta)
-        if annotation is not None:
-            self.add_annotation(annotation)
-            self.add_pair_meta(
-                data_object_hash,
-                annotation.oid,
-                annotation_meta,
-            )
-            self.set_current_annot(data_object_hash, annotation.oid)
+    # def add_data_object_meta(self, id: str, value: "DataObjectMetaT") -> None:
+    #    super().add_data_object_meta(id, value)
+    #    self.write_data_object_meta()
 
-    def add_data_object_meta(self, id, obj):
-        path = osp.join(self.data_object_dir, *self.oid_parts(id), "meta")
-        write_data_file(path, json_dumps(obj).encode(), True)
+    def write_data_object_meta(self) -> None:
+        for id, value in self.data_object_meta_list:
+            path = osp.join(self.data_object_dir, *self.oid_parts(id), "meta")
+            write_data_file(path, json.dumps(value).encode(), True)
 
-    def get_data_object_meta(self, id) -> JSONDecoded:
+    def get_data_object_meta(self, id: str) -> DataObjectMetaRecord:
         path = osp.join(self.data_object_dir, *self.oid_parts(id), "meta")
         try:
-            return load_data_file(path)
+            return id, load_data_file(path)
         except FileNotFoundError:
             return None
 
-    def get_data_object_meta_many(self, ids) -> Dict[str, JSONDecoded]:
-        return {id: value for id in ids if (value := self.get_data_object_meta(id)) is not None}
+    def get_data_object_meta_many(self, ids: Iterable[str]) -> Iterable[DataObjectMetaRecord]:
+        for id in ids:
+            record = self.get_data_object_meta(id)
+            if record is not None:
+                yield record
 
-    def add_annotation(self, obj: Annotation):
-        dir_path = osp.join(self.annotation_dir, *self.oid_parts(obj.oid))
-        value_path = osp.join(dir_path, "user")
-        meta_path = osp.join(dir_path, "ldb")
-        write_data_file(value_path, obj.value_bytes, False)
-        write_data_file(meta_path, obj.meta_bytes, False)
+    def write_annotation(self) -> None:
+        for obj in self.annotation_list:
+            dir_path = osp.join(self.annotation_dir, *self.oid_parts(obj.oid))
+            value_path = osp.join(dir_path, "user")
+            meta_path = osp.join(dir_path, "ldb")
+            write_data_file(value_path, obj.value_bytes, False)
+            write_data_file(meta_path, obj.meta_bytes, False)
 
-    def get_annotation(self, id: str):
+    def get_annotation(self, id: str) -> AnnotationRecord:
         path = osp.join(self.annotation_dir, *self.oid_parts(id), "user")
         try:
-            return load_data_file(path)
+            return id, load_data_file(path)
         except FileNotFoundError:
             return None
 
-    def get_annotation_many(self, ids):
+    def get_annotation_many(self, ids: Iterable[str]) -> Iterable[AnnotationRecord]:
         for id in ids:
-            yield id, self.get_annotation(id)
+            record = self.get_annotation(id)
+            if record is not None:
+                yield record
 
-    def add_pair_meta(self, id, annot_id, obj):
-        path = osp.join(
-            self.data_object_dir,
-            *self.oid_parts(id),
-            "annotations",
-            annot_id,
-        )
-        write_data_file(path, json_dumps(obj).encode(), True)
+    def write_data_object_annotation(self) -> None:
+        for data_object_id, annotation_id, value in self.data_object_annotation_list:
+            path = osp.join(
+                self.data_object_dir,
+                *self.oid_parts(data_object_id),
+                "annotations",
+                annotation_id,
+            )
+            write_data_file(path, json.dumps(value).encode(), True)
 
-    def get_pair_meta(self, id: str, annot_id: str):
+    def get_pair_meta(self, id: str, annot_id: str) -> DataObjectAnnotationRecord:
         path = osp.join(
             self.data_object_dir,
             *self.oid_parts(id),
@@ -95,9 +96,21 @@ class FileDB(AbstractDB):
             annot_id,
         )
         try:
-            return load_data_file(path)
+            return id, annot_id, load_data_file(path)
         except FileNotFoundError:
             return None
+
+    def get_pair_meta_many(
+        self,
+        collection: Iterable[Tuple[str, Optional[str]]],
+    ) -> Iterable[DataObjectAnnotationRecord]:
+        for data_object_id, annotation_id in collection:
+            record = self.get_pair_meta(data_object_id, annotation_id or "")
+            if record is not None:
+                yield record
+
+    def get_pair_meta_all(self) -> Iterable[DataObjectAnnotationRecord]:
+        raise NotImplementedError
 
     def count_pairs(self, id: str) -> int:
         path = osp.join(

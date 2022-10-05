@@ -5,7 +5,13 @@ from typing import TYPE_CHECKING, Dict, Iterable, Iterator, Optional, Tuple
 import pandas as pd
 
 import duckdb
-from ldb.db.abstract import AbstractDB
+from ldb.db.abstract import (
+    AbstractDB,
+    AnnotationRecord,
+    DataObjectAnnotationRecord,
+    DataObjectMetaRecord,
+    DatasetMemberRecord,
+)
 from ldb.objects.annotation import Annotation
 from ldb.typing import JSONDecoded
 
@@ -99,6 +105,42 @@ class DuckDB(AbstractDB):
             self.conn.unregister("data_object_meta_df")
             self.data_object_meta_list = []
 
+    def get_data_object_meta(self, id: str) -> DataObjectMetaRecord:
+        result = self.conn.execute(
+            """
+            SELECT value from data_object_meta
+            WHERE id = (?)
+            """,
+            [id],
+        ).fetchone()
+        if result is None:
+            return None
+        return json.loads(result[0])
+
+    def get_data_object_meta_many(self, ids: Iterable[str]) -> Iterable[DataObjectMetaRecord]:
+        self.conn.register(
+            "data_object_meta_id",
+            pd.DataFrame(ids, columns=["id"]),
+        )
+        result = self.conn.execute(
+            """
+            SELECT * from data_object_meta
+            WHERE id in (SELECT id FROM data_object_meta_id)
+            """,
+        ).fetchall()
+        self.conn.unregister("data_object_meta_id")
+        for id, value in result:
+            yield id, json.loads(value)
+
+    def get_data_object_meta_all(self) -> Iterable[DataObjectMetaRecord]:
+        result = self.conn.execute(
+            """
+            SELECT * from data_object_meta
+            """,
+        ).fetchall()
+        for id, value in result:
+            yield id, json.loads(value)
+
     def write_annotation(self) -> None:
         if self.annotation_list:
             df = pd.DataFrame(self.annotation_list, columns=["id", "value"])
@@ -125,6 +167,40 @@ class DuckDB(AbstractDB):
 
             self.conn.unregister("annotation_df")
             self.annotation_list = []
+
+    def get_annotation(self, id: str) -> AnnotationRecord:
+        result = self.conn.execute(
+            """
+            SELECT * from annotation
+            WHERE id = (?)
+            """,
+            [id],
+        ).fetchone()
+        if result is None:
+            return None
+        id, value = result[0]
+        return id, json.loads(value)
+
+    def get_annotation_many(self, ids: Iterable[str]) -> Iterable[AnnotationRecord]:
+        self.conn.register("annotation_id", pd.DataFrame(ids, columns=["id"]))
+        result = self.conn.execute(
+            """
+            SELECT * from annotation
+            WHERE id in (SELECT id FROM annotation_id)
+            """,
+        ).fetchall()
+        self.conn.unregister("annotation_ids")
+        for id, value in result:
+            yield id, json.loads(value)
+
+    def get_annotation_all(self) -> Iterable[AnnotationRecord]:
+        result = self.conn.execute(
+            """
+            SELECT * from annotation
+            """,
+        ).fetchall()
+        for id, value in result:
+            yield id, json.loads(value)
 
     def write_data_object_annotation(self) -> None:
         if self.data_object_annotation_list:
@@ -168,6 +244,58 @@ class DuckDB(AbstractDB):
 
             self.conn.unregister("data_object_annotation_df")
             self.data_object_annotation_list = []
+
+    def get_pair_meta(self, id: str, annot_id: str) -> DataObjectAnnotationRecord:
+        result = self.conn.execute(
+            """
+            SELECT value from data_object_annotation
+            WHERE (data_object_id, annotation_id) = (?, ?)
+            """,
+            [id, annot_id],
+        ).fetchone()
+        if result is None:
+            return None
+        return json.loads(result[0])
+
+    def get_pair_meta_many(
+        self,
+        collection: Iterable[Tuple[str, Optional[str]]],
+    ) -> Iterable[DataObjectAnnotationRecord]:
+        df = pd.DataFrame(
+            list(collection),
+            columns=["data_object_id", "annotation_id"],
+        )
+        self.conn.register("collection_df", df)
+        result = self.conn.execute(
+            """
+            SELECT * FROM data_object_annotation
+            WHERE (data_object_id, annotation_id) in (
+                SELECT (data_object_id, annotation_id) FROM collection_df
+            )
+            """,
+        ).fetchall()
+        self.conn.unregister("collection_df")
+        for data_object_id, annotation_id, value in result:
+            yield data_object_id, annotation_id, json.loads(value)
+
+    def get_pair_meta_all(self) -> Iterable[DataObjectAnnotationRecord]:
+        result = self.conn.execute(
+            """
+            SELECT * FROM data_object_annotation
+            """,
+        ).fetchall()
+        for data_object_id, annotation_id, value in result:
+            yield data_object_id, annotation_id, json.loads(value)
+
+    def count_pairs(self, id: str) -> int:
+        return self.conn.execute(
+            """
+            SELECT COUNT(*)
+            FROM data_object_annotation
+            WHERE data_object_id = (?)
+            """,
+            [id],
+        ).fetchone()[0]
 
     def write_dataset(self) -> None:
         if self.dataset_set:
@@ -228,123 +356,15 @@ class DuckDB(AbstractDB):
             self.conn.unregister("dataset_member_by_name_df")
             self.dataset_member_by_name_list = []
 
-    def get_data_object_meta(self, id: str) -> None:
-        result = self.conn.execute(
-            """
-            SELECT value from data_object_meta
-            WHERE id = (?)
-            """,
-            [id],
-        ).fetchone()
-        if result is None:
-            return None
-        return json.loads(result[0])
-
-    def get_data_object_meta_many(self, ids: Iterable[str]):
-        self.conn.register(
-            "data_object_meta_id",
-            pd.DataFrame(ids, columns=["id"]),
-        )
-        result = self.conn.execute(
-            """
-            SELECT * from data_object_meta
-            WHERE id in (SELECT id FROM data_object_meta_id)
-            """,
-        ).fetchall()
-        self.conn.unregister("data_object_meta_id")
-        for id, value in result:
-            yield id, json.loads(value)
-
-    def get_data_object_meta_all(self):
-        return self.conn.execute(
-            """
-            SELECT * from data_object_meta
-            """,
-        ).fetchall()
-
-    def get_annotation(self, id: str) -> Tuple[str, JSONDecoded]:
-        result = self.conn.execute(
-            """
-            SELECT * from annotation
-            WHERE id = (?)
-            """,
-            [id],
-        ).fetchone()
-        if result is None:
-            return None
-        id, value = result[0]
-        return id, json.loads(value)
-
-    def get_annotation_many(self, ids: Iterable[str]) -> Iterator[Tuple[str, JSONDecoded]]:
-        self.conn.register("annotation_id", pd.DataFrame(ids, columns=["id"]))
-        result = self.conn.execute(
-            """
-            SELECT * from annotation
-            WHERE id in (SELECT id FROM annotation_id)
-            """,
-        ).fetchall()
-        self.conn.unregister("annotation_ids")
-        for id, value in result:
-            yield id, json.loads(value)
-
-    def get_annotation_all(self) -> Iterator[Tuple[str, JSONDecoded]]:
+    def get_dataset_member_many(self, dataset_name: str) -> Iterable[DatasetMemberRecord]:
         yield from self.conn.execute(
             """
-            SELECT * from annotation
-            """,
-        ).fetchall()
-
-    def get_pair_meta(self, id: str, annot_id: str) -> JSONDecoded:
-        result = self.conn.execute(
-            """
-            SELECT value from data_object_annotation
-            WHERE (data_object_id, annotation_id) = (?, ?)
-            """,
-            [id, annot_id],
-        ).fetchone()
-        if result is None:
-            return None
-        return json.loads(result[0])
-
-    def get_pair_meta_many(
-        self,
-        collection: Iterable[Tuple[str, Optional[str]]],
-    ):
-        df = pd.DataFrame(
-            list(collection),
-            columns=["data_object_id", "annotation_id"],
-        )
-        self.conn.register("collection_df", df)
-        result = self.conn.execute(
-            """
-            SELECT * FROM data_object_annotation
-            WHERE (data_object_id, annotation_id) in (
-                SELECT (data_object_id, annotation_id) FROM collection_df
+            SELECT data_object_id, annotation_id FROM dataset_member WHERE dataset_id = (
+                SELECT id FROM dataset WHERE name = (?)
             )
             """,
+            [dataset_name],
         ).fetchall()
-        self.conn.unregister("collection_df")
-        for data_object_id, annotation_id, value in result:
-            yield data_object_id, annotation_id, json.loads(value)
-
-    def get_pair_meta_all(self) -> Iterator[Tuple[str, str, JSONDecoded]]:
-        result = self.conn.execute(
-            """
-            SELECT * FROM data_object_annotation
-            """,
-        ).fetchall()
-        for data_object_id, annotation_id, value in result:
-            yield data_object_id, annotation_id, json.loads(value)
-
-    def count_pairs(self, id: str) -> int:
-        return self.conn.execute(
-            """
-            SELECT COUNT(*)
-            FROM data_object_annotation
-            WHERE data_object_id = (?)
-            """,
-            [id],
-        ).fetchone()[0]
 
     def ls_collection(
         self, collection: Iterable[Tuple[str, Optional[str]]]
@@ -373,13 +393,3 @@ class DuckDB(AbstractDB):
         ).fetchall()
         self.conn.unregister("collection_df")
         yield from result
-
-    def get_dataset_member_many(self, dataset_name: str) -> Iterator[Tuple[str, str]]:
-        yield from self.conn.execute(
-            """
-            SELECT data_object_id, annotation_id FROM dataset_member WHERE dataset_id = (
-                SELECT id FROM dataset WHERE name = (?)
-            )
-            """,
-            [dataset_name],
-        ).fetchall()

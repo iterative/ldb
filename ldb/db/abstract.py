@@ -1,7 +1,7 @@
 import json
 from abc import abstractmethod
 from itertools import tee
-from typing import TYPE_CHECKING, Dict, Iterable, Iterator, Optional, Tuple
+from typing import TYPE_CHECKING, Iterable, Iterator, Optional, Tuple
 
 from ldb.typing import JSONDecoded
 
@@ -9,6 +9,12 @@ if TYPE_CHECKING:
     from ldb.index.utils import AnnotationMeta
     from ldb.index.utils import DataObjectMeta as DataObjectMetaT
     from ldb.objects.annotation import Annotation
+
+DataObjectMetaRecord = Tuple[str, "DataObjectMetaT"]
+AnnotationRecord = Tuple[str, JSONDecoded]
+DataObjectAnnotationRecord = Tuple[str, str, JSONDecoded]
+DatasetRecord = Tuple[int, str]
+DatasetMemberRecord = Tuple[int, str, str]
 
 
 class AbstractDB:
@@ -19,6 +25,10 @@ class AbstractDB:
         self.data_object_annotation_list = []
         self.dataset_set = set()
         self.dataset_member_by_name_list = []
+
+    @abstractmethod
+    def init(self) -> None:
+        ...
 
     def write_all(self) -> None:
         self.write_data_object_meta()
@@ -36,6 +46,10 @@ class AbstractDB:
     ) -> None:
         self.add_data_object_meta(data_object_hash, data_object_meta)
         if annotation is not None:
+            if annotation_meta is None:
+                raise ValueError(
+                    "If annotation is not None, then annotation_meta cannot be None"
+                )
             self.add_annotation(annotation)
             self.add_pair_meta(
                 data_object_hash,
@@ -52,14 +66,15 @@ class AbstractDB:
         ...
 
     @abstractmethod
-    def get_data_object_meta(self, id: str) -> None:
+    def get_data_object_meta(self, id: str) -> DataObjectMetaRecord:
         ...
 
     @abstractmethod
-    def get_data_object_meta_many(self, ids: Iterable[str]):
+    def get_data_object_meta_many(self, ids: Iterable[str]) -> Iterable[DataObjectMetaRecord]:
         ...
 
-    def get_data_object_meta_all(self):
+    @abstractmethod
+    def get_data_object_meta_all(self) -> Iterable[DataObjectMetaRecord]:
         ...
 
     def add_annotation(self, annotation: "Annotation") -> None:
@@ -72,18 +87,18 @@ class AbstractDB:
         ...
 
     @abstractmethod
-    def get_annotation(self, id: str) -> Tuple[str, JSONDecoded]:
+    def get_annotation(self, id: str) -> AnnotationRecord:
         ...
 
     @abstractmethod
-    def get_annotation_many(self, ids: Iterable[str]) -> Iterator[Tuple[str, JSONDecoded]]:
+    def get_annotation_many(self, ids: Iterable[str]) -> Iterable[AnnotationRecord]:
         ...
 
     @abstractmethod
-    def get_annotation_all(self) -> Iterator[Tuple[str, JSONDecoded]]:
+    def get_annotation_all(self) -> Iterable[AnnotationRecord]:
         ...
 
-    def add_pair_meta(self, id: str, annot_id: str, value: JSONDecoded) -> None:
+    def add_pair_meta(self, id: str, annot_id: str, value: "AnnotationMeta") -> None:
         self.data_object_annotation_list.append(
             (id, annot_id, value),
         )
@@ -93,18 +108,18 @@ class AbstractDB:
         ...
 
     @abstractmethod
-    def get_pair_meta(self, id: str, annot_id: str) -> JSONDecoded:
+    def get_pair_meta(self, id: str, annot_id: str) -> DataObjectAnnotationRecord:
         ...
 
     @abstractmethod
     def get_pair_meta_many(
         self,
         collection: Iterable[Tuple[str, Optional[str]]],
-    ):
+    ) -> Iterable[DataObjectAnnotationRecord]:
         ...
 
     @abstractmethod
-    def get_pair_meta_all(self) -> Iterator[Tuple[str, str, JSONDecoded]]:
+    def get_pair_meta_all(self) -> Iterable[DataObjectAnnotationRecord]:
         ...
 
     @abstractmethod
@@ -150,11 +165,11 @@ class AbstractDB:
         ...
 
     @abstractmethod
-    def get_dataset_member_many(self, dataset_name: str) -> Iterator[Tuple[str, str]]:
+    def get_dataset_member_many(self, dataset_name: str) -> Iterable[DatasetMemberRecord]:
         ...
 
-    def get_root_collection(self) -> Dict[str, str]:
-        return dict(self.get_dataset_member_many("root"))
+    def get_root_collection(self) -> Iterable[DatasetMemberRecord]:
+        return self.get_dataset_member_many("root")
 
     def set_current_annot(self, id: str, annot_id: str) -> None:
         self.add_dataset_member_by_name("root", id, annot_id)
