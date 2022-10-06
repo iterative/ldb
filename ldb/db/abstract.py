@@ -1,6 +1,15 @@
 from abc import abstractmethod
 from itertools import tee
-from typing import TYPE_CHECKING, Iterable, Iterator, Optional, Tuple
+from typing import (
+    TYPE_CHECKING,
+    Iterable,
+    Iterator,
+    List,
+    Optional,
+    Set,
+    Tuple,
+    cast,
+)
 
 from ldb.typing import JSONDecoded
 
@@ -13,17 +22,16 @@ DataObjectMetaRecord = Tuple[str, "DataObjectMetaT"]
 AnnotationRecord = Tuple[str, JSONDecoded]
 DataObjectAnnotationRecord = Tuple[str, str, "AnnotationMeta"]
 DatasetRecord = Tuple[int, str]
-DatasetMemberRecord = Tuple[int, str, str]
 
 
 class AbstractDB:
     def __init__(self, path: str) -> None:
-        self.path = path
-        self.data_object_meta_list = []
-        self.annotation_list = []
-        self.data_object_annotation_list = []
-        self.dataset_set = set()
-        self.dataset_member_by_name_list = []
+        self.path: str = path
+        self.data_object_meta_list: List[DataObjectMetaRecord] = []
+        self.annotation_list: List[Annotation] = []
+        self.data_object_annotation_list: List[DataObjectAnnotationRecord] = []
+        self.dataset_set: Set[str] = set()
+        self.dataset_member_by_name_list: List[Tuple[str, str, str]] = []
 
     @abstractmethod
     def init(self) -> None:
@@ -135,7 +143,7 @@ class AbstractDB:
         search = get_search_func(query)
         data = self.get_pair_meta_many(collection)
         iter1, iter2 = tee(data)
-        values = (v for _, _, v in iter1)
+        values = cast(Iterable[JSONDecoded], (v for _, _, v in iter1))
         for (data_object_id, annotation_id, _), result in zip(
             iter2,
             search(values),
@@ -164,10 +172,10 @@ class AbstractDB:
         ...
 
     @abstractmethod
-    def get_dataset_member_many(self, dataset_name: str) -> Iterable[DatasetMemberRecord]:
+    def get_dataset_member_many(self, dataset_name: str) -> Iterable[Tuple[str, str]]:
         ...
 
-    def get_root_collection(self) -> Iterable[DatasetMemberRecord]:
+    def get_root_collection(self) -> Iterable[Tuple[str, str]]:
         return self.get_dataset_member_many("root")
 
     def set_current_annot(self, id: str, annot_id: str) -> None:
@@ -176,5 +184,5 @@ class AbstractDB:
     @abstractmethod
     def ls_collection(
         self, collection: Iterable[Tuple[str, Optional[str]]]
-    ) -> Iterable[Tuple[str, str, int, int]]:
+    ) -> Iterable[Tuple[str, str, str, int]]:
         ...

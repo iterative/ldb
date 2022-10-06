@@ -3,9 +3,9 @@ import os.path as osp
 import shlex
 import shutil
 from pathlib import Path
-from typing import Optional, Tuple, Union
+from typing import Optional, Tuple, Type, Union
 
-from funcy import cached_property
+from funcy.objects import cached_property
 
 from ldb import config
 from ldb.config import get_default_instance_dir, get_global_base, get_ldb_dir
@@ -23,7 +23,7 @@ class LDBClient:
         self._db_type = db_type
 
     @cached_property
-    def db_info(self) -> Tuple[str, str, type]:
+    def db_info(self) -> Tuple[str, str, Type[AbstractDB]]:
         duckdb_path = osp.join(self.ldb_dir, "duckdb", "index.db")
         if not self._db_type:
             if osp.isfile(duckdb_path):
@@ -46,6 +46,7 @@ class LDBClient:
 
     @cached_property
     def db(self) -> AbstractDB:
+        cls: Type[AbstractDB]
         _, path, cls = self.db_info
         return cls(path)
 

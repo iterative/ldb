@@ -9,7 +9,6 @@ from ldb.db.abstract import (
     AnnotationRecord,
     DataObjectAnnotationRecord,
     DataObjectMetaRecord,
-    DatasetMemberRecord,
 )
 
 if TYPE_CHECKING:
@@ -103,16 +102,18 @@ class DuckDB(AbstractDB):
             self.data_object_meta_list = []
 
     def get_data_object_meta(self, id: str) -> Optional[DataObjectMetaRecord]:
-        result = self.conn.execute(
+        result: Optional[Tuple[str, str]]
+        result = self.conn.execute(  # type: ignore[assignment]
             """
-            SELECT value from data_object_meta
+            SELECT * from data_object_meta
             WHERE id = (?)
             """,
             [id],
         ).fetchone()
         if result is None:
             return None
-        return json.loads(result[0])
+        id, value = result
+        return id, json.loads(value)
 
     def get_data_object_meta_many(self, ids: Iterable[str]) -> Iterable[DataObjectMetaRecord]:
         self.conn.register(
@@ -167,7 +168,8 @@ class DuckDB(AbstractDB):
             self.annotation_list = []
 
     def get_annotation(self, id: str) -> Optional[AnnotationRecord]:
-        result = self.conn.execute(
+        result: Optional[Tuple[str, str]]
+        result = self.conn.execute(  # type: ignore[assignment]
             """
             SELECT * from annotation
             WHERE id = (?)
@@ -176,7 +178,7 @@ class DuckDB(AbstractDB):
         ).fetchone()
         if result is None:
             return None
-        id, value = result[0]
+        id, value = result
         return id, json.loads(value)
 
     def get_annotation_many(self, ids: Iterable[str]) -> Iterable[AnnotationRecord]:
@@ -244,16 +246,18 @@ class DuckDB(AbstractDB):
             self.data_object_annotation_list = []
 
     def get_pair_meta(self, id: str, annot_id: str) -> Optional[DataObjectAnnotationRecord]:
-        result = self.conn.execute(
+        result: Optional[Tuple[str, str, str]]
+        result = self.conn.execute(  # type: ignore[assignment]
             """
-            SELECT value from data_object_annotation
+            SELECT * from data_object_annotation
             WHERE (data_object_id, annotation_id) = (?, ?)
             """,
             [id, annot_id],
         ).fetchone()
         if result is None:
             return None
-        return json.loads(result[0])
+        data_object_id, annotation_id, value = result
+        return data_object_id, annotation_id, json.loads(value)
 
     def get_pair_meta_many(
         self,
@@ -286,14 +290,16 @@ class DuckDB(AbstractDB):
             yield data_object_id, annotation_id, json.loads(value)
 
     def count_pairs(self, id: str) -> int:
-        return self.conn.execute(
+        result: Tuple[int]
+        result = self.conn.execute(  # type: ignore[assignment]
             """
             SELECT COUNT(*)
             FROM data_object_annotation
             WHERE data_object_id = (?)
             """,
             [id],
-        ).fetchone()[0]
+        ).fetchone()
+        return result[0]
 
     def write_dataset(self) -> None:
         if self.dataset_set:
@@ -354,7 +360,7 @@ class DuckDB(AbstractDB):
             self.conn.unregister("dataset_member_by_name_df")
             self.dataset_member_by_name_list = []
 
-    def get_dataset_member_many(self, dataset_name: str) -> Iterable[DatasetMemberRecord]:
+    def get_dataset_member_many(self, dataset_name: str) -> Iterable[Tuple[str, str]]:
         yield from self.conn.execute(
             """
             SELECT data_object_id, annotation_id FROM dataset_member WHERE dataset_id = (
@@ -366,7 +372,7 @@ class DuckDB(AbstractDB):
 
     def ls_collection(
         self, collection: Iterable[Tuple[str, Optional[str]]]
-    ) -> Iterable[Tuple[str, str, int, int]]:
+    ) -> Iterable[Tuple[str, str, str, int]]:
         df = pd.DataFrame(
             list(collection),
             columns=["data_object_id", "annotation_id"],

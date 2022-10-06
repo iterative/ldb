@@ -18,6 +18,7 @@ from typing import (
     Iterable,
     Iterator,
     List,
+    Mapping,
     Optional,
     Tuple,
     Union,
@@ -534,7 +535,7 @@ class Query(CollectionOperation):
     def __init__(
         self,
         ldb_dir: Path,
-        cache: LDBMappingCache[str, Any],
+        cache: Mapping[str, Any],
         search: BoolSearchFunc,
     ) -> None:
         self.ldb_dir = ldb_dir
@@ -603,8 +604,8 @@ class PipelineData:
     def __init__(
         self,
         db: "AbstractDB",
-        data_object_ids,
-        annotation_ids,
+        data_object_ids: Iterable[str],
+        annotation_ids: Iterable[str],
     ) -> None:
         self.db = db
         self.data_object_ids = data_object_ids
@@ -772,7 +773,7 @@ def apply_queries_to_collection(
     if collection:
         data_object_ids, annotation_ids = zip(*collection)
     else:
-        data_object_ids, annotation_ids = [], []
+        data_object_ids, annotation_ids = (), ()
     data = (
         data
         if data is not None

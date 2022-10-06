@@ -1,5 +1,14 @@
 from pathlib import Path
-from typing import Iterable, Iterator, List, Optional, Sequence, Tuple, Union
+from typing import (
+    Iterable,
+    Iterator,
+    List,
+    Optional,
+    Sequence,
+    Tuple,
+    Union,
+    cast,
+)
 
 from ldb.add import process_args_for_ls
 from ldb.core import LDBClient
@@ -54,7 +63,9 @@ def evaluate(
 
         if file_searches:
             data_object_hashes = [d for d, _ in collection_list]
-            data_object_metas = [data.data_object_metas[d] for d in data_object_hashes]
+            data_object_metas = cast(
+                List[JSONDecoded], [data.data_object_metas[d] for d in data_object_hashes]
+            )
             for file_search in file_searches:
                 search_results.append(file_search(data_object_metas))
 
