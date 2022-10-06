@@ -162,7 +162,7 @@ def current_time() -> datetime:
 
 
 def load_data_file(path: Union[str, Path]) -> Any:
-    with open(path) as file:
+    with open(path, encoding="utf-8") as file:
         content = file.read()
     return json.loads(content)
 
