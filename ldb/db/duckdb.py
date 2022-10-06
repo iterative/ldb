@@ -73,10 +73,8 @@ class DuckDB(AbstractDB):
 
     def write_data_object_meta(self) -> None:
         if self.data_object_meta_list:
-            df = pd.DataFrame(
-                self.data_object_meta_list,
-                columns=["id", "value"],
-            )
+            data = [(id, json.dumps(value)) for id, value in self.data_object_meta_list]
+            df = pd.DataFrame(data, columns=["id", "value"])
             self.conn.register("data_object_meta_df", df)
 
             self.conn.begin()
