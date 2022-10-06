@@ -48,14 +48,7 @@ def evaluate(
     annotation_hashes = (a for _, a in collection_list)
     search_results: List[Iterable[JSONDecoded]]
     if not searches and not file_searches:
-        search_results = [
-            [
-                value
-                for _, value in client.db.get_annotation_many(
-                    annotation_hashes,
-                )
-            ],
-        ]
+        search_results = [[data.annotations.get(i) for i in annotation_hashes]]
     else:
         search_results = []
 
@@ -66,12 +59,7 @@ def evaluate(
                 search_results.append(file_search(data_object_metas))
 
         if searches:
-            annotations = [
-                value
-                for _, value in client.db.get_annotation_many(
-                    annotation_hashes,
-                )
-            ]
+            annotations = [data.annotations.get(i) for i in annotation_hashes]
             for search in searches:
                 search_results.append(search(annotations))
 

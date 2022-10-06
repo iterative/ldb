@@ -83,6 +83,7 @@ class SingleAnnotationIndexer(Indexer):
                     for annot in content:
                         item = SingleAnnotationIndexingItem(
                             self.ldb_dir,
+                            self.db,
                             current_time(),
                             self.tags,
                             self.annot_merge_strategy,

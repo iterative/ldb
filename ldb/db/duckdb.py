@@ -1,6 +1,5 @@
 import json
-from itertools import tee
-from typing import TYPE_CHECKING, Dict, Iterable, Iterator, Optional, Tuple
+from typing import TYPE_CHECKING, Iterable, Optional, Tuple
 
 import pandas as pd
 
@@ -12,8 +11,6 @@ from ldb.db.abstract import (
     DataObjectMetaRecord,
     DatasetMemberRecord,
 )
-from ldb.objects.annotation import Annotation
-from ldb.typing import JSONDecoded
 
 if TYPE_CHECKING:
     from ldb.index.utils import AnnotationMeta

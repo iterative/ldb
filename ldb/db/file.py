@@ -2,7 +2,7 @@ import json
 import os
 import os.path as osp
 from pathlib import Path
-from typing import TYPE_CHECKING, Dict, Iterable, Optional, Tuple
+from typing import TYPE_CHECKING, Iterable, Optional, Tuple
 
 from ldb.db.abstract import (
     AbstractDB,
@@ -10,10 +10,8 @@ from ldb.db.abstract import (
     DataObjectAnnotationRecord,
     DataObjectMetaRecord,
 )
-from ldb.objects.annotation import Annotation
 from ldb.path import INSTANCE_DIRS, InstanceDir
-from ldb.typing import JSONDecoded
-from ldb.utils import json_dumps, load_data_file, write_data_file
+from ldb.utils import load_data_file, write_data_file
 
 if TYPE_CHECKING:
     from ldb.index.utils import AnnotationMeta
@@ -38,7 +36,7 @@ class FileDB(AbstractDB):
     def write_data_object_meta(self) -> None:
         for id, value in self.data_object_meta_list:
             path = osp.join(self.data_object_dir, *self.oid_parts(id), "meta")
-            write_data_file(path, json.dumps(value).encode(), True)
+            write_data_file(path, json.dumps(value, sort_keys=True).encode(), True)
 
     def get_data_object_meta(self, id: str) -> Optional[DataObjectMetaRecord]:
         path = osp.join(self.data_object_dir, *self.oid_parts(id), "meta")
@@ -82,7 +80,7 @@ class FileDB(AbstractDB):
                 "annotations",
                 annotation_id,
             )
-            write_data_file(path, json.dumps(value).encode(), True)
+            write_data_file(path, json.dumps(value, sort_keys=True).encode(), True)
 
     def get_pair_meta(self, id: str, annot_id: str) -> Optional[DataObjectAnnotationRecord]:
         path = osp.join(
@@ -124,10 +122,6 @@ class FileDB(AbstractDB):
         self, collection: Iterable[Tuple[str, Optional[str]]]
     ) -> Iterable[Tuple[str, str, int, int]]:
         for data_object_hash, annotation_hash in collection:
-            data_object_dir = osp.join(
-                self.data_object_dir,
-                *self.oid_parts(data_object_hash),
-            )
             annotation_version = 0
             if annotation_hash:
                 annotation_meta = self.get_pair_meta(data_object_hash, annotation_hash)[2]

@@ -195,7 +195,7 @@ class Indexer(ABC):
         self.client = LDBClient(ldb_dir)
 
     @property
-    def db(self):
+    def db(self) -> AbstractDB:
         return self.client.db
 
     def index(self) -> None:

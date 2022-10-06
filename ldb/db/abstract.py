@@ -1,4 +1,3 @@
-import json
 from abc import abstractmethod
 from itertools import tee
 from typing import TYPE_CHECKING, Iterable, Iterator, Optional, Tuple

@@ -7,7 +7,6 @@ import pytest
 from ldb.add import get_current_annotation_hashes
 from ldb.core import LDBClient
 from ldb.data_formats import Format
-from ldb.dataset import get_annotations
 from ldb.index import index
 from ldb.index.base import IndexingResult
 from ldb.index.utils import AnnotMergeStrategy
