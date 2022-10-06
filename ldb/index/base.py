@@ -579,10 +579,7 @@ class AnnotationFileIndexingItem(IndexingItem):
             self.data_object_hash,
             self.annotation.oid,
         )
-        if record is None:
-            prev = {}
-        else:
-            prev = record[2]
+        prev = record[2] if record is not None else {}
         return construct_annotation_meta(
             prev,
             self.current_timestamp,
