@@ -28,7 +28,7 @@ class AbstractDB:
     def __init__(self, path: str) -> None:
         self.path: str = path
         self.data_object_meta_list: List[DataObjectMetaRecord] = []
-        self.annotation_list: List[Annotation] = []
+        self.annotation_list: List["Annotation"] = []
         self.data_object_annotation_list: List[DataObjectAnnotationRecord] = []
         self.dataset_set: Set[str] = set()
         self.dataset_member_by_name_list: List[Tuple[str, str, str]] = []

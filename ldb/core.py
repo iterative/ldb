@@ -32,7 +32,7 @@ class LDBClient:
                 self._db_type = "file"
         if self._db_type == "duckdb":
             return self._db_type, duckdb_path, DuckDB
-        elif self._db_type == "file":
+        if self._db_type == "file":
             return self._db_type, self.ldb_dir, FileDB
         raise ValueError(f"Invalid db type: {self._db_type}")
 
