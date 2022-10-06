@@ -1,9 +1,9 @@
 import json
 from typing import TYPE_CHECKING, Iterable, Optional, Tuple
 
+import duckdb
 import pandas as pd
 
-import duckdb
 from ldb.db.abstract import (
     AbstractDB,
     AnnotationRecord,
