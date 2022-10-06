@@ -13,8 +13,8 @@ from ldb.db.abstract import (
 )
 
 if TYPE_CHECKING:
-    from ldb.index.utils import AnnotationMeta
-    from ldb.index.utils import DataObjectMeta as DataObjectMetaT
+    from ldb.index.utils import AnnotationMeta  # noqa: F401
+    from ldb.index.utils import DataObjectMeta as DataObjectMetaT  # noqa: F401
 
 
 class DuckDB(AbstractDB):
@@ -308,7 +308,7 @@ class DuckDB(AbstractDB):
                     pass
             self.conn.commit()
 
-            self.datset_set = set()
+            self.dataset_set = set()
 
     def write_dataset_member_by_name(self) -> None:
         if self.dataset_member_by_name_list:

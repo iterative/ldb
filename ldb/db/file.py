@@ -14,8 +14,8 @@ from ldb.path import INSTANCE_DIRS, InstanceDir
 from ldb.utils import load_data_file, write_data_file
 
 if TYPE_CHECKING:
-    from ldb.index.utils import AnnotationMeta
-    from ldb.index.utils import DataObjectMeta as DataObjectMetaT
+    from ldb.index.utils import AnnotationMeta  # noqa: F401
+    from ldb.index.utils import DataObjectMeta as DataObjectMetaT  # noqa: F401
 
 
 class FileDB(AbstractDB):
