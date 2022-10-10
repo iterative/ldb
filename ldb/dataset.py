@@ -628,8 +628,8 @@ class PipelineBuilder:
     ) -> None:
         self.ldb_dir = ldb_dir
         if data is None:
-            raise Exception("data required")
-        self.data = data
+            raise ValueError("data cannot be None")
+        self.data: PipelineData = data
 
     def build(
         self,
@@ -774,15 +774,12 @@ def apply_queries_to_collection(
         data_object_ids, annotation_ids = zip(*collection)
     else:
         data_object_ids, annotation_ids = (), ()
-    data = (
-        data
-        if data is not None
-        else PipelineData(
+    if data is None:
+        data = PipelineData(
             LDBClient(ldb_dir).db,
             data_object_ids,
             annotation_ids,
         )
-    )
     return Pipeline.from_defs(ldb_dir, op_defs, data=data, warn=warn).run(
         collection,
     )

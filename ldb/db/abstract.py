@@ -2,6 +2,7 @@ from abc import abstractmethod
 from itertools import tee
 from typing import (
     TYPE_CHECKING,
+    Dict,
     Iterable,
     Iterator,
     List,
@@ -28,7 +29,7 @@ class AbstractDB:
     def __init__(self, path: str) -> None:
         self.path: str = path
         self.data_object_meta_list: List[DataObjectMetaRecord] = []
-        self.annotation_list: List["Annotation"] = []
+        self.annotation_map: Dict[str, "Annotation"] = {}
         self.data_object_annotation_list: List[DataObjectAnnotationRecord] = []
         self.dataset_set: Set[str] = set()
         self.dataset_member_by_name_list: List[Tuple[str, str, str]] = []
@@ -87,7 +88,7 @@ class AbstractDB:
     def add_annotation(self, annotation: "Annotation") -> None:
         if not annotation.oid:
             raise ValueError(f"Invalid Annotation oid: {annotation.oid}")
-        self.annotation_list.append(annotation)
+        self.annotation_map.setdefault(annotation.oid, annotation)
 
     @abstractmethod
     def write_annotation(self) -> None:

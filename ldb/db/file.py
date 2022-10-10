@@ -53,7 +53,7 @@ class FileDB(AbstractDB):
                 yield record
 
     def write_annotation(self) -> None:
-        for obj in self.annotation_list:
+        for obj in self.annotation_map.values():
             dir_path = osp.join(self.annotation_dir, *self.oid_parts(obj.oid))
             value_path = osp.join(dir_path, "user")
             meta_path = osp.join(dir_path, "ldb")

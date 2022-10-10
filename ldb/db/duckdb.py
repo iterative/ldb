@@ -138,8 +138,8 @@ class DuckDB(AbstractDB):
             yield id, json.loads(value)
 
     def write_annotation(self) -> None:
-        if self.annotation_list:
-            data = [(a.oid, a.value_str) for a in self.annotation_list]
+        if self.annotation_map:
+            data = [(id, annot.value_str) for id, annot in self.annotation_map.items()]
             df = pd.DataFrame(data, columns=["id", "value"])
             self.conn.register("annotation_df", df)
 
@@ -163,7 +163,7 @@ class DuckDB(AbstractDB):
             self.conn.commit()
 
             self.conn.unregister("annotation_df")
-            self.annotation_list = []
+            self.annotation_map = {}
 
     def get_annotation(self, id: str) -> Optional[AnnotationRecord]:
         result: Optional[Tuple[str, str]]

@@ -42,7 +42,7 @@ def add_parser(
     parser.add_argument(
         "-d",
         "--database",
-        default="",
+        default="file",
         choices=("file", "duckdb"),
         help="Database backend to use",
     )
