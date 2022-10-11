@@ -48,7 +48,8 @@ jobs:
       - name: run linters
         run: |
           [[ "$RUNNER_OS" != "Windows" ]] && source ./venv/bin/activate || source ./venv/Scripts/activate
-          SKIP=no-commit-to-branch pre-commit run -a --show-diff-on-failure
+          SKIP=no-commit-to-branch,pylint pre-commit run -a --show-diff-on-failure
+          pylint ldb tests scripts stubs
 
   test:
     if: ${{ github.actor != 'dependabot[bot]' &&  github.actor != 'renovate[bot]' }}
