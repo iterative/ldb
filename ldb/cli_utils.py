@@ -4,7 +4,10 @@ from argparse import Action, ArgumentParser, Namespace
 from typing import Any, Iterable, List, Optional, Sequence, Tuple, Union
 
 import shtab
+from tomlkit import document
+from tomlkit.toml_document import TOMLDocument
 
+from ldb import config
 from ldb.data_formats import INSTANTIATE_FORMATS, Format
 from ldb.op_type import OpType
 
@@ -79,6 +82,31 @@ class AppendConstValuesAction(Action):
 def choice_str(choices: Iterable[str]) -> str:
     choice_strings = ",".join(str(c) for c in choices)
     return f"{{{choice_strings}}}"
+
+
+def add_physical_logical_params(parser: ArgumentParser) -> None:
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument(
+        "--physical",
+        action="store_true",
+        default=False,
+        help="Use physical workflow to auto-instantiate/delete data objects and annotations",
+    )
+    group.add_argument(
+        "--logical",
+        action="store_true",
+        default=False,
+        help="Use logical workflow without auto-instantiating/deleting objects or annotations",
+    )
+
+
+def using_physical_workflow(options: Namespace) -> bool:
+    if options.physical:
+        return True
+    if options.logical:
+        return False
+    cfg: TOMLDocument = config.load_first() or document()
+    return bool(cfg.get("core", {}).get("physical_workflow", False))
 
 
 def add_data_obj_params(

@@ -50,6 +50,7 @@ def init(
     read_any_cloud_location: bool = False,
     auto_index: bool = False,
     db_type: str = "",
+    physical_workflow: bool = False,
 ) -> Path:
     """
     Create a new LDB instance.
@@ -89,6 +90,7 @@ def init(
         cfg["core"] = {
             "read_any_cloud_location": read_any_cloud_location,
             "auto_index": auto_index,
+            "physical_workflow": physical_workflow,
         }
     print(f"Initialized LDB instance at {repr(os.fspath(path))}")
     return path
@@ -100,6 +102,7 @@ def init_quickstart(force: bool = False) -> Path:
         force=force,
         read_any_cloud_location=True,
         auto_index=True,
+        physical_workflow=True,
     )
     add_default_read_add_storage(ldb_dir)
     add_public_data_lakes(ldb_dir)

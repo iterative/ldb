@@ -87,13 +87,22 @@ class AddResult(NamedTuple):
     num_transforms: int
     dataset_name: str
     workspace_path: str
+    physical_workflow: bool
+    num_inst_data_objects: int
+    num_inst_annotations: int
 
     def summary(self) -> str:
         ds_ident = format_dataset_identifier(self.dataset_name)
         return (
             f"Added {self.num_data_objects} data objects to {ds_ident} at "
             f"ws:{self.workspace_path}\n"
-            f"Updated {self.num_transforms} transforms"
+            f"Updated {self.num_transforms} transforms\n"
+            + (
+                f"Copied {self.num_inst_data_objects} data objects "
+                f"and {self.num_inst_annotations} annotations to workspace.\n"
+                if self.physical_workflow
+                else ""
+            )
         )
 
 
@@ -357,6 +366,7 @@ def add(
     query_args: Iterable[OpDef],
     ldb_dir: Optional[Path] = None,
     warn: bool = False,
+    physical_workflow: bool = False,
 ) -> AddResult:
     if not paths:
         if not query_args:
@@ -411,12 +421,25 @@ def add(
         transform_dir_path,
         transform_data,
     )
+    num_inst_data_objects = 0
+    num_inst_annotations = 0
+    if physical_workflow:
+        from ldb.instantiate import instantiate_collection
+
+        # TODO: Handle other formats and transformations
+        collection_dict = dict(collection_list)
+        i_result = instantiate_collection(ldb_dir, collection_dict, workspace_path, clean=False)
+        num_inst_data_objects = i_result.num_data_objects
+        num_inst_annotations = i_result.num_annotations
     return AddResult(
         collection_list,
         num_data_objects,
         num_transforms,
         ds_name,
         str(workspace_path),
+        physical_workflow,
+        num_inst_data_objects,
+        num_inst_annotations,
     )
 
 
@@ -552,6 +575,7 @@ def delete(
     workspace_path: Path,
     paths: Sequence[str],
     query_args: Iterable[OpDef],
+    physical_workflow: bool = False,
 ) -> None:
     if not paths and not query_args:
         raise LDBException(
@@ -572,6 +596,14 @@ def delete(
     )
     data_object_hashes = list(data_object_hashes)
 
+    if physical_workflow:
+        from ldb.instantiate import deinstantiate_collection
+
+        # TODO: Handle other formats and transformations
+        collection_dict = {a: "Any" for a in data_object_hashes}
+        i_result = deinstantiate_collection(ldb_dir, collection_dict, workspace_path)
+        num_deinst_data_objects = i_result.num_data_objects
+        num_deinst_annotations = i_result.num_annotations
     num_deleted = delete_from_collection_dir(
         collection_dir_path,
         data_object_hashes,
@@ -582,6 +614,11 @@ def delete(
         data_object_hashes,
     )
     print(f"Deleted {num_deleted} data objects from {ds_ident}")
+    if physical_workflow:
+        print(
+            f"Deleted {num_deinst_data_objects} data objects "
+            f"and {num_deinst_annotations} annotations from workspace."
+        )
 
 
 def delete_from_index(
@@ -658,13 +695,15 @@ def delete_from_collection_dir(
 def delete_missing_from_collection_dir(
     collection_dir_path: Path,
     data_object_hashes: Iterable[str],
-) -> int:
+) -> Tuple[int, List[str]]:
     data_object_hash_set = set(data_object_hashes)
+    deleted_data_object_hashes = []
     num_deleted = 0
     for path in iter_collection_dir(collection_dir_path):
         parent, name = os.path.split(path)
         data_object_hash = os.path.basename(parent) + name
         if data_object_hash not in data_object_hash_set:
+            deleted_data_object_hashes.append(data_object_hash)
             collection_member_path = Path(path)  # TODO: don't use Path obj
             collection_member_path.unlink()
             try:
@@ -672,7 +711,7 @@ def delete_missing_from_collection_dir(
             except OSError:
                 pass
             num_deleted += 1
-    return num_deleted
+    return num_deleted, deleted_data_object_hashes
 
 
 def get_current_annotation_hash(ldb_dir: Path, data_object_hash: str) -> str:
@@ -798,6 +837,7 @@ def sync(
     workspace_path: Path,
     paths: Sequence[str],
     query_args: Iterable[OpDef],
+    physical_workflow: bool = False,
 ) -> None:
     if not paths:
         paths = ["."]
@@ -834,8 +874,33 @@ def sync(
         collection,
     )
     print(f"Added {num_data_objects} data objects to {ds_ident}")
-    num_deleted = delete_missing_from_collection_dir(
+    num_deleted, deleted_data_object_hashes = delete_missing_from_collection_dir(
         collection_dir_path,
         data_object_hashes,
     )
     print(f"Deleted {num_deleted} data objects from {ds_ident}")
+    if physical_workflow:
+        from ldb.instantiate import (
+            deinstantiate_collection,
+            instantiate_collection,
+        )
+
+        # TODO: Handle other formats and transformations
+        collection_dict = dict(collection)
+        i_result = instantiate_collection(ldb_dir, collection_dict, workspace_path, clean=False)
+        num_inst_data_objects = i_result.num_data_objects
+        num_inst_annotations = i_result.num_annotations
+        print(
+            f"Copied {num_inst_data_objects} data objects "
+            f"and {num_inst_annotations} annotations to workspace."
+        )
+
+        # TODO: Handle other formats and transformations
+        collection_dict = {a: "Any" for a in deleted_data_object_hashes}
+        i_result = deinstantiate_collection(ldb_dir, collection_dict, workspace_path)
+        num_deinst_data_objects = i_result.num_data_objects
+        num_deinst_annotations = i_result.num_annotations
+        print(
+            f"Deleted {num_deinst_data_objects} data objects "
+            f"and {num_deinst_annotations} annotations from workspace."
+        )

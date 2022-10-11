@@ -6,7 +6,7 @@ import re
 import stat
 import string
 import sys
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
 from datetime import datetime, timezone
 from enum import Enum
 from functools import partial
@@ -269,3 +269,10 @@ def make_target_dir(path: Union[str, Path], parents: bool = False) -> bool:
     else:
         created = True
     return created
+
+
+def delete_file(path: Union[str, Path]) -> None:
+    # Skip files that are not found or already deleted
+    # Or cannot be deleted due to permission errors
+    with suppress(OSError):
+        os.remove(path)

@@ -3,7 +3,11 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Iterable
 
 from ldb.add import delete
-from ldb.cli_utils import add_data_obj_params
+from ldb.cli_utils import (
+    add_data_obj_params,
+    add_physical_logical_params,
+    using_physical_workflow,
+)
 
 if TYPE_CHECKING:
     from argparse import _SubParsersAction
@@ -16,6 +20,7 @@ def delete_command(options: Namespace) -> None:
         Path("."),
         options.paths,
         options.query_args,
+        physical_workflow=using_physical_workflow(options),
     )
 
 
@@ -28,5 +33,6 @@ def add_parser(
         parents=parents,
         help="Delete data objects from workspace dataset",
     )
+    add_physical_logical_params(parser)
     add_data_obj_params(parser, dest="query_args")
     parser.set_defaults(func=delete_command)
