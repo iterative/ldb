@@ -1,4 +1,4 @@
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 from itertools import tee
 from typing import (
     TYPE_CHECKING,
@@ -25,7 +25,7 @@ DataObjectAnnotationRecord = Tuple[str, str, "AnnotationMeta"]
 DatasetRecord = Tuple[int, str]
 
 
-class AbstractDB:
+class AbstractDB(ABC):
     def __init__(self, path: str) -> None:
         self.path: str = path
         self.data_object_meta_list: List[DataObjectMetaRecord] = []

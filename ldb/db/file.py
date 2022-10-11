@@ -52,6 +52,9 @@ class FileDB(AbstractDB):
             if record is not None:
                 yield record
 
+    def get_data_object_meta_all(self) -> Iterable[DataObjectMetaRecord]:
+        raise NotImplementedError
+
     def write_annotation(self) -> None:
         for obj in self.annotation_map.values():
             dir_path = osp.join(self.annotation_dir, *self.oid_parts(obj.oid))
@@ -72,6 +75,15 @@ class FileDB(AbstractDB):
             record = self.get_annotation(id)
             if record is not None:
                 yield record
+
+    def get_annotation_all(self) -> Iterable[AnnotationRecord]:
+        base = self.annotation_dir
+        for part1 in os.listdir(base):
+            path1 = osp.join(base, part1)
+            for part2 in os.listdir(path1):
+                id = f"{part1}{part2}"
+                path = osp.join(path1, part2, "user")
+                yield id, load_data_file(path)
 
     def write_data_object_annotation(self) -> None:
         for data_object_id, annotation_id, value in self.data_object_annotation_list:
@@ -105,7 +117,15 @@ class FileDB(AbstractDB):
                 yield record
 
     def get_pair_meta_all(self) -> Iterable[DataObjectAnnotationRecord]:
-        raise NotImplementedError
+        base = self.data_object_dir
+        for part1 in os.listdir(base):
+            path1 = osp.join(base, part1)
+            for part2 in os.listdir(path1):
+                data_object_id = f"{part1}{part2}"
+                annotation_dir = osp.join(path1, part2, "annotations")
+                for annotation_id in os.listdir(annotation_dir):
+                    path = osp.join(annotation_dir, annotation_id)
+                    yield data_object_id, annotation_id, load_data_file(path)
 
     def count_pairs(self, id: str) -> int:
         path = osp.join(
@@ -118,6 +138,28 @@ class FileDB(AbstractDB):
         except FileNotFoundError:
             return 0
         return len(names)
+
+    def write_dataset(self) -> None:
+        pass
+
+    def write_dataset_member_by_name(self) -> None:
+        pass
+
+    def get_dataset_member_many(self, dataset_name: str) -> Iterable[Tuple[str, str]]:
+        pass
+
+    def get_root_collection(self) -> Iterable[Tuple[str, str]]:
+        from ldb.dataset import get_collection_dir_items
+
+        for data_object_id, annotation_id in get_collection_dir_items(
+            Path(osp.join(self.ldb_dir, InstanceDir.DATA_OBJECT_INFO)),
+            is_workspace=False,
+        ):
+            yield data_object_id, annotation_id or ""
+
+    def set_current_annot(self, id: str, annot_id: str) -> None:
+        path = osp.join(self.data_object_dir, *self.oid_parts(id), "current")
+        write_data_file(path, annot_id.encode(), True)
 
     def ls_collection(
         self, collection: Iterable[Tuple[str, Optional[str]]]
@@ -141,16 +183,3 @@ class FileDB(AbstractDB):
                 )
             data_object_path: str = record[1]["fs"]["path"]  # type: ignore[assignment,index]
             yield data_object_id, data_object_path, annotation_id or "", annotation_version
-
-    def set_current_annot(self, id: str, annot_id: str) -> None:
-        path = osp.join(self.data_object_dir, *self.oid_parts(id), "current")
-        write_data_file(path, annot_id.encode(), True)
-
-    def get_root_collection(self) -> Iterable[Tuple[str, str]]:
-        from ldb.dataset import get_collection_dir_items
-
-        for data_object_id, annotation_id in get_collection_dir_items(
-            Path(osp.join(self.ldb_dir, InstanceDir.DATA_OBJECT_INFO)),
-            is_workspace=False,
-        ):
-            yield data_object_id, annotation_id or ""
