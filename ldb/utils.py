@@ -105,13 +105,13 @@ def json_dumps(obj: Any, **kwargs: Any) -> str:
 
 
 def write_data_file(
-    file_path: Path,
+    file_path: Union[str, Path],
     data: bytes,
     overwrite_existing: bool = True,
 ) -> None:
-    if overwrite_existing or not file_path.exists():
-        file_path.parent.mkdir(parents=True, exist_ok=True)
-        with file_path.open("wb") as file:
+    if overwrite_existing or not os.path.exists(file_path):
+        os.makedirs(os.path.dirname(file_path), exist_ok=True)
+        with open(file_path, "wb") as file:
             file.write(data)
 
 
@@ -161,9 +161,10 @@ def current_time() -> datetime:
     return datetime.now(timezone.utc)
 
 
-def load_data_file(path: Path) -> Any:
-    with path.open() as file:
-        return json.load(file)
+def load_data_file(path: Union[str, Path]) -> Any:
+    with open(path, encoding="utf-8") as file:
+        content = file.read()
+    return json.loads(content)
 
 
 def get_filetype(path: str) -> str:

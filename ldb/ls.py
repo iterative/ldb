@@ -11,11 +11,11 @@ from typing import (
 )
 
 from ldb.add import paths_to_dataset
+from ldb.core import LDBClient
 from ldb.dataset import OpDef
-from ldb.path import InstanceDir
 from ldb.string_utils import left_truncate
 from ldb.transform import DEFAULT, TransformInfo, TransformType
-from ldb.utils import DATA_OBJ_ID_PREFIX, get_hash_path, load_data_file
+from ldb.utils import DATA_OBJ_ID_PREFIX
 
 
 @dataclass
@@ -82,21 +82,14 @@ def ls_collection(
     collection: Iterable[Tuple[str, Optional[str]]],
     transform_infos: Optional[Mapping[str, FrozenSet[TransformInfo]]] = None,
 ) -> List[DatasetListing]:
+    client = LDBClient(ldb_dir)
     result = []
-    data_object_info_path = ldb_dir / InstanceDir.DATA_OBJECT_INFO
-    for data_object_hash, annotation_hash in collection:
-        data_object_dir = get_hash_path(
-            data_object_info_path,
-            data_object_hash,
-        )
-        annotation_version = 0
-        if annotation_hash:
-            annotation_meta = load_data_file(
-                data_object_dir / "annotations" / annotation_hash,
-            )
-            annotation_version = annotation_meta["version"]
-        data_object_meta = load_data_file(data_object_dir / "meta")
-
+    for (
+        data_object_hash,
+        data_object_path,
+        annotation_hash,
+        annotation_version,
+    ) in client.db.ls_collection(collection):
         if transform_infos is None:
             transform_info: FrozenSet[TransformInfo] = DEFAULT
         else:
@@ -104,7 +97,7 @@ def ls_collection(
         result.append(
             DatasetListing(
                 data_object_hash=data_object_hash,
-                data_object_path=data_object_meta["fs"]["path"],
+                data_object_path=data_object_path,
                 annotation_hash=annotation_hash or "",
                 annotation_version=annotation_version,
                 transform_info=transform_info,

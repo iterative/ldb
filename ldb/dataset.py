@@ -9,6 +9,7 @@ from glob import iglob
 from itertools import tee
 from pathlib import Path
 from typing import (
+    TYPE_CHECKING,
     Any,
     Callable,
     Collection,
@@ -17,6 +18,7 @@ from typing import (
     Iterable,
     Iterator,
     List,
+    Mapping,
     Optional,
     Tuple,
     Union,
@@ -50,6 +52,10 @@ from ldb.utils import (
     load_data_file,
     parse_datetime,
 )
+
+if TYPE_CHECKING:
+    from ldb.db.abstract import AbstractDB
+    from ldb.index.utils import DataObjectMeta as DataObjectMetaT
 
 OpDef = Tuple[str, Union[str, int, float, List[str]]]
 CollectionFunc = Callable[
@@ -189,7 +195,9 @@ def get_collection_from_dataset_identifier(
     dataset_version: Optional[int] = None,
 ) -> Dict[str, Optional[str]]:
     if dataset_name == ROOT:
-        return get_root_collection(ldb_dir)
+        from ldb.core import LDBClient
+
+        return dict(LDBClient(ldb_dir).db.get_root_collection())
     dataset = get_dataset(ldb_dir, dataset_name)
     dataset_version_hash = get_dataset_version_hash(dataset, dataset_version)
     return get_collection(ldb_dir, dataset_version_hash)
@@ -258,6 +266,11 @@ def combine_collections(
     ldb_dir: Path,
     collections: List[Dict[str, Optional[str]]],
 ) -> Dict[str, str]:
+    if not collections:
+        return {}
+    if len(collections) == 1:
+        return {k: v if v is not None else "" for k, v in collections[0].items()}
+
     all_versions: DefaultDict[str, List[str]] = defaultdict(list)
     for collection in collections:
         for data_object_hash, annotation_hash in collection.items():
@@ -267,6 +280,8 @@ def combine_collections(
     combined_collection = {}
     for data_object_hash, annotation_hashes in sorted(all_versions.items()):
         if len(annotation_hashes) > 1:
+            # TODO get_latest_annotation_version func to handle this
+            # get latest annotation (most recent unique version)
             annotation_dir = (
                 get_hash_path(
                     ldb_dir / InstanceDir.DATA_OBJECT_INFO,
@@ -520,7 +535,7 @@ class Query(CollectionOperation):
     def __init__(
         self,
         ldb_dir: Path,
-        cache: LDBMappingCache[str, Any],
+        cache: Mapping[str, Any],
         search: BoolSearchFunc,
     ) -> None:
         self.ldb_dir = ldb_dir
@@ -552,7 +567,10 @@ class AnnotationQuery(Query):
         collection: Iterable[Tuple[str, str]],
     ) -> Iterator[JSONDecoded]:
         for _, annot_hash in collection:
-            yield self.cache[annot_hash]
+            if not annot_hash:
+                yield None
+            else:
+                yield self.cache[annot_hash]
 
 
 class FileQuery(Query):
@@ -583,16 +601,23 @@ class PathQuery(FileQuery):
 
 
 class PipelineData:
-    def __init__(self, ldb_dir: Path) -> None:
-        self.ldb_dir = ldb_dir
+    def __init__(
+        self,
+        db: "AbstractDB",
+        data_object_ids: Iterable[str],
+        annotation_ids: Iterable[str],
+    ) -> None:
+        self.db = db
+        self.data_object_ids = data_object_ids
+        self.annotation_ids = annotation_ids
 
     @cached_property
-    def data_object_metas(self) -> DataObjectMetaCache:
-        return DataObjectMetaCache(self.ldb_dir)
+    def data_object_metas(self) -> Dict[str, "DataObjectMetaT"]:
+        return dict(self.db.get_data_object_meta_many(self.data_object_ids))
 
     @cached_property
-    def annotations(self) -> AnnotationCache:
-        return AnnotationCache(self.ldb_dir)
+    def annotations(self) -> Dict[str, JSONDecoded]:
+        return dict(self.db.get_annotation_many(self.annotation_ids))
 
 
 class PipelineBuilder:
@@ -603,9 +628,8 @@ class PipelineBuilder:
     ) -> None:
         self.ldb_dir = ldb_dir
         if data is None:
-            self.data = PipelineData(ldb_dir)
-        else:
-            self.data = data
+            raise ValueError("data cannot be None")
+        self.data: PipelineData = data
 
     def build(
         self,
@@ -720,19 +744,42 @@ def apply_queries(
     data_object_hashes: Iterable[str],
     annotation_hashes: Iterable[str],
     op_defs: Iterable[OpDef],
+    data: Optional[PipelineData] = None,
     warn: bool = True,
 ) -> Iterator[Tuple[str, str]]:
     collection = zip(data_object_hashes, annotation_hashes)
-    return apply_queries_to_collection(ldb_dir, collection, op_defs, warn=warn)
+    return apply_queries_to_collection(
+        ldb_dir,
+        collection,
+        op_defs,
+        data=data,
+        warn=warn,
+    )
 
 
 def apply_queries_to_collection(
     ldb_dir: Path,
     collection: Iterable[Tuple[str, str]],
     op_defs: Iterable[OpDef],
+    data: Optional[PipelineData] = None,
     warn: bool = True,
 ) -> Iterator[Tuple[str, str]]:
     """
     Filter the given collection by the operations in `collection_ops`.
     """
-    return Pipeline.from_defs(ldb_dir, op_defs, warn=warn).run(collection)
+    from ldb.core import LDBClient
+
+    collection = list(collection)
+    if collection:
+        data_object_ids, annotation_ids = zip(*collection)
+    else:
+        data_object_ids, annotation_ids = (), ()
+    if data is None:
+        data = PipelineData(
+            LDBClient(ldb_dir).db,
+            data_object_ids,
+            annotation_ids,
+        )
+    return Pipeline.from_defs(ldb_dir, op_defs, data=data, warn=warn).run(
+        collection,
+    )

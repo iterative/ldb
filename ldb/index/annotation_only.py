@@ -24,7 +24,7 @@ from ldb.params import ParamConfig
 from ldb.storage import get_containing_storage_location
 from ldb.transform import Transform, TransformInfo
 from ldb.typing import JSONObject
-from ldb.utils import DATA_OBJ_ID_PREFIX, current_time, load_data_file
+from ldb.utils import DATA_OBJ_ID_PREFIX, current_time
 
 
 class AnnotOnlyParamConfig(ParamConfig):
@@ -46,6 +46,7 @@ class AnnotationOnlyIndexer(Indexer):
                 for path in paths:
                     item = AnnotationOnlyIndexingItem(
                         self.ldb_dir,
+                        self.db,
                         current_time(),
                         self.tags,
                         self.annot_merge_strategy,
@@ -82,6 +83,7 @@ class SingleAnnotationIndexer(Indexer):
                     for annot in content:
                         item = SingleAnnotationIndexingItem(
                             self.ldb_dir,
+                            self.db,
                             current_time(),
                             self.tags,
                             self.annot_merge_strategy,
@@ -126,9 +128,13 @@ class AnnotationOnlyIndexingItem(AnnotationFileIndexingItem):
 
     @cached_property
     def data_object_meta(self) -> DataObjectMeta:
-        meta_content: DataObjectMeta = load_data_file(
-            self.data_object_meta_file_path,
-        )
+        data_object_id = self.data_object_hash
+        record = self.db.get_data_object_meta(data_object_id)
+        if record is None:
+            raise DataObjectNotFoundError(
+                f"Data object not found: {DATA_OBJ_ID_PREFIX}{data_object_id}"
+            )
+        meta_content = record[1]
         meta_content["last_indexed"] = self.current_timestamp
         meta_content["tags"] = sorted(  # type: ignore[assignment]
             set(meta_content["tags"]) | set(self.tags),  # type: ignore[arg-type]
@@ -138,6 +144,10 @@ class AnnotationOnlyIndexingItem(AnnotationFileIndexingItem):
     @cached_property
     def raw_annotation_content(self) -> JSONObject:  # type: ignore[override]
         return self.annotation_file_content["annotation"]  # type: ignore[no-any-return] # noqa: E501
+
+    @cached_property
+    def has_annotation(self) -> bool:
+        return True
 
     @cached_property
     def transform_infos(self) -> Optional[List[TransformInfo]]:
@@ -180,6 +190,7 @@ class AnnotationOnlyIndexingItem(AnnotationFileIndexingItem):
             fs = fs_cls(**loc.options) if loc is not None else fs_cls()
             data_obj_item = DataObjectFileIndexingItem(
                 self.ldb_dir,
+                self.db,
                 current_time(),
                 self.tags,
                 self.annot_merge_strategy,
@@ -224,7 +235,6 @@ class AnnotationOnlyIndexingItem(AnnotationFileIndexingItem):
             found_data_object = False
             new_data_object = False
             new_data_object_path = False
-            self.enqueue_data(self.data_object_to_write())
 
         if self.transform_infos is None:
             transform_hashes = None
@@ -236,7 +246,6 @@ class AnnotationOnlyIndexingItem(AnnotationFileIndexingItem):
             transform_hashes.sort()
 
         new_annotation = not self.annotation_meta_file_path.is_file()
-        self.enqueue_data(self.annotation_to_write())
         self.write_data()
         return IndexedObjectResult(
             found_data_object=found_data_object,
@@ -257,3 +266,7 @@ class SingleAnnotationIndexingItem(AnnotationOnlyIndexingItem):
     @cached_property
     def annotation_file_content(self) -> JSONObject:
         return self.content
+
+    @cached_property
+    def has_annotation(self) -> bool:
+        return True
