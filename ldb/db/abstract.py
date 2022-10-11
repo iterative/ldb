@@ -7,7 +7,6 @@ from typing import (
     Iterator,
     List,
     Optional,
-    Set,
     Tuple,
     cast,
 )
@@ -31,8 +30,6 @@ class AbstractDB(ABC):
         self.data_object_meta_list: List[DataObjectMetaRecord] = []
         self.annotation_map: Dict[str, "Annotation"] = {}
         self.data_object_annotation_list: List[DataObjectAnnotationRecord] = []
-        self.dataset_set: Set[str] = set()
-        self.dataset_member_by_name_list: List[Tuple[str, str, str]] = []
 
     @abstractmethod
     def init(self) -> None:
@@ -42,8 +39,6 @@ class AbstractDB(ABC):
         self.write_data_object_meta()
         self.write_annotation()
         self.write_data_object_annotation()
-        self.write_dataset()
-        self.write_dataset_member_by_name()
 
     def add_pair(
         self,
@@ -151,36 +146,13 @@ class AbstractDB(ABC):
         ):
             yield data_object_id, annotation_id, result
 
-    def add_dataset(self, name: str) -> None:
-        self.dataset_set.add(name)
-
     @abstractmethod
-    def write_dataset(self) -> None:
-        ...
-
-    def add_dataset_member_by_name(
-        self,
-        name: str,
-        data_object_id: str,
-        annotation_id: str,
-    ) -> None:
-        self.dataset_member_by_name_list.append(
-            (name, data_object_id, annotation_id),
-        )
-
-    @abstractmethod
-    def write_dataset_member_by_name(self) -> None:
-        ...
-
-    @abstractmethod
-    def get_dataset_member_many(self, dataset_name: str) -> Iterable[Tuple[str, str]]:
-        ...
-
     def get_root_collection(self) -> Iterable[Tuple[str, str]]:
-        return self.get_dataset_member_many("root")
+        ...
 
+    @abstractmethod
     def set_current_annot(self, id: str, annot_id: str) -> None:
-        self.add_dataset_member_by_name("root", id, annot_id)
+        ...
 
     @abstractmethod
     def ls_collection(

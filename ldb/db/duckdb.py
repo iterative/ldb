@@ -1,5 +1,5 @@
 import json
-from typing import TYPE_CHECKING, Iterable, Optional, Tuple
+from typing import TYPE_CHECKING, Iterable, List, Optional, Set, Tuple
 
 import duckdb
 import pandas as pd
@@ -19,6 +19,8 @@ if TYPE_CHECKING:
 class DuckDB(AbstractDB):
     def __init__(self, path: str) -> None:
         super().__init__(path)
+        self.dataset_set: Set[str] = set()
+        self.dataset_member_by_name_list: List[Tuple[str, str, str]] = []
         self.conn = duckdb.connect(self.path)
 
     def init(self) -> None:
@@ -70,6 +72,11 @@ class DuckDB(AbstractDB):
 
         self.add_dataset("root")
         self.write_all()
+
+    def write_all(self) -> None:
+        super().write_all()
+        self.write_dataset()
+        self.write_dataset_member_by_name()
 
     def write_data_object_meta(self) -> None:
         if self.data_object_meta_list:
@@ -299,6 +306,19 @@ class DuckDB(AbstractDB):
         ).fetchone()
         return result[0]
 
+    def add_dataset(self, name: str) -> None:
+        self.dataset_set.add(name)
+
+    def add_dataset_member_by_name(
+        self,
+        name: str,
+        data_object_id: str,
+        annotation_id: str,
+    ) -> None:
+        self.dataset_member_by_name_list.append(
+            (name, data_object_id, annotation_id),
+        )
+
     def write_dataset(self) -> None:
         if self.dataset_set:
             self.conn.begin()
@@ -367,6 +387,12 @@ class DuckDB(AbstractDB):
             """,
             [dataset_name],
         ).fetchall()
+
+    def get_root_collection(self) -> Iterable[Tuple[str, str]]:
+        return self.get_dataset_member_many("root")
+
+    def set_current_annot(self, id: str, annot_id: str) -> None:
+        self.add_dataset_member_by_name("root", id, annot_id)
 
     def ls_collection(
         self, collection: Iterable[Tuple[str, Optional[str]]]
