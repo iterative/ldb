@@ -35,6 +35,7 @@ from ldb.utils import DATA_OBJ_ID_PREFIX, load_data_file, write_data_file
 if TYPE_CHECKING:
     from ldb.index.utils import AnnotationMeta  # noqa: F401
     from ldb.index.utils import DataObjectMeta as DataObjectMetaT  # noqa: F401
+    from ldb.objects.dataset_version import DatasetVersion
 
 
 class FileDB(AbstractDB):

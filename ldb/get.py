@@ -4,7 +4,7 @@ from typing import Iterable, Optional, Sequence
 
 from ldb.add import add, paths_to_transforms
 from ldb.config import get_ldb_dir
-from ldb.core import init_quickstart
+from ldb.core import LDBClient, init_quickstart
 from ldb.data_formats import Format
 from ldb.dataset import OpDef
 from ldb.exceptions import LDBException, WorkspaceError
@@ -25,6 +25,8 @@ def get(
     make_parent_dirs: bool = False,
     ldb_dir: Optional[Path] = None,
 ) -> InstantiateResult:
+    from ldb.core import LDBClient
+
     if not paths:
         if not query_args:
             raise LDBException(
@@ -36,6 +38,8 @@ def get(
         ldb_dir = get_ldb_dir()
     if not ldb_dir.is_dir():
         ldb_dir = init_quickstart()
+
+    client = LDBClient(ldb_dir)
 
     if not (workspace_path / WorkspacePath.DATASET).is_file():
         if workspace_path.exists() and any(iter_workspace_dir(workspace_path)):
@@ -54,7 +58,7 @@ def get(
         query_args,
         ldb_dir=ldb_dir,
     ).collection
-    transform_infos = paths_to_transforms(ldb_dir, paths)
+    transform_infos = paths_to_transforms(client, paths)
     print("Instantiating data...\n")
     result = instantiate_collection(
         ldb_dir,

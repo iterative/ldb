@@ -28,7 +28,7 @@ from tomlkit import document
 from tomlkit.toml_document import TOMLDocument
 
 from ldb import config
-from ldb.core import get_ldb_instance
+from ldb.core import LDBClient, get_ldb_instance
 from ldb.dataset import (
     OpDef,
     apply_queries,
@@ -141,12 +141,13 @@ def paths_to_dataset(
     include_transforms: bool = True,
     arg_processing_func: Optional[ArgProcessingFunc] = None,
 ) -> Tuple[Iterator[Tuple[str, str]], Optional[TransformInfoMapping]]:
+    client = LDBClient(ldb_dir)
     if arg_processing_func is None:
         arg_processing_func = process_args_for_ls
     if not paths:
         paths = ["ws:."]
     if include_transforms:
-        transform_infos = paths_to_transforms(ldb_dir, paths)
+        transform_infos = paths_to_transforms(client, paths)
     else:
         transform_infos = None
     data_object_hashes, annotation_hashes, message, _ = arg_processing_func(
@@ -167,25 +168,25 @@ def paths_to_dataset(
 
 
 def paths_to_transforms(
-    ldb_dir: Path,
+    client: "LDBClient",
     paths: Sequence[str],
 ) -> Dict[str, FrozenSet[TransformInfo]]:
-    transform_infos = _paths_to_transform_id_sets(ldb_dir, paths)
-    return get_transform_infos_from_items(ldb_dir, transform_infos.items())
+    transform_infos = _paths_to_transform_id_sets(client, paths)
+    return get_transform_infos_from_items(client, transform_infos.items())
 
 
 def paths_to_transform_ids(
-    ldb_dir: Path,
+    client: "LDBClient",
     paths: Sequence[str],
     workspace_path: Optional[Path] = None,
 ) -> Dict[str, Tuple[str, ...]]:
     transforms_id_sets = _paths_to_transform_id_sets(
-        ldb_dir,
+        client,
         paths,
     )
     if workspace_path is not None:
         for data_obj_id, transforms_id_set in _paths_to_transform_id_sets(
-            ldb_dir,
+            client,
             paths,
         ).items():
             try:
@@ -199,7 +200,7 @@ def paths_to_transform_ids(
 
 
 def _paths_to_transform_id_sets(
-    ldb_dir: Path,
+    client: "LDBClient",
     paths: Sequence[str],
 ) -> DefaultDict[str, Set[str]]:
     arg_type = get_arg_type(paths)
@@ -208,7 +209,7 @@ def _paths_to_transform_id_sets(
     if arg_type == ArgType.DATASET:
         for dataset_identifier in paths:
             transform_obj = dataset_identifier_to_transform_ids(
-                ldb_dir,
+                client,
                 dataset_identifier,
             )
             separate_infos.append(transform_obj.items())
@@ -378,6 +379,8 @@ def add(
     if ldb_dir is None:
         ldb_dir = get_ldb_instance()
 
+    client = LDBClient(ldb_dir)
+
     workspace_path = Path(os.path.normpath(workspace_path))
     ds_name = load_workspace_dataset(workspace_path).dataset_name
     collection_dir_path = workspace_path / WorkspacePath.COLLECTION
@@ -410,7 +413,7 @@ def add(
     )
     if transform_obj is None:
         transform_obj = paths_to_transform_ids(
-            ldb_dir,
+            client,
             paths,
             workspace_path=workspace_path,
         )

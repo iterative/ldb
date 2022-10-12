@@ -1,3 +1,4 @@
+from ldb.core import LDBClient
 from ldb.main import main
 from ldb.path import WorkspacePath
 from ldb.transform import (
@@ -14,11 +15,12 @@ def test_transform_add(
     staged_ds_a,
     transform_infos,
 ):
+    client = LDBClient(ldb_instance)
     r45 = transform_infos["rotate-45"]
     r90 = transform_infos["rotate-90"]
     add_transforms_with_data_objects(
         workspace_path,
-        ldb_instance,
+        client,
         ["3c679fd1b8537dc7da1272a085e388e6"],
         [SELF.transform],
         update_type=UpdateType.DEL,
@@ -34,7 +36,7 @@ def test_transform_add(
         ],
     )
     result = get_transform_infos_from_dir(
-        ldb_instance,
+        client,
         workspace_path / WorkspacePath.TRANSFORM_MAPPING,
     )
     expected = {
@@ -52,11 +54,12 @@ def test_transform_delete(
     staged_ds_a,
     transform_infos,
 ):
+    client = LDBClient(ldb_instance)
     r45 = transform_infos["rotate-45"]
     r90 = transform_infos["rotate-90"]
     add_transforms_with_data_objects(
         workspace_path,
-        ldb_instance,
+        client,
         [
             "3c679fd1b8537dc7da1272a085e388e6",
             "982814b9116dce7882dfc31636c3ff7a",
@@ -75,7 +78,7 @@ def test_transform_delete(
         ],
     )
     result = get_transform_infos_from_dir(
-        ldb_instance,
+        client,
         workspace_path / WorkspacePath.TRANSFORM_MAPPING,
     )
     r90 = transform_infos["rotate-90"]
@@ -93,11 +96,12 @@ def test_transform_set(
     staged_ds_a,
     transform_infos,
 ):
+    client = LDBClient(ldb_instance)
     r45 = transform_infos["rotate-45"]
     r90 = transform_infos["rotate-90"]
     add_transforms_with_data_objects(
         workspace_path,
-        ldb_instance,
+        client,
         [
             "3c679fd1b8537dc7da1272a085e388e6",
             "982814b9116dce7882dfc31636c3ff7a",
@@ -107,7 +111,7 @@ def test_transform_set(
     )
     add_transforms_with_data_objects(
         workspace_path,
-        ldb_instance,
+        client,
         [
             "3c679fd1b8537dc7da1272a085e388e6",
             "ebbc6c0cebb66738942ee56513f9ee2f",
@@ -126,7 +130,7 @@ def test_transform_set(
         ],
     )
     result = get_transform_infos_from_dir(
-        ldb_instance,
+        client,
         workspace_path / WorkspacePath.TRANSFORM_MAPPING,
     )
     expected = {
