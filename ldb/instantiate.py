@@ -95,6 +95,9 @@ def instantiate(
     warn: bool = True,
     params: Optional[Mapping[str, str]] = None,
 ) -> InstantiateResult:
+    from ldb.core import LDBClient
+
+    client = LDBClient(ldb_dir)
     try:
         fmt = INSTANTIATE_FORMATS[fmt]
     except KeyError as exc:
@@ -131,7 +134,7 @@ def instantiate(
     if remote_fs is None:
         make_target_dir(dest, parents=make_parent_dirs)
     collection, transform_infos = paths_to_dataset(
-        ldb_dir,
+        client,
         paths,
         query_args,
         warn=warn,

@@ -1,10 +1,11 @@
 import os
+import os.path as osp
 from contextlib import contextmanager
 from copy import copy
 from dataclasses import asdict, dataclass, field
 from json import dump, load
 from pathlib import Path
-from typing import Collection, Dict, Generator, Iterable, List, Optional
+from typing import Collection, Dict, Generator, Iterable, List, Optional, Union
 
 import fsspec
 from fsspec.spec import AbstractFileSystem
@@ -35,9 +36,9 @@ class StorageConfig:
     locations: List[StorageLocation] = field(default_factory=list)
 
 
-def get_storage_locations(ldb_dir: Path) -> List[StorageLocation]:
-    storage_path = ldb_dir / Filename.STORAGE
-    if storage_path.is_file():
+def get_storage_locations(ldb_dir: Union[str, Path]) -> List[StorageLocation]:
+    storage_path = osp.join(ldb_dir, Filename.STORAGE)
+    if osp.isfile(storage_path):
         return load_from_path(storage_path).locations
     return []
 
@@ -67,8 +68,8 @@ def get_filesystem(
     return fsspec.filesystem(protocol, **fs_options)
 
 
-def load_from_path(path: Path) -> StorageConfig:
-    with path.open() as file:
+def load_from_path(path: Union[str, Path]) -> StorageConfig:
+    with open(path, encoding="utf-8") as file:
         config_dict = load(file)
     return StorageConfig(
         locations=[StorageLocation(**loc) for loc in config_dict["locations"]],

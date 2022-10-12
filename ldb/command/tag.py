@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, Iterable
 
 from ldb.add import select_data_object_hashes
 from ldb.cli_utils import ExtendAction, add_data_obj_params, simple_name_list
-from ldb.core import get_ldb_instance
+from ldb.core import LDBClient, get_ldb_instance
 from ldb.data_object_tag import tag_data_objects
 from ldb.exceptions import LDBException
 from ldb.utils import DATASET_PREFIX, ROOT
@@ -30,8 +30,9 @@ def tag_command(options: Namespace) -> None:
     else:
         set_tags = None
     ldb_dir = get_ldb_instance()
+    client = LDBClient(ldb_dir)
     data_object_hashes = select_data_object_hashes(
-        ldb_dir,
+        client,
         paths,
         query_args,
         warn=False,

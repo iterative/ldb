@@ -10,7 +10,7 @@ from pytest import MonkeyPatch, TempPathFactory
 from typing_extensions import Protocol
 
 from ldb.config import get_global_base, set_default_instance
-from ldb.core import get_ldb_instance, init
+from ldb.core import LDBClient, get_ldb_instance, init
 from ldb.env import Env
 from ldb.main import main
 from ldb.path import Filename
@@ -257,6 +257,7 @@ def fashion_mnist_session(ldb_instance_session: Path) -> Path:
 
 @pytest.fixture
 def transform_infos(ldb_instance: Path) -> Dict[str, TransformInfo]:
+    client = LDBClient(ldb_instance)
     base_args = [sys.executable, os.fspath(SCRIPTS_DIR / "rotate.py")]
     infos = [
         SELF,
@@ -264,7 +265,7 @@ def transform_infos(ldb_instance: Path) -> Dict[str, TransformInfo]:
         TransformInfo.from_generic([*base_args, "90"], "rotate-90"),
     ]
     for info in infos:
-        info.save(ldb_instance)
+        info.save(client)
     return {i.name: i for i in infos}
 
 

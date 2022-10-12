@@ -61,6 +61,7 @@ class FileDB(AbstractDB):
         for id, value in self.data_object_meta_list:
             path = osp.join(self.data_object_dir, *self.oid_parts(id), "meta")
             write_data_file(path, json.dumps(value, sort_keys=True).encode(), True)
+        self.data_object_meta_list = []
 
     def get_data_object_meta(self, id: str) -> Optional[DataObjectMetaRecord]:
         path = osp.join(self.data_object_dir, *self.oid_parts(id), "meta")
@@ -93,6 +94,7 @@ class FileDB(AbstractDB):
             meta_path = osp.join(dir_path, "ldb")
             write_data_file(value_path, obj.value_bytes, False)
             write_data_file(meta_path, obj.meta_bytes, False)
+        self.annotation_map = {}
 
     def get_annotation(self, id: str) -> Optional[AnnotationRecord]:
         path = osp.join(self.annotation_dir, *self.oid_parts(id), "user")
@@ -125,6 +127,7 @@ class FileDB(AbstractDB):
                 annotation_id,
             )
             write_data_file(path, json.dumps(value, sort_keys=True).encode(), True)
+        self.data_object_annotation_list = []
 
     def get_pair_meta(self, id: str, annot_id: str) -> Optional[DataObjectAnnotationRecord]:
         path = osp.join(
@@ -178,6 +181,7 @@ class FileDB(AbstractDB):
                     collection_obj.bytes,
                     overwrite_existing=False,
                 )
+            self.collection_map = {}
 
     def get_collection(self, id: str) -> Iterable[Tuple[str, str]]:
         try:
@@ -234,6 +238,7 @@ class FileDB(AbstractDB):
         for id, dataset_version in self.dataset_version_map.items():
             path = osp.join(base, *self.oid_parts(id))
             write_data_file(path, dataset_version.bytes)
+        self.dataset_version_map = {}
 
     def get_dataset_version(self, id: str) -> "DatasetVersion":
         path = osp.join(self.dataset_version_dir, *self.oid_parts(id))
@@ -296,6 +301,7 @@ class FileDB(AbstractDB):
                 json.dumps(dataset.format()).encode(),
                 overwrite_existing=True,
             )
+        self.dataset_version_assignments = {}
 
     def get_dataset(self, name: str) -> "Dataset":
         try:
@@ -316,6 +322,7 @@ class FileDB(AbstractDB):
         for transform in self.transforms:
             path = osp.join(base, *self.oid_parts(transform.obj_id))
             write_data_file(path, transform.json.encode(), overwrite_existing=False)
+        self.transforms = set()
 
     def get_transform(self, id: str) -> "Transform":
         path = osp.join(self.transform_dir, *self.oid_parts(id))
@@ -344,6 +351,7 @@ class FileDB(AbstractDB):
                 transform_mapping.bytes,
                 overwrite_existing=False,
             )
+        self.transform_mappings = {}
 
     def get_transform_mapping(self, id: str) -> Iterable[Tuple[str, List[str]]]:
         try:
