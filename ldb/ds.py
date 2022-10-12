@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable, Iterator
 
+from ldb.core import LDBClient
 from ldb.dataset import (
     Dataset,
     DatasetVersion,
@@ -55,6 +56,7 @@ def print_ds_listings(
 
 
 def delete_datasets(ldb_dir: Path, ds_identifiers: Iterable[str]) -> None:
+    client = LDBClient(ldb_dir)
     ds_dir = os.path.join(ldb_dir, InstanceDir.DATASETS)
     ds_version_dir = os.path.join(ldb_dir, InstanceDir.DATASET_VERSIONS)
     collection_dir = os.path.join(ldb_dir, InstanceDir.COLLECTIONS)
@@ -75,7 +77,7 @@ def delete_datasets(ldb_dir: Path, ds_identifiers: Iterable[str]) -> None:
                 f"Dataset not found: {ds_ident}",
             )
 
-    collection_identifiers = get_all_dataset_version_identifiers(ldb_dir)
+    collection_identifiers = get_all_dataset_version_identifiers(client)
     for ds_ident, path in ds_info:
         try:
             dataset = Dataset.parse(load_data_file(Path(path)))

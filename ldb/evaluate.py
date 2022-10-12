@@ -39,14 +39,14 @@ def evaluate(
         _,
         _,
     ) = process_args_for_ls(  # pylint: disable=duplicate-code
-        ldb_dir,
+        client,
         paths,
     )
     data_object_hashes = list(data_object_hashes)
     annotation_hashes = list(annotation_hashes)
-    data = PipelineData(client.db, data_object_hashes, annotation_hashes)
+    data = PipelineData(client, data_object_hashes, annotation_hashes)
     collection = apply_queries(
-        ldb_dir,
+        client,
         data_object_hashes,
         annotation_hashes,
         collection_ops,

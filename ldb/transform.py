@@ -1,8 +1,10 @@
 import json
 import os
+import os.path as osp
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import (
+    TYPE_CHECKING,
     Any,
     Callable,
     Collection,
@@ -22,16 +24,9 @@ from funcy.objects import cached_property
 
 from ldb import config
 from ldb.config import load_first
-from ldb.core import get_ldb_instance
-from ldb.dataset import (
-    DatasetVersion,
-    OpDef,
-    get_dataset,
-    get_dataset_version_hash,
-    iter_collection_dir,
-)
+from ldb.dataset import OpDef
 from ldb.exceptions import LDBException
-from ldb.path import Filename, InstanceDir, WorkspacePath
+from ldb.path import Filename, WorkspacePath
 from ldb.utils import (
     ROOT,
     StrEnum,
@@ -39,11 +34,12 @@ from ldb.utils import (
     get_hash_path,
     hash_data,
     json_dumps,
-    load_data_file,
     parse_dataset_identifier,
-    write_data_file,
 )
 from ldb.workspace import load_workspace_dataset
+
+if TYPE_CHECKING:
+    from ldb.core import LDBClient
 
 MergeFunc = Callable[[Set[str], Set[str]], Set[str]]
 
@@ -66,7 +62,7 @@ class TransformConfig:
     create_annotations: bool = True
 
     @classmethod
-    def all(cls, ldb_dir: Path) -> List["TransformConfig"]:
+    def all(cls, ldb_dir: str) -> List["TransformConfig"]:
         cfg = load_first(ldb_dir=ldb_dir)
         result = []
         if cfg is not None:
@@ -86,9 +82,9 @@ class TransformConfig:
             flat_dict.pop("create_annotations")
         return {flat_dict.pop("name"): flat_dict}
 
-    def save(self, ldb_dir: Path) -> None:
+    def save(self, ldb_dir: str) -> None:
         to_write = self.to_dict()
-        with config.edit(ldb_dir / Filename.CONFIG) as cfg:
+        with config.edit(Path(osp.join(ldb_dir, Filename.CONFIG))) as cfg:
             transform_cfg = cfg.setdefault("transform", {})
             transform_cfg.update(to_write)
 
@@ -118,9 +114,9 @@ class TransformInfo:
         )
 
     @classmethod
-    def all(cls, ldb_dir: Path) -> List["TransformInfo"]:
-        transforms = Transform.all(ldb_dir)
-        transform_infos = {t.transform.obj_id: t for t in TransformInfo.all_configured(ldb_dir)}
+    def all(cls, client: "LDBClient") -> List["TransformInfo"]:
+        transforms = Transform.all(client)
+        transform_infos = {t.transform.obj_id: t for t in TransformInfo.all_configured(client)}
         result = []
         for transform in transforms:
             info = transform_infos.get(transform.obj_id)
@@ -130,9 +126,9 @@ class TransformInfo:
         return result
 
     @classmethod
-    def all_configured(cls, ldb_dir: Path) -> List["TransformInfo"]:
+    def all_configured(cls, client: "LDBClient") -> List["TransformInfo"]:
         result = []
-        for transform_config in TransformConfig.all(ldb_dir):
+        for transform_config in TransformConfig.all(client.ldb_dir):
             result.append(
                 TransformInfo(
                     transform=Transform.from_generic(transform_config.run),
@@ -143,8 +139,8 @@ class TransformInfo:
         result.extend(BUILTIN)
         return result
 
-    def save(self, ldb_dir: Path) -> None:
-        self.transform.save(ldb_dir)
+    def save(self, client: "LDBClient") -> None:
+        self.transform.save(client)
         if self.name and self.transform.transform_type == TransformType.EXEC:
             if self.name in BUILTIN_NAMES:
                 raise ValueError(
@@ -159,7 +155,7 @@ class TransformInfo:
                 name=self.name,
                 run=self.transform.value,
                 create_annotations=self.create_annotations,
-            ).save(ldb_dir)
+            ).save(client.ldb_dir)
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -185,24 +181,14 @@ class Transform:
         return cls(value, transform_type)
 
     @classmethod
-    def load(cls, ldb_dir: Path, obj_id: str) -> "Transform":
-        obj_dir = ldb_dir / InstanceDir.TRANSFORMS
-        return cls.from_generic(
-            **load_data_file(get_hash_path(obj_dir, obj_id)),
-        )
-
-    @classmethod
-    def _save_builtins(cls, ldb_dir: Path) -> None:
+    def _save_builtins(cls, client: "LDBClient") -> None:
         for transform_info in BUILTIN:
-            transform_info.transform.save(ldb_dir)
+            transform_info.transform.save(client)
 
     @classmethod
-    def all(cls, ldb_dir: Path) -> List["Transform"]:
-        cls._save_builtins(ldb_dir)
-        result = []
-        for f in iter_collection_dir(ldb_dir / InstanceDir.TRANSFORMS):
-            result.append(cls(**load_data_file(Path(f))))
-        return result
+    def all(cls, client: "LDBClient") -> List["Transform"]:
+        cls._save_builtins(client)
+        return list(client.db.get_transform_all())
 
     def to_dict(self) -> Dict[str, Union[str, Tuple[str, ...]]]:
         return {
@@ -218,12 +204,8 @@ class Transform:
     def obj_id(self) -> str:
         return hash_data(self.json.encode())
 
-    def save(self, ldb_dir: Path) -> None:
-        path = get_hash_path(
-            ldb_dir / InstanceDir.TRANSFORMS,
-            self.obj_id,
-        )
-        write_data_file(path, self.json.encode(), overwrite_existing=False)
+    def save(self, ldb_client: "LDBClient") -> None:
+        ldb_client.db.add_transform(self)
 
 
 def builtin(
@@ -257,10 +239,12 @@ def add_transform(
     from ldb.add import (  # pylint: disable=import-outside-toplevel
         select_data_object_hashes,
     )
+    from ldb.core import LDBClient, get_ldb_instance
 
     if ldb_dir is None:
         ldb_dir = get_ldb_instance()
-    transforms = [t.transform for t in get_transforms_by_name(ldb_dir, transform_names)]
+    client = LDBClient(ldb_dir)
+    transforms = [t.transform for t in get_transforms_by_name(client, transform_names)]
     if not transforms:
         raise ValueError("Transform name list is empty")
 
@@ -269,14 +253,14 @@ def add_transform(
     ds_ident = format_dataset_identifier(ds_name)
 
     data_object_hashes = select_data_object_hashes(
-        get_ldb_instance(),
+        client,
         paths,
         query_args,
         warn=False,
     )
     num_deleted = add_transforms_with_data_objects(
         workspace_path,
-        ldb_dir,
+        client,
         data_object_hashes,
         transforms=transforms,
         update_type=update_type,
@@ -292,11 +276,11 @@ def add_transform(
 
 
 def get_transforms_by_name(
-    ldb_dir: Path,
+    client: "LDBClient",
     names: Iterable[str],
 ) -> List[TransformInfo]:
-    transform_mapping = {t.name: t for t in TransformInfo.all_configured(ldb_dir)}
-    transforms_by_id = {t.obj_id: t for t in Transform.all(ldb_dir)}
+    transform_mapping = {t.name: t for t in TransformInfo.all_configured(client)}
+    transforms_by_id = {t.obj_id: t for t in Transform.all(client)}
     transforms = []
     for name in names:
         try:
@@ -314,7 +298,7 @@ def get_transforms_by_name(
 
 def add_transforms_with_data_objects(
     workspace_path: Path,
-    ldb_dir: Path,
+    client: "LDBClient",
     data_object_hashes: Iterable[str],
     transforms: Iterable[Transform] = (),
     update_type: UpdateType = UpdateType.ADD,
@@ -323,7 +307,7 @@ def add_transforms_with_data_objects(
     transform_mapping_dir_path.mkdir(exist_ok=True)
     transform_obj_ids = []
     for t in transforms:
-        t.save(ldb_dir)
+        t.save(client)
         transform_obj_ids.append(t.obj_id)
     return update_transform_mapping_dir(
         transform_mapping_dir_path,
@@ -404,34 +388,34 @@ def get_transform_mapping_dir_items(
 
 
 def get_transform_infos_by_hash(
-    ldb_dir: Path,
+    client: "LDBClient",
     hashes: Iterable[str],
 ) -> Dict[str, TransformInfo]:
     infos = {}
-    for transform_info in TransformInfo.all_configured(ldb_dir):
+    for transform_info in TransformInfo.all_configured(client):
         infos[transform_info.transform.obj_id] = transform_info
 
     result = {}
     for h in hashes:
         info = infos.get(h)
         if info is None:
-            info = TransformInfo(transform=Transform.load(ldb_dir, h))
+            info = TransformInfo(transform=client.db.get_transform(h))
         result[h] = info
     return result
 
 
 def get_transform_infos_from_dir(
-    ldb_dir: Path,
+    client: "LDBClient",
     transform_mapping_dir: Path,
 ) -> Dict[str, FrozenSet[TransformInfo]]:
     return get_transform_infos_from_items(
-        ldb_dir,
+        client,
         get_transform_mapping_dir_items(transform_mapping_dir),
     )
 
 
 def dataset_identifier_to_transform_ids(
-    ldb_dir: Path,
+    client: "LDBClient",
     dataset_identifier: str,
 ) -> Dict[str, List[str]]:
     dataset_name, dataset_version = parse_dataset_identifier(
@@ -439,34 +423,20 @@ def dataset_identifier_to_transform_ids(
     )
     if dataset_name == ROOT:
         return {}
-    dataset = get_dataset(ldb_dir, dataset_name)
-    dataset_version_hash = get_dataset_version_hash(
-        dataset,
-        dataset_version,
+
+    dataset_version_obj, _ = client.db.get_dataset_version_by_name(
+        dataset_name, dataset_version
     )
-    dataset_version_obj = DatasetVersion.parse(
-        load_data_file(
-            get_hash_path(
-                ldb_dir / InstanceDir.DATASET_VERSIONS,
-                dataset_version_hash,
-            ),
-        ),
-    )
-    return load_data_file(  # type: ignore[no-any-return]
-        get_hash_path(
-            ldb_dir / InstanceDir.TRANSFORM_MAPPINGS,
-            dataset_version_obj.transform_mapping_id,
-        ),
-    )
+    return dict(client.db.get_transform_mapping(dataset_version_obj.transform_mapping_id))
 
 
 def get_transform_infos_from_items(
-    ldb_dir: Path,
+    client: "LDBClient",
     transform_info_items: Iterable[Tuple[str, Collection[str]]],
 ) -> Dict[str, FrozenSet[TransformInfo]]:
     transform_info_items = list(transform_info_items)
     unique_hashes = {h for _, hash_seq in transform_info_items for h in hash_seq}
-    transform_infos = get_transform_infos_by_hash(ldb_dir, unique_hashes)
+    transform_infos = get_transform_infos_by_hash(client, unique_hashes)
     return {
         d: frozenset({transform_infos[h] for h in hash_seq})
         for d, hash_seq in transform_info_items
@@ -477,21 +447,3 @@ def transform_dir_to_object(transform_dir: Path) -> Dict[str, List[str]]:
     return dict(
         sorted(get_transform_mapping_dir_items(transform_dir)),
     )
-
-
-def save_transform_object(ldb_dir: Path, workspace_path: Path) -> str:
-    transform_obj = transform_dir_to_object(
-        workspace_path / WorkspacePath.TRANSFORM_MAPPING,
-    )
-    transform_obj_bytes = json_dumps(transform_obj).encode()
-    transform_hash = hash_data(transform_obj_bytes)
-    transform_path = get_hash_path(
-        ldb_dir / InstanceDir.TRANSFORM_MAPPINGS,
-        transform_hash,
-    )
-    write_data_file(
-        transform_path,
-        transform_obj_bytes,
-        overwrite_existing=False,
-    )
-    return transform_hash

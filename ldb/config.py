@@ -1,7 +1,7 @@
 import os
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Callable, Dict, Generator, List, Optional, Sequence
+from typing import Callable, Dict, Generator, List, Optional, Sequence, Union
 
 from appdirs import site_config_dir, user_config_dir
 from tomlkit import document, dumps, parse
@@ -47,9 +47,10 @@ def save_to_path(config: TOMLDocument, path: Path) -> None:
 
 def load_first(
     config_types: Sequence[str] = DEFAULT_CONFIG_TYPES,
-    ldb_dir: Optional[Path] = None,
+    ldb_dir: Optional[Union[str, Path]] = None,
 ) -> Optional[TOMLDocument]:
     if ldb_dir is not None:
+        ldb_dir = Path(ldb_dir)
         path = ldb_dir / Filename.CONFIG
         try:
             return load_from_path(path)

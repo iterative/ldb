@@ -6,7 +6,7 @@ from typing import Iterable, List, Sequence
 
 import pytest
 
-from ldb.core import add_default_read_add_storage
+from ldb.core import LDBClient, add_default_read_add_storage
 from ldb.dataset import OpDef
 from ldb.fs import posix_path as fsp
 from ldb.ls import DatasetListing, ls, ls_collection
@@ -575,6 +575,7 @@ def test_ls_collection_with_workspace_dataset(
     data_dir,
     ldb_instance,
 ):
+    client = LDBClient(ldb_instance)
     workspace_path = tmp_path / "workspace"
     dirs_to_add = [
         data_dir / "fashion-mnist/original/has_both/train",
@@ -589,7 +590,7 @@ def test_ls_collection_with_workspace_dataset(
         ws_collection = collection_dir_to_object(
             workspace_path / WorkspacePath.COLLECTION,
         )
-        ds_listings = ls_collection(ldb_instance, ws_collection.items())
+        ds_listings = ls_collection(client, ws_collection.items())
     annot_versions = [d.annotation_version for d in ds_listings]
     # fsspec's LocalFileSystem._strip_protocol does some normalization during
     # indexing, so we cast everything to Path objects for comparison

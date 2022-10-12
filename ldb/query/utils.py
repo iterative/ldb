@@ -6,7 +6,6 @@ from jmespath import functions
 from jmespath.visitor import Options
 
 from ldb.config import get_ldb_dir
-from ldb.core import is_ldb_instance
 from ldb.query.functions import CUSTOM_FUNCTIONS
 from ldb.query.user_functions import load_user_functions
 from ldb.typing import (
@@ -91,6 +90,8 @@ def create_custom_options(custom_functions: JSONFuncMapping) -> Options:
 
 
 def get_all_custom_functions() -> JSONFuncMutableMapping:
+    from ldb.core import is_ldb_instance
+
     custom_functions: JSONFuncMutableMapping = (
         CUSTOM_FUNCTIONS.copy()  # type: ignore[assignment]
     )
