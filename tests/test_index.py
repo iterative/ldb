@@ -4,7 +4,6 @@ from typing import NamedTuple
 
 import pytest
 
-from ldb.add import get_current_annotation_hashes
 from ldb.core import LDBClient
 from ldb.data_formats import Format
 from ldb.index import index
@@ -443,8 +442,7 @@ def test_index_inferred(ldb_instance, data_dir):
     non_annotation = [p for p in annotation_paths if not is_annotation(p)]
     tag_seqs = get_obj_tags(data_object_meta_paths)
 
-    annot_hashes = get_current_annotation_hashes(
-        ldb_instance,
+    annot_hashes = client.db.get_current_annotation_hashes(
         [
             "31ed21a2633c6802e756dd06220b0b82",
             "def3cbcb30f3254a2a220e51ddf45375",

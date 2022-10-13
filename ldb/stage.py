@@ -1,7 +1,7 @@
 import os
 import shutil
 from pathlib import Path
-from typing import Dict, List, Mapping, Optional, Sequence, Tuple
+from typing import List, Mapping, Optional, Sequence, Tuple
 
 from ldb.config import get_ldb_dir
 from ldb.core import LDBClient, init_quickstart
@@ -132,12 +132,12 @@ def stage_with_instance(  # pylint: disable=too-many-statements
         if workspace_ds_obj.auto_pull:
             collection_obj = dict(
                 get_collection_with_updated_annotations(
-                    ldb_dir,
+                    client,
                     collection_obj.keys(),
                 )[0],
             )
-        transform_obj = client.db.get_transform_mapping(
-            dataset_version_obj.transform_mapping_id
+        transform_obj = dict(
+            client.db.get_transform_mapping(dataset_version_obj.transform_mapping_id)
         )
         curr_dataset_ident = format_dataset_identifier(
             ds_name,
@@ -156,8 +156,8 @@ def stage_with_instance(  # pylint: disable=too-many-statements
 def stage_workspace(
     workspace_path: Path,
     workspace_ds_obj: WorkspaceDataset,
-    collection_obj: Optional[Dict[str, Optional[str]]] = None,
-    transform_obj: Optional[Dict[str, Sequence[str]]] = None,
+    collection_obj: Optional[Mapping[str, Optional[str]]] = None,
+    transform_obj: Optional[Mapping[str, Sequence[str]]] = None,
 ) -> None:
     collection_path = workspace_path / WorkspacePath.COLLECTION
     workspace_ds_bytes = json_dumps(workspace_ds_obj.format()).encode()
@@ -208,7 +208,7 @@ def transform_obj_to_path_items(
 
 def get_workspace_collection_path_data(
     path: Path,
-    collection_obj: Dict[str, Optional[str]],
+    collection_obj: Mapping[str, Optional[str]],
 ) -> List[Tuple[Path, str]]:
     return [
         (get_hash_path(path, data_object_hash), annotation_hash or "")

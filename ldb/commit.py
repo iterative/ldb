@@ -3,18 +3,18 @@ import os
 from pathlib import Path
 from typing import Optional
 
-from ldb.dataset import CommitInfo, Dataset
+from ldb.dataset import CommitInfo
+from ldb.exceptions import DatasetNotFoundError
 from ldb.objects.collection import CollectionObject
 from ldb.objects.dataset_version import DatasetVersion
 from ldb.objects.transform_mapping import TransformMapping
-from ldb.path import InstanceDir, WorkspacePath
+from ldb.path import WorkspacePath
 from ldb.transform import transform_dir_to_object
 from ldb.utils import (
     DATASET_PREFIX,
     current_time,
     format_dataset_identifier,
     json_dumps,
-    load_data_file,
     parse_dataset_identifier,
     write_data_file,
 )
@@ -66,7 +66,6 @@ def commit(
     client.db.check_for_missing_data_object_ids(collection_obj.keys())
     client.db.add_collection(collection_obj)
 
-    # transform_hash = save_transform_object(ldb_dir, workspace_path)
     transform_mapping = TransformMapping(
         transform_dir_to_object(workspace_path / WorkspacePath.TRANSFORM_MAPPING)
     )
@@ -76,10 +75,9 @@ def commit(
     curr_time = current_time()
     username = getpass.getuser()
 
-    dataset_file_path = ldb_dir / InstanceDir.DATASETS / dataset_name
     try:
-        num_versions = len(Dataset.parse(load_data_file(dataset_file_path)).versions)
-    except FileNotFoundError:
+        num_versions = len(client.db.get_dataset(dataset_name).versions)
+    except DatasetNotFoundError:
         num_versions = 0
     auto_pull = workspace_ds.auto_pull if auto_pull is None else auto_pull
     # TODO remove version field

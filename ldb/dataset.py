@@ -49,7 +49,7 @@ from ldb.utils import (
 )
 
 if TYPE_CHECKING:
-    from ldb.db.abstract import AbstractDB
+    from ldb.core import LDBClient
     from ldb.index.utils import DataObjectMeta as DataObjectMetaT
 
 OpDef = Tuple[str, Union[str, int, float, List[str]]]
@@ -99,21 +99,6 @@ class DatasetVersion:
             **attr_dict,
         )
 
-    @classmethod
-    def from_id(
-        cls,
-        ldb_dir: Path,
-        dataset_version_id: str,
-    ) -> "DatasetVersion":
-        return cls.parse(
-            load_data_file(
-                get_hash_path(
-                    ldb_dir / InstanceDir.DATASET_VERSIONS,
-                    dataset_version_id,
-                ),
-            ),
-        )
-
     def format(self) -> Dict[str, Any]:
         attr_dict = {f.name: getattr(self, f.name) for f in fields(self)}
         return dict(
@@ -153,17 +138,6 @@ def iter_collection_dir(collection_dir: Union[str, Path]) -> Iterator[str]:
     return iglob(os.path.join(collection_dir, "*", "*"))
 
 
-def get_root_collection(
-    ldb_dir: Path,
-) -> Dict[str, Optional[str]]:
-    return dict(
-        get_collection_dir_items(
-            ldb_dir / InstanceDir.DATA_OBJECT_INFO,
-            is_workspace=False,
-        ),
-    )
-
-
 def get_collection(
     ldb_dir: Path,
     dataset_version_hash: str,
@@ -185,13 +159,10 @@ def get_collection(
 
 
 def get_collection_from_dataset_identifier(
-    ldb_dir: Path,
+    client: "LDBClient",
     dataset_name: str,
     dataset_version: Optional[int] = None,
 ) -> Dict[str, Optional[str]]:
-    from ldb.core import LDBClient
-
-    client = LDBClient(ldb_dir)
     if dataset_name == ROOT:
         return dict(client.db.get_root_collection())
     dataset_version_obj, _ = client.db.get_dataset_version_by_name(
@@ -243,7 +214,7 @@ def get_workspace_collection_annotation_hash(
 
 
 def combine_collections(
-    ldb_dir: Path,
+    ldb_dir: Union[str, Path],
     collections: List[Dict[str, Optional[str]]],
 ) -> Dict[str, str]:
     if not collections:
@@ -264,7 +235,7 @@ def combine_collections(
             # get latest annotation (most recent unique version)
             annotation_dir = (
                 get_hash_path(
-                    ldb_dir / InstanceDir.DATA_OBJECT_INFO,
+                    Path(ldb_dir) / InstanceDir.DATA_OBJECT_INFO,
                     data_object_hash,
                 )
                 / "annotations"
@@ -303,21 +274,16 @@ def iter_datasets(ldb_dir: Union[str, Path]) -> Iterator[Dataset]:
 
 
 def check_datasets_for_data_objects(
-    ldb_dir: Path,
+    client: "LDBClient",
     data_object_hashes: Iterable[str],
     error: bool = True,
 ) -> Iterator[str]:
     # collect data objects from datasets
-    collection_identifiers = get_all_dataset_version_identifiers(ldb_dir)
+    collection_identifiers = get_all_dataset_version_identifiers(client)
     obj_to_identifiers = defaultdict(list)
     for collection_id, ds_identifiers in collection_identifiers.items():
         if ds_identifiers:
-            for data_obj_hash in load_data_file(
-                get_hash_path(
-                    ldb_dir / InstanceDir.COLLECTIONS,
-                    collection_id,
-                ),
-            ):
+            for data_obj_hash, _ in client.db.get_collection(collection_id):
                 obj_to_identifiers[data_obj_hash].extend(ds_identifiers)
     for data_obj_hash in data_object_hashes:
         obj_ds_identifiers = obj_to_identifiers.get(data_obj_hash)
@@ -332,9 +298,9 @@ def check_datasets_for_data_objects(
             yield data_obj_hash
 
 
-def get_all_dataset_version_identifiers(ldb_dir: Path) -> Dict[str, List[str]]:
+def get_all_dataset_version_identifiers(client: "LDBClient") -> Dict[str, List[str]]:
     """
-    Map each dataset version id to all dataset identifiers that point to it.
+    Map each collection id to all dataset identifiers that point to it.
 
     This could look something like this:
         {
@@ -343,22 +309,16 @@ def get_all_dataset_version_identifiers(ldb_dir: Path) -> Dict[str, List[str]]:
             "ab3...": [],
         }
     """
-    ds_version_dir = os.path.join(ldb_dir, InstanceDir.DATASET_VERSIONS)
-    collection_dir = os.path.join(ldb_dir, InstanceDir.COLLECTIONS)
     result = defaultdict(list)
-    for dataset in iter_datasets(ldb_dir):
+    for dataset in client.db.get_dataset_all():
         for i, version_id in dataset.numbered_versions().items():
-            version_path = get_hash_path(
-                Path(ds_version_dir),
-                version_id,
-            )
-            version_obj = DatasetVersion.parse(load_data_file(version_path))
+            version_obj = client.db.get_dataset_version(version_id)
             result[version_obj.collection].append(
                 format_dataset_identifier(dataset.name, i),
             )
-    for parent in os.listdir(collection_dir):
-        for filename in os.listdir(os.path.join(collection_dir, parent)):
-            result[f"{parent}{filename}"]  # pylint: disable=pointless-statement
+
+    for id in client.db.get_collection_id_all():
+        result[id]  # pylint: disable=pointless-statement
     return dict(result)
 
 
@@ -583,21 +543,21 @@ class PathQuery(FileQuery):
 class PipelineData:
     def __init__(
         self,
-        db: "AbstractDB",
+        client: "LDBClient",
         data_object_ids: Iterable[str],
         annotation_ids: Iterable[str],
     ) -> None:
-        self.db = db
+        self.client = client
         self.data_object_ids = data_object_ids
         self.annotation_ids = annotation_ids
 
     @cached_property
     def data_object_metas(self) -> Dict[str, "DataObjectMetaT"]:
-        return dict(self.db.get_data_object_meta_many(self.data_object_ids))
+        return dict(self.client.db.get_data_object_meta_many(self.data_object_ids))
 
     @cached_property
     def annotations(self) -> Dict[str, JSONDecoded]:
-        return dict(self.db.get_annotation_many(self.annotation_ids))
+        return dict(self.client.db.get_annotation_many(self.annotation_ids))
 
 
 class PipelineBuilder:
@@ -720,7 +680,7 @@ class Pipeline:
 
 
 def apply_queries(
-    ldb_dir: Path,
+    client: "LDBClient",
     data_object_hashes: Iterable[str],
     annotation_hashes: Iterable[str],
     op_defs: Iterable[OpDef],
@@ -729,7 +689,7 @@ def apply_queries(
 ) -> Iterator[Tuple[str, str]]:
     collection = zip(data_object_hashes, annotation_hashes)
     return apply_queries_to_collection(
-        ldb_dir,
+        client,
         collection,
         op_defs,
         data=data,
@@ -738,7 +698,7 @@ def apply_queries(
 
 
 def apply_queries_to_collection(
-    ldb_dir: Path,
+    client: "LDBClient",
     collection: Iterable[Tuple[str, str]],
     op_defs: Iterable[OpDef],
     data: Optional[PipelineData] = None,
@@ -747,8 +707,6 @@ def apply_queries_to_collection(
     """
     Filter the given collection by the operations in `collection_ops`.
     """
-    from ldb.core import LDBClient
-
     collection = list(collection)
     if collection:
         data_object_ids, annotation_ids = zip(*collection)
@@ -756,10 +714,10 @@ def apply_queries_to_collection(
         data_object_ids, annotation_ids = (), ()
     if data is None:
         data = PipelineData(
-            LDBClient(ldb_dir).db,
+            client,
             data_object_ids,
             annotation_ids,
         )
-    return Pipeline.from_defs(ldb_dir, op_defs, data=data, warn=warn).run(
+    return Pipeline.from_defs(Path(client.ldb_dir), op_defs, data=data, warn=warn).run(
         collection,
     )

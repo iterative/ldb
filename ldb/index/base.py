@@ -406,7 +406,7 @@ class PairIndexer(Indexer):
     ) -> IndexedObjectResult:
         return PairIndexingItem(
             self.ldb_dir,
-            self.db,
+            self.client,
             current_time(),
             tags,
             annot_merge_strategy,
@@ -420,7 +420,7 @@ class PairIndexer(Indexer):
 @dataclass
 class IndexingItem(ABC):
     ldb_dir: Path
-    db: AbstractDB
+    client: LDBClient
     curr_time: datetime
     tags: Collection[str]
     annot_merge_strategy: AnnotMergeStrategy
@@ -526,7 +526,7 @@ class IndexingItem(ABC):
 
     @cached_property
     def annotation_version(self) -> int:
-        return self.db.count_pairs(self.data_object_hash) + 1
+        return self.client.db.count_pairs(self.data_object_hash) + 1
 
     @cached_property
     def has_annotation(self) -> bool:
@@ -559,7 +559,7 @@ class IndexingItem(ABC):
         else:
             annot = None
             annot_meta = None
-        self.db.add_pair(
+        self.client.db.add_pair(
             self.data_object_hash,
             self.data_object_meta,
             annot,
@@ -575,7 +575,7 @@ class AnnotationFileIndexingItem(IndexingItem):
     def annotation_meta(self) -> AnnotationMeta:
         if self.annotation_fsp is None:
             raise IndexingException("Missing annotation_fsp")
-        record = self.db.get_pair_meta(
+        record = self.client.db.get_pair_meta(
             self.data_object_hash,
             self.annotation.oid,
         )
@@ -621,7 +621,7 @@ class DataObjectFileIndexingItem(IndexingItem):
     @cached_property
     def data_object_meta(self) -> DataObjectMetaT:
         data_object_id = self.data_object_hash
-        record = self.db.get_data_object_meta(data_object_id)
+        record = self.client.db.get_data_object_meta(data_object_id)
         if not self.save_data_object_path_info:
             if record is None:
                 raise DataObjectNotFoundError(

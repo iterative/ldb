@@ -69,8 +69,8 @@ def workspace_dataset_is_clean(
     ws_transform_mapping = transform_dir_to_object(
         workspace_path / WorkspacePath.TRANSFORM_MAPPING,
     )
-    transform_obj: Dict[str, List[str]] = client.db.get_transform_mapping(
-        dataset_version_obj.transform_mapping_id,
+    transform_obj: Dict[str, List[str]] = dict(
+        client.db.get_transform_mapping(dataset_version_obj.transform_mapping_id)
     )
     return ws_transform_mapping == transform_obj
 

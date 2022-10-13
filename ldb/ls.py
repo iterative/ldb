@@ -33,13 +33,14 @@ def ls(
     collection_ops: Iterable[OpDef],
     warn: bool = True,
 ) -> List[DatasetListing]:
+    client = LDBClient(ldb_dir)
     collection, transform_infos = paths_to_dataset(
-        ldb_dir,
+        client,
         paths,
         collection_ops,
         warn=warn,
     )
-    return ls_collection(ldb_dir, collection, transform_infos=transform_infos)
+    return ls_collection(client, collection, transform_infos=transform_infos)
 
 
 def transform_info_sort_key(info: TransformInfo) -> Tuple[bool, str]:
@@ -78,11 +79,10 @@ def print_dataset_listings(
 
 
 def ls_collection(
-    ldb_dir: Path,
+    client: "LDBClient",
     collection: Iterable[Tuple[str, Optional[str]]],
     transform_infos: Optional[Mapping[str, FrozenSet[TransformInfo]]] = None,
 ) -> List[DatasetListing]:
-    client = LDBClient(ldb_dir)
     result = []
     for (
         data_object_hash,

@@ -208,7 +208,7 @@ class InferredIndexer(PairIndexer):
                         if annot is not None:
                             item = InferredIndexingItem(
                                 self.ldb_dir,
-                                self.db,
+                                self.client,
                                 current_time(),
                                 tags,
                                 annot_merge_strategy,
@@ -227,7 +227,7 @@ class InferredIndexingItem(DataObjectFileIndexingItem):
 
     @cached_property
     def annotation_meta(self) -> AnnotationMeta:
-        record = self.db.get_pair_meta(
+        record = self.client.db.get_pair_meta(
             self.data_object_hash,
             self.annotation.oid,
         )

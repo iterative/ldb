@@ -38,7 +38,7 @@ from ldb.dataset import (
     iter_collection_dir,
 )
 from ldb.exceptions import DataObjectNotFoundError, LDBException
-from ldb.fs.utils import get_file_hash, unstrip_protocol
+from ldb.fs.utils import get_file_hash
 from ldb.index import index
 from ldb.index.utils import FileSystemPath, expand_indexing_paths
 from ldb.path import InstanceDir, WorkspacePath
@@ -130,18 +130,17 @@ def expands_to_workspace(urlpath: str) -> bool:
     return False
 
 
-ArgProcessingFunc = Callable[[Path, Sequence[str]], AddInput]
+ArgProcessingFunc = Callable[["LDBClient", Sequence[str]], AddInput]
 
 
 def paths_to_dataset(
-    ldb_dir: Path,
+    client: LDBClient,
     paths: Sequence[str],
     collection_ops: Iterable[OpDef],
     warn: bool = True,
     include_transforms: bool = True,
     arg_processing_func: Optional[ArgProcessingFunc] = None,
 ) -> Tuple[Iterator[Tuple[str, str]], Optional[TransformInfoMapping]]:
-    client = LDBClient(ldb_dir)
     if arg_processing_func is None:
         arg_processing_func = process_args_for_ls
     if not paths:
@@ -151,14 +150,14 @@ def paths_to_dataset(
     else:
         transform_infos = None
     data_object_hashes, annotation_hashes, message, _ = arg_processing_func(
-        ldb_dir,
+        client,
         paths,
     )
     if message:
         print(message)
         print()
     collection = apply_queries(
-        ldb_dir,
+        client,
         data_object_hashes,
         annotation_hashes,
         collection_ops,
@@ -227,12 +226,12 @@ def _paths_to_transform_id_sets(
 
 
 def process_args_for_add(
-    ldb_dir: Path,
+    client: LDBClient,
     paths: Sequence[str],
 ) -> AddInput:
     if not paths:
         raise LDBException("Must supply path")
-    return ADD_FUNCTIONS[get_arg_type(paths)](ldb_dir, paths)
+    return ADD_FUNCTIONS[get_arg_type(paths)](client, paths)
 
 
 def parse_dataset_paths(
@@ -252,17 +251,17 @@ def parse_dataset_paths(
     return result
 
 
-def dataset_for_add(ldb_dir: Path, paths: Sequence[str]) -> AddInput:
+def dataset_for_add(client: LDBClient, paths: Sequence[str]) -> AddInput:
     dataset_identifiers = parse_dataset_paths(paths)
     collections = [
         get_collection_from_dataset_identifier(
-            ldb_dir,
+            client,
             ds_name,
             ds_version,
         )
         for ds_name, ds_version in dataset_identifiers
     ]
-    combined_collection = combine_collections(ldb_dir, collections)
+    combined_collection = combine_collections(client.ldb_dir, collections)
     return AddInput(
         combined_collection.keys(),
         combined_collection.values(),
@@ -270,7 +269,7 @@ def dataset_for_add(ldb_dir: Path, paths: Sequence[str]) -> AddInput:
     )
 
 
-def workspace_dataset_for_add(ldb_dir: Path, paths: Sequence[str]) -> AddInput:
+def workspace_dataset_for_add(client: LDBClient, paths: Sequence[str]) -> AddInput:
     paths = [re.sub(r"^ws:", "", p) for p in paths]
     for path in paths:
         load_workspace_dataset(Path(path))
@@ -280,7 +279,7 @@ def workspace_dataset_for_add(ldb_dir: Path, paths: Sequence[str]) -> AddInput:
         )
         for path in paths
     ]
-    combined_collection = combine_collections(ldb_dir, collections)
+    combined_collection = combine_collections(client.ldb_dir, collections)
     return AddInput(
         combined_collection.keys(),
         combined_collection.values(),
@@ -289,7 +288,7 @@ def workspace_dataset_for_add(ldb_dir: Path, paths: Sequence[str]) -> AddInput:
 
 
 def data_object_for_add(
-    ldb_dir: Path,  # pylint: disable=unused-argument
+    client: LDBClient,  # pylint: disable=unused-argument
     paths: Sequence[str],
 ) -> AddInput:
     try:
@@ -302,23 +301,21 @@ def data_object_for_add(
         ) from exc
     return AddInput(
         data_object_hashes,
-        get_current_annotation_hashes(ldb_dir, data_object_hashes),
+        list(client.db.get_current_annotation_hashes(data_object_hashes)),
         "",
     )
 
 
-def path_for_add(ldb_dir: Path, paths: Sequence[str]) -> AddInput:
+def path_for_add(client: LDBClient, paths: Sequence[str]) -> AddInput:
     data_object_hash_iter, data_object_hash_iter2 = tee(
-        data_object_hashes_from_path(paths, get_storage_locations(ldb_dir)),
+        data_object_hashes_from_path(paths, get_storage_locations(client.ldb_dir)),
     )
     transforms: Optional[Dict[str, Sequence[str]]]
     try:
-        annotation_hashes = get_current_annotation_hashes_from_file_hashes(
-            ldb_dir,
-            data_object_hash_iter,
+        # TODO include filepath info in error message
+        annotation_hashes = list(
+            client.db.get_current_annotation_hashes(h.value for h in data_object_hash_iter)
         )
-        if not annotation_hashes:
-            raise DataObjectNotFoundError
     except DataObjectNotFoundError as exc:
         cfg: TOMLDocument = config.load_first() or document()
         auto_index: bool = cfg.get("core", {}).get("auto_index", False)
@@ -331,7 +328,7 @@ def path_for_add(ldb_dir: Path, paths: Sequence[str]) -> AddInput:
             ) from exc
 
         indexing_result = index(
-            ldb_dir,
+            Path(client.ldb_dir),
             paths,
             read_any_cloud_location=cfg.get("core", {}).get("read_any_cloud_location", False),
         )
@@ -354,7 +351,7 @@ def path_for_add(ldb_dir: Path, paths: Sequence[str]) -> AddInput:
     )
 
 
-ADD_FUNCTIONS: Dict[ArgType, Callable[[Path, Sequence[str]], AddInput]] = {
+ADD_FUNCTIONS: Dict[ArgType, Callable[["LDBClient", Sequence[str]], AddInput]] = {
     ArgType.DATASET: dataset_for_add,
     ArgType.WORKSPACE_DATASET: workspace_dataset_for_add,
     ArgType.DATA_OBJECT: data_object_for_add,
@@ -389,7 +386,7 @@ def add(
     transform_dir_path.mkdir(exist_ok=True)
 
     data_object_hashes, annotation_hashes, message, transform_obj = process_args_for_add(
-        ldb_dir,
+        client,
         paths,
     )
     if message:
@@ -397,7 +394,7 @@ def add(
         print()
 
     collection = apply_queries(
-        ldb_dir,
+        client,
         data_object_hashes,
         annotation_hashes,
         query_args,
@@ -479,7 +476,7 @@ def add_to_collection_dir(
 
 
 def process_args_for_delete(
-    ldb_dir: Path,
+    client: LDBClient,
     paths: Sequence[str],
 ) -> List[str]:
     if not paths:
@@ -487,14 +484,14 @@ def process_args_for_delete(
         arg_type = ArgType.WORKSPACE_DATASET
     else:
         arg_type = get_arg_type(paths)
-    return DELETE_FUNCTIONS[arg_type](ldb_dir, paths)
+    return DELETE_FUNCTIONS[arg_type](client, paths)
 
 
-def dataset_for_delete(ldb_dir: Path, paths: Sequence[str]) -> List[str]:
+def dataset_for_delete(client: LDBClient, paths: Sequence[str]) -> List[str]:
     dataset_identifiers = parse_dataset_paths(paths)
     collections = [
         get_collection_from_dataset_identifier(
-            ldb_dir,
+            client,
             ds_name,
             ds_version,
         )
@@ -507,14 +504,14 @@ def dataset_for_delete(ldb_dir: Path, paths: Sequence[str]) -> List[str]:
 
 
 def workspace_dataset_for_delete(
-    ldb_dir: Path,
+    client: LDBClient,
     paths: Sequence[str],
 ) -> List[str]:
-    return list(workspace_dataset_for_add(ldb_dir, paths)[0])
+    return list(workspace_dataset_for_add(client, paths)[0])
 
 
 def data_object_for_delete(
-    ldb_dir: Path,  # pylint: disable=unused-argument
+    client: LDBClient,  # pylint: disable=unused-argument
     paths: Sequence[str],
 ) -> List[str]:
     try:
@@ -528,14 +525,14 @@ def data_object_for_delete(
 
 
 def path_for_delete(
-    ldb_dir: Path,
+    client: LDBClient,
     paths: Sequence[str],
 ) -> List[str]:
     return [
         f.value
         for f in data_object_hashes_from_path(
             paths,
-            get_storage_locations(ldb_dir),
+            get_storage_locations(client.ldb_dir),
         )
     ]
 
@@ -567,7 +564,7 @@ def data_object_hashes_from_path(
         yield FileHash(FileSystemPath(fs, path), get_file_hash(fs, path))
 
 
-DELETE_FUNCTIONS: Dict[ArgType, Callable[[Path, Sequence[str]], List[str]]] = {
+DELETE_FUNCTIONS: Dict[ArgType, Callable[["LDBClient", Sequence[str]], List[str]]] = {
     ArgType.DATASET: dataset_for_delete,
     ArgType.WORKSPACE_DATASET: workspace_dataset_for_delete,
     ArgType.DATA_OBJECT: data_object_for_delete,
@@ -586,6 +583,7 @@ def delete(
             "Must provide either a query or at least one path",
         )
     ldb_dir = get_ldb_instance()
+    client = LDBClient(ldb_dir)
 
     workspace_path = Path(os.path.normpath(workspace_path))
     ds_name = load_workspace_dataset(workspace_path).dataset_name
@@ -593,7 +591,7 @@ def delete(
     collection_dir_path = workspace_path / WorkspacePath.COLLECTION
 
     data_object_hashes = select_data_object_hashes(
-        ldb_dir,
+        client,
         paths,
         query_args,
         warn=False,
@@ -634,6 +632,7 @@ def delete_from_index(
             "Must provide either a query or at least one path",
         )
     ldb_dir = get_ldb_instance()
+    client = LDBClient(ldb_dir)
 
     ds_ident = f"{DATASET_PREFIX}{ROOT}"
     collection_dir_path = ldb_dir / InstanceDir.DATA_OBJECT_INFO
@@ -641,7 +640,7 @@ def delete_from_index(
         paths = [f"{DATASET_PREFIX}{ROOT}"]
 
     data_object_hashes = select_data_object_hashes(
-        ldb_dir,
+        client,
         paths,
         query_args,
         warn=False,
@@ -649,7 +648,7 @@ def delete_from_index(
     data_object_hashes = list(data_object_hashes)
     list(
         check_datasets_for_data_objects(
-            ldb_dir,
+            client,
             data_object_hashes,
             error=True,
         ),
@@ -718,50 +717,8 @@ def delete_missing_from_collection_dir(
     return num_deleted, deleted_data_object_hashes
 
 
-def get_current_annotation_hash(ldb_dir: Path, data_object_hash: str) -> str:
-    data_object_dir = get_hash_path(
-        ldb_dir / InstanceDir.DATA_OBJECT_INFO,
-        data_object_hash,
-    )
-    if not data_object_dir.is_dir():
-        raise DataObjectNotFoundError(
-            f"Data object not found: {DATA_OBJ_ID_PREFIX}{data_object_hash}",
-        )
-    try:
-        return (data_object_dir / "current").read_text()
-    except FileNotFoundError:
-        return ""
-
-
-def get_current_annotation_hashes(
-    ldb_dir: Path,
-    data_object_hashes: Iterable[str],
-) -> List[str]:
-    return [get_current_annotation_hash(ldb_dir, d) for d in data_object_hashes]
-
-
-def get_current_annotation_hashes_from_file_hashes(
-    ldb_dir: Path,
-    data_object_hashes: Iterable[FileHash],
-) -> List[str]:
-    result = []
-    for file_hash in data_object_hashes:
-        try:
-            annot_hash = get_current_annotation_hash(ldb_dir, file_hash.value)
-        except DataObjectNotFoundError:
-            fs, path = file_hash.fs_path
-            path = unstrip_protocol(fs, path)
-            raise DataObjectNotFoundError(  # pylint: disable=raise-missing-from
-                "Data object not found: "
-                f"{DATA_OBJ_ID_PREFIX}{file_hash.value} "
-                f"(path={path})",
-            )
-        result.append(annot_hash)
-    return result
-
-
 def process_args_for_ls(
-    ldb_dir: Path,
+    client: LDBClient,
     paths: Sequence[str],
 ) -> AddInput:
     if not paths:
@@ -769,21 +726,20 @@ def process_args_for_ls(
         arg_type = ArgType.WORKSPACE_DATASET
     else:
         arg_type = get_arg_type(paths)
-    return LS_FUNCTIONS[arg_type](ldb_dir, paths)
+    return LS_FUNCTIONS[arg_type](client, paths)
 
 
-def path_for_ls(ldb_dir: Path, paths: Sequence[str]) -> AddInput:
+def path_for_ls(client: LDBClient, paths: Sequence[str]) -> AddInput:
     hashes = []
     for fs, path in get_data_object_storage_files(
         paths,
-        get_storage_locations(ldb_dir),
+        get_storage_locations(client.ldb_dir),
     ):
         data_object_hash = get_file_hash(fs, path)
         try:
-            annotation_hash = get_current_annotation_hash(
-                ldb_dir,
-                data_object_hash,
-            )
+            annotation_hash: str = list(
+                client.db.get_current_annotation_hashes([data_object_hash])
+            )[0]
         except DataObjectNotFoundError as exc:
             raise DataObjectNotFoundError(
                 "Data object not found: "
@@ -802,7 +758,7 @@ def path_for_ls(ldb_dir: Path, paths: Sequence[str]) -> AddInput:
     )
 
 
-LS_FUNCTIONS: Dict[ArgType, Callable[[Path, Sequence[str]], AddInput]] = {
+LS_FUNCTIONS: Dict[ArgType, Callable[["LDBClient", Sequence[str]], AddInput]] = {
     ArgType.DATASET: dataset_for_add,
     ArgType.WORKSPACE_DATASET: workspace_dataset_for_add,
     ArgType.DATA_OBJECT: data_object_for_add,
@@ -811,23 +767,23 @@ LS_FUNCTIONS: Dict[ArgType, Callable[[Path, Sequence[str]], AddInput]] = {
 
 
 def select_data_object_hashes(
-    ldb_dir: Path,
+    client: LDBClient,
     paths: Sequence[str],
     query_args: Iterable[OpDef],
     warn: bool = True,
 ) -> Iterable[str]:
     if not query_args:
         data_object_hashes: Iterable[str] = process_args_for_delete(
-            ldb_dir,
+            client,
             paths,
         )
     else:
         data_object_hashes, annotation_hashes, _, _ = process_args_for_ls(
-            ldb_dir,
+            client,
             paths,
         )
         collection = apply_queries(
-            ldb_dir,
+            client,
             data_object_hashes,
             annotation_hashes,
             query_args,
@@ -847,6 +803,7 @@ def sync(
         paths = ["."]
 
     ldb_dir = get_ldb_instance()
+    client = LDBClient(ldb_dir)
     workspace_path = Path(os.path.normpath(workspace_path))
     ds_name = load_workspace_dataset(workspace_path).dataset_name
     ds_ident = format_dataset_identifier(ds_name)
@@ -854,7 +811,7 @@ def sync(
     collection_dir_path.mkdir(exist_ok=True)
 
     data_object_hashes, annotation_hashes, message, _ = process_args_for_add(
-        ldb_dir,
+        client,
         paths,
     )
     if message:
@@ -863,7 +820,7 @@ def sync(
 
     collection = list(
         apply_queries(
-            ldb_dir,
+            client,
             data_object_hashes,
             annotation_hashes,
             query_args,

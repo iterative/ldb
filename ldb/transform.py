@@ -25,14 +25,10 @@ from funcy.objects import cached_property
 from ldb import config
 from ldb.config import load_first
 from ldb.dataset import (
-    DatasetVersion,
     OpDef,
-    get_dataset,
-    get_dataset_version_hash,
-    iter_collection_dir,
 )
 from ldb.exceptions import LDBException
-from ldb.path import Filename, InstanceDir, WorkspacePath
+from ldb.path import Filename, WorkspacePath
 from ldb.utils import (
     ROOT,
     StrEnum,
@@ -40,9 +36,7 @@ from ldb.utils import (
     get_hash_path,
     hash_data,
     json_dumps,
-    load_data_file,
     parse_dataset_identifier,
-    write_data_file,
 )
 from ldb.workspace import load_workspace_dataset
 
@@ -196,10 +190,7 @@ class Transform:
     @classmethod
     def all(cls, client: "LDBClient") -> List["Transform"]:
         cls._save_builtins(client)
-        result = []
-        for f in iter_collection_dir(client.ldb_dir / InstanceDir.TRANSFORMS):
-            result.append(cls(**load_data_file(Path(f))))
-        return result
+        return list(client.db.get_transform_all())
 
     def to_dict(self) -> Dict[str, Union[str, Tuple[str, ...]]]:
         return {
@@ -264,7 +255,7 @@ def add_transform(
     ds_ident = format_dataset_identifier(ds_name)
 
     data_object_hashes = select_data_object_hashes(
-        get_ldb_instance(),
+        client,
         paths,
         query_args,
         warn=False,
@@ -434,25 +425,11 @@ def dataset_identifier_to_transform_ids(
     )
     if dataset_name == ROOT:
         return {}
-    dataset = get_dataset(client.ldb_dir, dataset_name)
-    dataset_version_hash = get_dataset_version_hash(
-        dataset,
-        dataset_version,
+
+    dataset_version_obj, _ = client.db.get_dataset_version_by_name(
+        dataset_name, dataset_version
     )
-    dataset_version_obj = DatasetVersion.parse(
-        load_data_file(
-            get_hash_path(
-                client.ldb_dir / InstanceDir.DATASET_VERSIONS,
-                dataset_version_hash,
-            ),
-        ),
-    )
-    return load_data_file(  # type: ignore[no-any-return]
-        get_hash_path(
-            client.ldb_dir / InstanceDir.TRANSFORM_MAPPINGS,
-            dataset_version_obj.transform_mapping_id,
-        ),
-    )
+    return dict(client.db.get_transform_mapping(dataset_version_obj.transform_mapping_id))
 
 
 def get_transform_infos_from_items(
@@ -472,21 +449,3 @@ def transform_dir_to_object(transform_dir: Path) -> Dict[str, List[str]]:
     return dict(
         sorted(get_transform_mapping_dir_items(transform_dir)),
     )
-
-
-def save_transform_object(client: "LDBClient", workspace_path: Path) -> str:
-    transform_obj = transform_dir_to_object(
-        workspace_path / WorkspacePath.TRANSFORM_MAPPING,
-    )
-    transform_obj_bytes = json_dumps(transform_obj).encode()
-    transform_hash = hash_data(transform_obj_bytes)
-    transform_path = get_hash_path(
-        client.ldb_dir / InstanceDir.TRANSFORM_MAPPINGS,
-        transform_hash,
-    )
-    write_data_file(
-        transform_path,
-        transform_obj_bytes,
-        overwrite_existing=False,
-    )
-    return transform_hash

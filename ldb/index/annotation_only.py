@@ -46,7 +46,7 @@ class AnnotationOnlyIndexer(Indexer):
                 for path in paths:
                     item = AnnotationOnlyIndexingItem(
                         self.ldb_dir,
-                        self.db,
+                        self.client,
                         current_time(),
                         self.tags,
                         self.annot_merge_strategy,
@@ -83,7 +83,7 @@ class SingleAnnotationIndexer(Indexer):
                     for annot in content:
                         item = SingleAnnotationIndexingItem(
                             self.ldb_dir,
-                            self.db,
+                            self.client,
                             current_time(),
                             self.tags,
                             self.annot_merge_strategy,
@@ -129,7 +129,7 @@ class AnnotationOnlyIndexingItem(AnnotationFileIndexingItem):
     @cached_property
     def data_object_meta(self) -> DataObjectMeta:
         data_object_id = self.data_object_hash
-        record = self.db.get_data_object_meta(data_object_id)
+        record = self.client.db.get_data_object_meta(data_object_id)
         if record is None:
             raise DataObjectNotFoundError(
                 f"Data object not found: {DATA_OBJ_ID_PREFIX}{data_object_id}"
@@ -190,7 +190,7 @@ class AnnotationOnlyIndexingItem(AnnotationFileIndexingItem):
             fs = fs_cls(**loc.options) if loc is not None else fs_cls()
             data_obj_item = DataObjectFileIndexingItem(
                 self.ldb_dir,
-                self.db,
+                self.client,
                 current_time(),
                 self.tags,
                 self.annot_merge_strategy,
@@ -241,7 +241,7 @@ class AnnotationOnlyIndexingItem(AnnotationFileIndexingItem):
         else:
             transform_hashes = []
             for transform_info in self.transform_infos:
-                transform_info.save(self.ldb_dir)
+                transform_info.save(self.client)
                 transform_hashes.append(transform_info.transform.obj_id)
             transform_hashes.sort()
 
