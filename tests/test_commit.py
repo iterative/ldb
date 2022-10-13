@@ -2,8 +2,10 @@ import getpass
 import os
 from pathlib import Path
 
-from ldb.dataset import CommitInfo, Dataset, DatasetVersion
+from ldb.core import LDBClient
+from ldb.dataset import CommitInfo, Dataset
 from ldb.main import main
+from ldb.objects.dataset_version import DatasetVersion
 from ldb.path import InstanceDir
 from ldb.utils import current_time, load_data_file
 
@@ -14,6 +16,7 @@ def test_commit_new_dataset(
     workspace_path,
     transform_infos,
 ):
+    client = LDBClient(ldb_instance)
     dir_to_add = os.fspath(data_dir / "fashion-mnist/original")
     main(["index", "-m", "bare", dir_to_add])
     main(["add", dir_to_add])
@@ -21,30 +24,15 @@ def test_commit_new_dataset(
     main(["transform", "-r", "self,rotate-45,rotate-90", "--limit", "3"])
     ret = main(["commit", "-m", "create a new dataset"])
 
-    collection_file_paths = list(
-        (ldb_instance / InstanceDir.COLLECTIONS).glob("*/*"),
-    )
-    transform_mapping_file_paths = list(
-        (ldb_instance / InstanceDir.TRANSFORM_MAPPINGS).glob("*/*"),
-    )
-    dataset_version_file_paths = list(
-        (ldb_instance / InstanceDir.DATASET_VERSIONS).glob("*/*"),
-    )
-    dataset_file_paths = list((ldb_instance / InstanceDir.DATASETS).glob("*"))
+    collection_ids = list(client.db.get_collection_id_all())
+    transform_mapping_ids = list(client.db.get_transform_mapping_id_all())
+    dataset_version_ids = list(client.db.get_dataset_version_id_all())
+    datasets = list(client.db.get_dataset_all())
 
-    collection_obj = load_data_file(collection_file_paths[0])
-    transform_mapping_obj = load_data_file(transform_mapping_file_paths[0])
-    dataset_version_obj = DatasetVersion.parse(
-        load_data_file(dataset_version_file_paths[0]),
-    )
-    dataset_obj = Dataset.parse(load_data_file(dataset_file_paths[0]))
-    collection_hash = collection_file_paths[0].parent.name + collection_file_paths[0].name
-    transform_mapping_hash = (
-        transform_mapping_file_paths[0].parent.name + transform_mapping_file_paths[0].name
-    )
-    dataset_version_hash = (
-        dataset_version_file_paths[0].parent.name + dataset_version_file_paths[0].name
-    )
+    collection_obj = dict(client.db.get_collection(collection_ids[0]))
+    transform_mapping_obj = dict(client.db.get_transform_mapping(transform_mapping_ids[0]))
+    dataset_version_obj = client.db.get_dataset_version(dataset_version_ids[0])
+    dataset_obj = datasets[0]
 
     # skip checking the timestamps
     curr_time = current_time()
@@ -55,27 +43,28 @@ def test_commit_new_dataset(
     expected_dataset_version_obj = DatasetVersion(
         version=1,
         parent="",
-        collection=collection_hash,
-        transform_mapping_id=transform_mapping_hash,
+        collection=collection_ids[0],
+        transform_mapping_id=transform_mapping_ids[0],
         tags=[],
         commit_info=CommitInfo(
             created_by=expected_username,
             commit_time=curr_time,
             commit_message="create a new dataset",
         ),
+        oid=dataset_version_ids[0],
     )
     expected_dataset_obj = Dataset(
         name="my-dataset",
         created_by=expected_username,
         created=curr_time,
-        versions=[dataset_version_hash],
+        versions=[dataset_version_ids[0]],
     )
 
     assert ret == 0
-    assert len(collection_file_paths) == 1
-    assert len(transform_mapping_file_paths) == 1
-    assert len(dataset_version_file_paths) == 1
-    assert len(dataset_file_paths) == 1
+    assert len(collection_ids) == 1
+    assert len(transform_mapping_ids) == 1
+    assert len(dataset_version_ids) == 1
+    assert len(datasets) == 1
     assert len(collection_obj) == 32
     assert len(transform_mapping_obj) == 10
     assert sum(bool(a) for a in collection_obj.values()) == 23
