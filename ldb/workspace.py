@@ -5,9 +5,9 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Optional, Union
 
-from ldb.dataset import DatasetVersion, get_collection_dir_items
+from ldb.dataset import get_collection_dir_items
 from ldb.exceptions import WorkspaceDatasetNotFoundError, WorkspaceError
-from ldb.path import InstanceDir, WorkspacePath
+from ldb.path import WorkspacePath
 from ldb.utils import (
     DATASET_PREFIX,
     ROOT,

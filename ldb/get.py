@@ -4,7 +4,7 @@ from typing import Iterable, Optional, Sequence
 
 from ldb.add import add, paths_to_transforms
 from ldb.config import get_ldb_dir
-from ldb.core import LDBClient, init_quickstart
+from ldb.core import init_quickstart
 from ldb.data_formats import Format
 from ldb.dataset import OpDef
 from ldb.exceptions import LDBException, WorkspaceError

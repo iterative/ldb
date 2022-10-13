@@ -27,11 +27,7 @@ from typing import (
 from funcy.objects import cached_property
 
 from ldb.collections import LDBMappingCache
-from ldb.exceptions import (
-    DataObjectNotFoundError,
-    DatasetNotFoundError,
-    LDBException,
-)
+from ldb.exceptions import DatasetNotFoundError, LDBException
 from ldb.iter_utils import take
 from ldb.op_type import OpType
 from ldb.path import InstanceDir
@@ -44,7 +40,6 @@ from ldb.query.search import (
 )
 from ldb.typing import JSONDecoded, JSONObject
 from ldb.utils import (
-    DATA_OBJ_ID_PREFIX,
     ROOT,
     format_dataset_identifier,
     format_datetime,
