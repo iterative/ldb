@@ -269,3 +269,13 @@ def make_target_dir(path: Union[str, Path], parents: bool = False) -> bool:
     else:
         created = True
     return created
+
+
+def delete_file(path: Union[str, Path]) -> bool:
+    # Skip files that are not found or already deleted
+    # Or cannot be deleted due to permission errors
+    try:
+        os.remove(path)
+    except OSError:
+        return False
+    return True

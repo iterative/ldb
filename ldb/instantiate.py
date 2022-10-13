@@ -3,6 +3,7 @@ import os
 import shutil
 import subprocess
 import tempfile
+import warnings
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import suppress
 from dataclasses import dataclass, field
@@ -41,6 +42,7 @@ from ldb.transform import DEFAULT, TransformInfo, TransformType
 from ldb.typing import JSONDecoded, JSONObject
 from ldb.utils import (
     DATA_OBJ_ID_PREFIX,
+    delete_file,
     get_hash_path,
     json_dumps,
     load_data_file,
@@ -73,6 +75,12 @@ class InstantiateResult(NamedTuple):
     annotation_paths: Sequence[str]
     num_data_objects: int
     num_annotations: int
+
+    def num_data_objects_succeeded(self) -> int:
+        return sum(bool(d) for d in self.data_object_paths)
+
+    def num_annotations_succeeded(self) -> int:
+        return sum(bool(a) for a in self.annotation_paths)
 
 
 def instantiate(
@@ -216,18 +224,55 @@ def instantiate_collection(
     return result
 
 
+def deinstantiate_collection(
+    ldb_dir: Path,
+    collection: Mapping[str, Optional[str]],
+    dest: Path,
+    transform_infos: Optional[TransformInfoMapping] = None,
+    fmt: str = Format.BARE,
+    params: Optional[Mapping[str, Any]] = None,
+) -> InstantiateResult:
+    try:
+        fmt = INSTANTIATE_FORMATS[fmt]
+    except KeyError as exc:
+        raise ValueError(f"Not a valid instantiation format: {fmt}") from exc
+    if params is None:
+        params = {}
+    storage_locations = get_storage_locations(ldb_dir)
+
+    config = InstConfig(
+        ldb_dir=ldb_dir,
+        dest_dir=dest,
+        intermediate_dir=dest,
+        storage_locations=storage_locations,
+        transform_infos=transform_infos or {},
+        params=params,
+    )
+    result = instantiate_collection_directly(
+        config,
+        collection,
+        fmt,
+        deinstantiate=True,
+    )
+    return result
+
+
 def instantiate_collection_directly(
     config: InstConfig,
     collection: Mapping[str, Optional[str]],
     fmt: str,
+    deinstantiate: bool = False,
 ) -> InstantiateResult:
     fmt = INSTANTIATE_FORMATS[fmt]
     if fmt in (Format.STRICT, Format.BARE):
-        return copy_pairs(
-            config,
-            collection,
-            fmt == Format.STRICT,
+        return copy_pairs(config, collection, fmt == Format.STRICT, deinstantiate=deinstantiate)
+    if deinstantiate:
+        warnings.warn(
+            f"Deinstantiation not implemented for format: {fmt}",
+            RuntimeWarning,
+            stacklevel=2,
         )
+        return InstantiateResult([], [], 0, 0)
     if fmt == Format.ANNOT:
         single_file = config.params.get("single-file", False)
         if single_file:
@@ -322,9 +367,7 @@ class InstItem:
     def data_object_dest(self) -> str:
         return self.base_dest + self.ext.lower()
 
-    def copy_data_object(
-        self,
-    ) -> str:
+    def copy_data_object(self) -> str:
         fs_protocol: FSProtocol = self.data_object_meta["fs"]["protocol"]
         protocol: str = first_protocol(fs_protocol)
         path: str = self.data_object_meta["fs"]["path"]
@@ -346,6 +389,18 @@ class InstItem:
 
     def instantiate(self) -> ItemCopyResult:
         return self.copy_files()
+
+    def delete_data_object(self) -> str:
+        dest = self.data_object_dest
+        if delete_file(dest):
+            return dest
+        return ""
+
+    def delete_files(self) -> ItemCopyResult:
+        return ItemCopyResult(data_object=self.delete_data_object())
+
+    def deinstantiate(self) -> ItemCopyResult:
+        return self.delete_files()
 
 
 def pipe_to_proc(
@@ -401,6 +456,22 @@ class RawPairInstItem(InstItem):
             annotation_path = ""
         return ItemCopyResult(
             data_object=self.copy_data_object(),
+            annotation=annotation_path,
+        )
+
+    def delete_annotation_file(self) -> str:
+        dest = self.annotation_dest
+        if delete_file(dest):
+            return dest
+        return ""
+
+    def delete_files(self) -> ItemCopyResult:
+        if self.annotation_hash:
+            annotation_path = self.delete_annotation_file()
+        else:
+            annotation_path = ""
+        return ItemCopyResult(
+            data_object=self.delete_data_object(),
             annotation=annotation_path,
         )
 
@@ -472,6 +543,8 @@ class PairInstItem(RawPairInstItem):
                     f"Invalid transform type: {info.transform.transform_type}",
                 )
         return copy_result
+
+    # TODO: Add deinstantiate for transformed files here
 
 
 @dataclass
@@ -585,13 +658,19 @@ def get_prefix_ext(path: str) -> Tuple[str, str]:
 
 def instantiate_items(
     items: Collection[InstItem],
+    deinstantiate: bool = False,
 ) -> Tuple[List[str], List[str]]:
     with ThreadPoolExecutor(max_workers=4 * (os.cpu_count() or 1)) as pool:
         with get_progressbar(transient=True) as progress:
-            task = progress.add_task("Instantiate", total=len(items))
+            task = progress.add_task(
+                "Deinstantiate" if deinstantiate else "Instantiate", total=len(items)
+            )
 
             def worker(item: InstItem) -> ItemCopyResult:
-                result = item.instantiate()
+                if deinstantiate:
+                    result = item.deinstantiate()
+                else:
+                    result = item.instantiate()
                 progress.update(task, advance=1)
                 return result
 
@@ -605,6 +684,7 @@ def copy_pairs(
     config: InstConfig,
     collection: Mapping[str, Optional[str]],
     strict: bool = False,
+    deinstantiate: bool = False,
 ) -> InstantiateResult:
     items: List[Union[PairInstItem, RawPairInstItem]] = []
     num_annotations = 0
@@ -629,7 +709,7 @@ def copy_pairs(
                 annotation_hash,
             )
         items.append(item)
-    data_obj_paths, annot_paths = instantiate_items(items)
+    data_obj_paths, annot_paths = instantiate_items(items, deinstantiate=deinstantiate)
     return InstantiateResult(
         data_obj_paths,
         annot_paths,

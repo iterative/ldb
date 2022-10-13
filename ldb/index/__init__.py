@@ -153,6 +153,9 @@ def index(
             num_transforms,
             ds_name,
             str(workspace_path),
+            False,
+            0,
+            0,
         )
     return indexer.result
 
