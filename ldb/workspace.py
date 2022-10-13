@@ -3,7 +3,7 @@ import shutil
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Iterator, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Optional, Union
 
 from ldb.dataset import DatasetVersion, get_collection_dir_items
 from ldb.exceptions import WorkspaceDatasetNotFoundError, WorkspaceError
@@ -12,10 +12,12 @@ from ldb.utils import (
     DATASET_PREFIX,
     ROOT,
     format_datetime,
-    get_hash_path,
     load_data_file,
     parse_datetime,
 )
+
+if TYPE_CHECKING:
+    from ldb.core import LDBClient
 
 
 @dataclass
@@ -45,7 +47,7 @@ class WorkspaceDataset:
 
 
 def workspace_dataset_is_clean(
-    ldb_dir: Path,
+    client: "LDBClient",
     workspace_dataset_obj: WorkspaceDataset,
     workspace_path: Path,
 ) -> bool:
@@ -54,16 +56,9 @@ def workspace_dataset_is_clean(
     )
     if not workspace_dataset_obj.parent:
         return not ws_collection
-    dataset_version_obj = DatasetVersion.from_id(
-        ldb_dir,
-        workspace_dataset_obj.parent,
-    )
-    collection_obj = load_data_file(
-        get_hash_path(
-            ldb_dir / InstanceDir.COLLECTIONS,
-            dataset_version_obj.collection,
-        ),
-    )
+
+    dataset_version_obj = client.db.get_dataset_version(workspace_dataset_obj.parent)
+    collection_obj = dict(client.db.get_collection(dataset_version_obj.collection))
     if ws_collection != collection_obj:
         return False
 
@@ -74,11 +69,8 @@ def workspace_dataset_is_clean(
     ws_transform_mapping = transform_dir_to_object(
         workspace_path / WorkspacePath.TRANSFORM_MAPPING,
     )
-    transform_obj: Dict[str, List[str]] = load_data_file(
-        get_hash_path(
-            ldb_dir / InstanceDir.TRANSFORM_MAPPINGS,
-            dataset_version_obj.transform_mapping_id,
-        ),
+    transform_obj: Dict[str, List[str]] = client.db.get_transform_mapping(
+        dataset_version_obj.transform_mapping_id,
     )
     return ws_transform_mapping == transform_obj
 

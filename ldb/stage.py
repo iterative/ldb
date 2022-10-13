@@ -4,9 +4,9 @@ from pathlib import Path
 from typing import Dict, List, Mapping, Optional, Sequence, Tuple
 
 from ldb.config import get_ldb_dir
-from ldb.core import init_quickstart
+from ldb.core import LDBClient, init_quickstart
 from ldb.dataset import Dataset, DatasetVersion
-from ldb.exceptions import LDBException
+from ldb.exceptions import DatasetNotFoundError, LDBException
 from ldb.path import InstanceDir, WorkspacePath
 from ldb.pull import get_collection_with_updated_annotations
 from ldb.utils import (
@@ -71,6 +71,7 @@ def stage_with_instance(  # pylint: disable=too-many-statements
     force: bool = False,
     make_parent_dirs: bool = False,
 ) -> None:
+    client = LDBClient(ldb_dir)
     ds_name, ds_version_num = parse_dataset_identifier(dataset_identifier)
     if ds_name == ROOT:
         raise ValueError(
@@ -93,7 +94,7 @@ def stage_with_instance(  # pylint: disable=too-many-statements
                 pass
             else:
                 if not workspace_dataset_is_clean(
-                    ldb_dir,
+                    client,
                     curr_workspace_ds_obj,
                     workspace_path,
                 ):
@@ -111,10 +112,10 @@ def stage_with_instance(  # pylint: disable=too-many-statements
         auto_pull=False,
     )
     try:
-        dataset_obj = Dataset.parse(
-            load_data_file(ldb_dir / InstanceDir.DATASETS / ds_name),
+        dataset_version_obj, ds_version_num = client.db.get_dataset_version_by_name(
+            ds_name, ds_version_num
         )
-    except FileNotFoundError as exc:
+    except DatasetNotFoundError as exc:
         if ds_version_num is not None:
             ds_ident = format_dataset_identifier(ds_name)
             raise LDBException(
@@ -125,38 +126,10 @@ def stage_with_instance(  # pylint: disable=too-many-statements
         transform_obj = None
         message = f"Staged new dataset {dataset_identifier} at {os.fspath(workspace_path)!r}"
     else:
-        if ds_version_num is None:
-            dataset_version_hash = dataset_obj.versions[-1]
-            ds_version_num = len(dataset_obj.versions)
-        else:
-            try:
-                dataset_version_hash = dataset_obj.versions[ds_version_num - 1]
-            except IndexError as exc:
-                latest_dataset = format_dataset_identifier(
-                    ds_name,
-                    len(dataset_obj.versions),
-                )
-                raise LDBException(
-                    f"{dataset_identifier} does not exist\n"
-                    f"The latest version is {latest_dataset}"
-                ) from exc
-        dataset_version_obj = DatasetVersion.parse(
-            load_data_file(
-                get_hash_path(
-                    ldb_dir / InstanceDir.DATASET_VERSIONS,
-                    dataset_version_hash,
-                ),
-            ),
-        )
-        workspace_ds_obj.parent = dataset_version_hash
+        workspace_ds_obj.parent = dataset_version_obj.oid
         workspace_ds_obj.tags = dataset_version_obj.tags.copy()
         workspace_ds_obj.auto_pull = dataset_version_obj.auto_pull
-        collection_obj = load_data_file(
-            get_hash_path(
-                ldb_dir / InstanceDir.COLLECTIONS,
-                dataset_version_obj.collection,
-            ),
-        )
+        collection_obj = dict(client.db.get_collection(dataset_version_obj.collection))
         if workspace_ds_obj.auto_pull:
             collection_obj = dict(
                 get_collection_with_updated_annotations(
@@ -164,11 +137,8 @@ def stage_with_instance(  # pylint: disable=too-many-statements
                     collection_obj.keys(),
                 )[0],
             )
-        transform_obj = load_data_file(
-            get_hash_path(
-                ldb_dir / InstanceDir.TRANSFORM_MAPPINGS,
-                dataset_version_obj.transform_mapping_id,
-            ),
+        transform_obj = client.db.get_transform_mapping(
+            dataset_version_obj.transform_mapping_id
         )
         curr_dataset_ident = format_dataset_identifier(
             ds_name,

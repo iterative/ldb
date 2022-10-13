@@ -3,11 +3,7 @@ import os
 from pathlib import Path
 from typing import Optional
 
-from ldb.dataset import (
-    CommitInfo,
-    Dataset,
-    ensure_all_collection_dir_keys_contained,
-)
+from ldb.dataset import CommitInfo, Dataset
 from ldb.objects.collection import CollectionObject
 from ldb.objects.dataset_version import DatasetVersion
 from ldb.objects.transform_mapping import TransformMapping
@@ -57,20 +53,17 @@ def commit(
         raise ValueError("Dataset name cannot include version when committing")
 
     if workspace_dataset_is_clean(
-        ldb_dir,
+        client,
         workspace_ds,
         workspace_path,
     ):
         print("Nothing to commit.")
         return
-    ensure_all_collection_dir_keys_contained(
-        workspace_path / WorkspacePath.COLLECTION,
-        ldb_dir / InstanceDir.DATA_OBJECT_INFO,
-    )
     collection_obj = CollectionObject(
         collection_dir_to_object(workspace_path / WorkspacePath.COLLECTION)
     )
     collection_obj.digest()
+    client.db.check_for_missing_data_object_ids(collection_obj.keys())
     client.db.add_collection(collection_obj)
 
     # transform_hash = save_transform_object(ldb_dir, workspace_path)

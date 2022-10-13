@@ -7,7 +7,7 @@ from tomlkit.toml_document import TOMLDocument
 
 from ldb import config
 from ldb.config import ConfigType
-from ldb.core import get_ldb_instance
+from ldb.core import LDBClient, get_ldb_instance
 from ldb.dataset import Dataset, get_collection_dir_items
 from ldb.exceptions import WorkspaceError
 from ldb.main import main
@@ -107,6 +107,7 @@ def test_stage_cli_auto_pull(
     tmp_path,
     ldb_instance,
 ):
+    client = LDBClient(ldb_instance)
     workspace_path1 = tmp_path / "workspace1"
     workspace_path2 = tmp_path / "workspace2"
 
@@ -129,7 +130,7 @@ def test_stage_cli_auto_pull(
 
     workspace_ds = load_workspace_dataset(workspace_path2)
     is_clean = workspace_dataset_is_clean(
-        ldb_instance,
+        client,
         workspace_ds,
         workspace_path2,
     )
