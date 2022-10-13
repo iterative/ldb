@@ -22,11 +22,7 @@ from funcy.objects import cached_property
 from rich.progress import Progress
 
 from ldb.core import LDBClient
-from ldb.dataset import (
-    get_annotation,
-    get_collection_dir_keys,
-    get_root_collection_annotation_hash,
-)
+from ldb.dataset import get_annotation, get_root_collection_annotation_hash
 from ldb.db.abstract import AbstractDB
 from ldb.exceptions import (
     DataObjectNotFoundError,
@@ -285,12 +281,9 @@ class PairIndexer(Indexer):
             for path in paths:
                 fs_hashes[path] = get_file_hash(fs, path)
 
-        existing_hashes = set(
-            get_collection_dir_keys(
-                self.ldb_dir / InstanceDir.DATA_OBJECT_INFO,
-            ),
+        existing_hashes = self.client.db.get_existing_data_object_ids(
+            i for fs_values in self.hashes.values() for i in fs_values.values()
         )
-
         indexed_ephemeral_files, ephemeral_files = separate_indexed_files(
             existing_hashes,
             self.hashes,
