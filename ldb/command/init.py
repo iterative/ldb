@@ -19,6 +19,7 @@ def init_command(options: Namespace) -> None:
         force=options.force,
         read_any_cloud_location=False,
         db_type=options.database,
+        physical_workflow=options.default_physical,
     )
     set_default_instance(options.path, overwrite_existing=False)
 
@@ -45,6 +46,15 @@ def add_parser(
         default="file",
         choices=("file",),
         help="Database backend to use",
+    )
+    parser.add_argument(
+        "--default-physical",
+        action="store_true",
+        default=False,
+        help=(
+            "Use physical workflow by default to auto-instantiate/delete data objects "
+            "and annotations"
+        ),
     )
     parser.add_argument(  # type: ignore[attr-defined]
         "path",

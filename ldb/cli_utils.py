@@ -88,22 +88,24 @@ def add_physical_logical_params(parser: ArgumentParser) -> None:
     group = parser.add_mutually_exclusive_group()
     group.add_argument(
         "--physical",
-        action="store_true",
-        default=False,
+        action="store_const",
+        const="physical",
+        dest="physical",
         help="Use physical workflow to auto-instantiate/delete data objects and annotations",
     )
     group.add_argument(
         "--logical",
-        action="store_true",
-        default=False,
+        action="store_const",
+        const="logical",
+        dest="physical",
         help="Use logical workflow without auto-instantiating/deleting objects or annotations",
     )
 
 
-def using_physical_workflow(options: Namespace) -> bool:
-    if options.physical:
+def using_physical_workflow(physical: Optional[str]) -> bool:
+    if physical == "physical":
         return True
-    if options.logical:
+    if physical == "logical":
         return False
     cfg: TOMLDocument = config.load_first() or document()
     return bool(cfg.get("core", {}).get("physical_workflow", False))

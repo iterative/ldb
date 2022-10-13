@@ -20,7 +20,7 @@ def add_command(options: Namespace) -> None:
         Path("."),
         options.paths,
         options.query_args,
-        physical_workflow=using_physical_workflow(options),
+        physical_workflow=using_physical_workflow(options.physical),
     )
     print(result.summary())
 

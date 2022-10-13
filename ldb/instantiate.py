@@ -76,6 +76,12 @@ class InstantiateResult(NamedTuple):
     num_data_objects: int
     num_annotations: int
 
+    def num_data_objects_succeeded(self) -> int:
+        return sum(bool(d) for d in self.data_object_paths)
+
+    def num_annotations_succeeded(self) -> int:
+        return sum(bool(a) for a in self.annotation_paths)
+
 
 def instantiate(
     ldb_dir: Path,
@@ -386,8 +392,9 @@ class InstItem:
 
     def delete_data_object(self) -> str:
         dest = self.data_object_dest
-        delete_file(dest)
-        return dest
+        if delete_file(dest):
+            return dest
+        return ""
 
     def delete_files(self) -> ItemCopyResult:
         return ItemCopyResult(data_object=self.delete_data_object())
@@ -454,8 +461,9 @@ class RawPairInstItem(InstItem):
 
     def delete_annotation_file(self) -> str:
         dest = self.annotation_dest
-        delete_file(dest)
-        return dest
+        if delete_file(dest):
+            return dest
+        return ""
 
     def delete_files(self) -> ItemCopyResult:
         if self.annotation_hash:

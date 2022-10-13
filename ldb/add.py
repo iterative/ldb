@@ -94,12 +94,13 @@ class AddResult(NamedTuple):
     def summary(self) -> str:
         ds_ident = format_dataset_identifier(self.dataset_name)
         return (
-            f"Added {self.num_data_objects} data objects to {ds_ident} at "
-            f"ws:{self.workspace_path}\n"
-            f"Updated {self.num_transforms} transforms\n"
+            f"Added to {ds_ident} at ws:{self.workspace_path}\n"
+            f"  Selected data objects: {len(self.collection):9d}\n"
+            f"  New data objects:      {self.num_data_objects:9d}\n"
+            f"  Updated transforms:    {self.num_transforms:9d}"
             + (
-                f"Copied {self.num_inst_data_objects} data objects "
-                f"and {self.num_inst_annotations} annotations to workspace.\n"
+                f"\n  Copied data objects:   {self.num_inst_data_objects:9d}\n"
+                f"  Copied annotations:    {self.num_inst_annotations:9d}"
                 if self.physical_workflow
                 else ""
             )
@@ -596,14 +597,16 @@ def delete(
     )
     data_object_hashes = list(data_object_hashes)
 
+    print(f"Removing from working dataset {ds_ident} at ws:{workspace_path}")
+
     if physical_workflow:
         from ldb.instantiate import deinstantiate_collection
 
         # TODO: Handle other formats and transformations
         collection_dict = {a: "Any" for a in data_object_hashes}
         i_result = deinstantiate_collection(ldb_dir, collection_dict, workspace_path)
-        num_deinst_data_objects = i_result.num_data_objects
-        num_deinst_annotations = i_result.num_annotations
+        num_deinst_data_objects = i_result.num_data_objects_succeeded()
+        num_deinst_annotations = i_result.num_annotations_succeeded()
     num_deleted = delete_from_collection_dir(
         collection_dir_path,
         data_object_hashes,
@@ -613,12 +616,10 @@ def delete(
         workspace_path / WorkspacePath.TRANSFORM_MAPPING,
         data_object_hashes,
     )
-    print(f"Deleted {num_deleted} data objects from {ds_ident}")
+    print(f"  Removed data objects:  {num_deleted:9d}")
     if physical_workflow:
-        print(
-            f"Deleted {num_deinst_data_objects} data objects "
-            f"and {num_deinst_annotations} annotations from workspace."
-        )
+        print(f"  Deleted data objects:  {num_deinst_data_objects:9d}")
+        print(f"  Deleted annotations:   {num_deinst_annotations:9d}")
 
 
 def delete_from_index(
@@ -868,17 +869,18 @@ def sync(
     )
 
     data_object_hashes = {d for d, _ in collection}
-    print("Syncing working dataset...")
+    print(f"Syncing working dataset {ds_ident} at ws:{workspace_path}")
+    print(f"  Selected data objects: {len(collection):9d}")
     num_data_objects = add_to_collection_dir(
         collection_dir_path,
         collection,
     )
-    print(f"Added {num_data_objects} data objects to {ds_ident}")
+    print(f"  Added data objects:    {num_data_objects:9d}")
     num_deleted, deleted_data_object_hashes = delete_missing_from_collection_dir(
         collection_dir_path,
         data_object_hashes,
     )
-    print(f"Deleted {num_deleted} data objects from {ds_ident}")
+    print(f"  Removed data objects:  {num_deleted:9d}")
     if physical_workflow:
         from ldb.instantiate import (
             deinstantiate_collection,
@@ -890,17 +892,13 @@ def sync(
         i_result = instantiate_collection(ldb_dir, collection_dict, workspace_path, clean=False)
         num_inst_data_objects = i_result.num_data_objects
         num_inst_annotations = i_result.num_annotations
-        print(
-            f"Copied {num_inst_data_objects} data objects "
-            f"and {num_inst_annotations} annotations to workspace."
-        )
+        print(f"  Copied data objects:   {num_inst_data_objects:9d}")
+        print(f"  Copied annotations:    {num_inst_annotations:9d}")
 
         # TODO: Handle other formats and transformations
         collection_dict = {a: "Any" for a in deleted_data_object_hashes}
         i_result = deinstantiate_collection(ldb_dir, collection_dict, workspace_path)
-        num_deinst_data_objects = i_result.num_data_objects
-        num_deinst_annotations = i_result.num_annotations
-        print(
-            f"Deleted {num_deinst_data_objects} data objects "
-            f"and {num_deinst_annotations} annotations from workspace."
-        )
+        num_deinst_data_objects = i_result.num_data_objects_succeeded()
+        num_deinst_annotations = i_result.num_annotations_succeeded()
+        print(f"  Deleted data objects:  {num_deinst_data_objects:9d}")
+        print(f"  Deleted annotations:   {num_deinst_annotations:9d}")
