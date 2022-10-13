@@ -24,9 +24,7 @@ from funcy.objects import cached_property
 
 from ldb import config
 from ldb.config import load_first
-from ldb.dataset import (
-    OpDef,
-)
+from ldb.dataset import OpDef
 from ldb.exceptions import LDBException
 from ldb.path import Filename, WorkspacePath
 from ldb.utils import (
