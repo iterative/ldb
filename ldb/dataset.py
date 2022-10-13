@@ -189,13 +189,15 @@ def get_collection_from_dataset_identifier(
     dataset_name: str,
     dataset_version: Optional[int] = None,
 ) -> Dict[str, Optional[str]]:
-    if dataset_name == ROOT:
-        from ldb.core import LDBClient
+    from ldb.core import LDBClient
 
-        return dict(LDBClient(ldb_dir).db.get_root_collection())
-    dataset = get_dataset(ldb_dir, dataset_name)
-    dataset_version_hash = get_dataset_version_hash(dataset, dataset_version)
-    return get_collection(ldb_dir, dataset_version_hash)
+    client = LDBClient(ldb_dir)
+    if dataset_name == ROOT:
+        return dict(client.db.get_root_collection())
+    dataset_version_obj, _ = client.db.get_dataset_version_by_name(
+        dataset_name, dataset_version
+    )
+    return dict(client.db.get_collection(dataset_version_obj.collection))
 
 
 def get_collection_dir_keys(
