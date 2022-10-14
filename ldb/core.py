@@ -3,17 +3,18 @@ import os.path as osp
 import shlex
 import shutil
 from pathlib import Path
-from typing import Optional, Tuple, Type, Union
+from typing import TYPE_CHECKING, Optional, Tuple, Type, Union
 
 from funcy.objects import cached_property
 
 from ldb import config
 from ldb.config import get_default_instance_dir, get_global_base, get_ldb_dir
-from ldb.db.abstract import AbstractDB
-from ldb.db.file import FileDB
 from ldb.exceptions import LDBException, LDBInstanceNotFoundError
 from ldb.path import REQUIRED_INSTANCE_DIRS, Filename, GlobalDir
 from ldb.storage import StorageLocation, add_storage
+
+if TYPE_CHECKING:
+    from ldb.db.abstract import AbstractDB
 
 
 class LDBClient:
@@ -22,7 +23,9 @@ class LDBClient:
         self._db_type = db_type
 
     @cached_property
-    def db_info(self) -> Tuple[str, str, Type[AbstractDB]]:
+    def db_info(self) -> Tuple[str, str, Type["AbstractDB"]]:
+        from ldb.db.file import FileDB
+
         if not self._db_type:
             self._db_type = "file"
         if self._db_type == "file":
@@ -38,8 +41,8 @@ class LDBClient:
         return self.db_info[1]
 
     @cached_property
-    def db(self) -> AbstractDB:
-        cls: Type[AbstractDB]
+    def db(self) -> "AbstractDB":
+        cls: Type["AbstractDB"]
         _, path, cls = self.db_info
         return cls(path)
 

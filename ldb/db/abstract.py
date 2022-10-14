@@ -7,6 +7,7 @@ from typing import (
     Iterator,
     List,
     Optional,
+    Set,
     Tuple,
     cast,
 )
@@ -14,9 +15,14 @@ from typing import (
 from ldb.typing import JSONDecoded
 
 if TYPE_CHECKING:
+    from ldb.dataset import Dataset
     from ldb.index.utils import AnnotationMeta
     from ldb.index.utils import DataObjectMeta as DataObjectMetaT
     from ldb.objects.annotation import Annotation
+    from ldb.objects.collection import CollectionObject
+    from ldb.objects.dataset_version import DatasetVersion
+    from ldb.objects.transform_mapping import TransformMapping
+    from ldb.transform import Transform
 
 DataObjectMetaRecord = Tuple[str, "DataObjectMetaT"]
 AnnotationRecord = Tuple[str, JSONDecoded]
@@ -30,6 +36,11 @@ class AbstractDB(ABC):
         self.data_object_meta_list: List[DataObjectMetaRecord] = []
         self.annotation_map: Dict[str, "Annotation"] = {}
         self.data_object_annotation_list: List[DataObjectAnnotationRecord] = []
+        self.collection_map: Dict[str, "CollectionObject"] = {}
+        self.dataset_version_map: Dict[str, "DatasetVersion"] = {}
+        self.dataset_version_assignments: Dict[str, List["DatasetVersion"]] = {}
+        self.transforms: Set["Transform"] = set()
+        self.transform_mappings: Dict[str, "TransformMapping"] = {}
 
     @abstractmethod
     def init(self) -> None:
@@ -39,6 +50,11 @@ class AbstractDB(ABC):
         self.write_data_object_meta()
         self.write_annotation()
         self.write_data_object_annotation()
+        self.write_collection()
+        self.write_dataset_version()
+        self.write_dataset_assignment()
+        self.write_transform()
+        self.write_transform_mapping()
 
     def add_pair(
         self,
@@ -78,6 +94,10 @@ class AbstractDB(ABC):
 
     @abstractmethod
     def get_data_object_meta_all(self) -> Iterable[DataObjectMetaRecord]:
+        ...
+
+    @abstractmethod
+    def get_existing_data_object_ids(self, ids: Iterable[str]) -> Set[str]:
         ...
 
     def add_annotation(self, annotation: "Annotation") -> None:
@@ -146,6 +166,21 @@ class AbstractDB(ABC):
         ):
             yield data_object_id, annotation_id, result
 
+    def add_collection(self, collection_obj: "CollectionObject") -> None:
+        self.collection_map.setdefault(collection_obj.oid, collection_obj)
+
+    @abstractmethod
+    def write_collection(self) -> None:
+        ...
+
+    @abstractmethod
+    def get_collection(self, id: str) -> Iterable[Tuple[str, str]]:
+        ...
+
+    @abstractmethod
+    def get_collection_id_all(self) -> Iterable[str]:
+        ...
+
     @abstractmethod
     def get_root_collection(self) -> Iterable[Tuple[str, str]]:
         ...
@@ -158,4 +193,102 @@ class AbstractDB(ABC):
     def ls_collection(
         self, collection: Iterable[Tuple[str, Optional[str]]]
     ) -> Iterable[Tuple[str, str, str, int]]:
+        ...
+
+    def add_dataset_version(self, dataset_version: "DatasetVersion") -> None:
+        self.dataset_version_map.setdefault(dataset_version.oid, dataset_version)
+
+    @abstractmethod
+    def write_dataset_version(self) -> None:
+        ...
+
+    @abstractmethod
+    def get_dataset_version(self, id: str) -> "DatasetVersion":
+        ...
+
+    @abstractmethod
+    def get_dataset_version_many(self, ids: Iterable[str]) -> Iterator["DatasetVersion"]:
+        ...
+
+    @abstractmethod
+    def get_dataset_version_id_all(self) -> Iterable[str]:
+        ...
+
+    @abstractmethod
+    def get_dataset_version_by_name(
+        self, name: str, version: Optional[int] = None
+    ) -> Tuple["DatasetVersion", int]:
+        ...
+
+    def add_dataset_assignment(
+        self, dataset_name: str, dataset_version: "DatasetVersion"
+    ) -> None:
+        self.dataset_version_assignments.setdefault(dataset_name, []).append(dataset_version)
+
+    @abstractmethod
+    def write_dataset_assignment(self) -> None:
+        ...
+
+    # @abstractmethod
+    # def get_dataset_assignment_many(self, name: str) -> "DatasetVersion":
+    #    ...
+
+    @abstractmethod
+    def get_dataset(self, name: str) -> "Dataset":
+        ...
+
+    @abstractmethod
+    def get_dataset_many(self, names: Iterable[str]) -> Iterable["Dataset"]:
+        ...
+
+    @abstractmethod
+    def get_dataset_all(self) -> Iterable["Dataset"]:
+        ...
+
+    def add_transform(self, transform: "Transform") -> None:
+        self.transforms.add(transform)
+
+    @abstractmethod
+    def write_transform(self) -> None:
+        ...
+
+    @abstractmethod
+    def get_transform(self, id: str) -> "Transform":
+        ...
+
+    @abstractmethod
+    def get_transform_many(self, ids: Iterable[str]) -> Iterable["Transform"]:
+        ...
+
+    @abstractmethod
+    def get_transform_all(self) -> Iterable["Transform"]:
+        ...
+
+    def add_transform_mapping(self, transform_mapping: "TransformMapping") -> None:
+        self.transform_mappings.setdefault(transform_mapping.oid, transform_mapping)
+
+    @abstractmethod
+    def write_transform_mapping(self) -> None:
+        ...
+
+    @abstractmethod
+    def get_transform_mapping(self, id: str) -> Iterable[Tuple[str, List[str]]]:
+        ...
+
+    @abstractmethod
+    def get_transform_mapping_id_all(self) -> Iterable[str]:
+        ...
+
+    @abstractmethod
+    def check_for_missing_data_object_ids(self, ids: Iterable[str]) -> None:
+        ...
+
+    @abstractmethod
+    def get_current_annotation_hashes(self, data_object_ids: Iterable[str]) -> Iterable[str]:
+        ...
+
+    @abstractmethod
+    def get_annotation_version_hashes(
+        self, data_object_ids: Iterable[str], version: int = -1
+    ) -> Iterable[Tuple[str, str]]:
         ...
