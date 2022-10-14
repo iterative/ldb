@@ -7,7 +7,7 @@ from ldb.dataset import CommitInfo, Dataset
 from ldb.main import main
 from ldb.objects.dataset_version import DatasetVersion
 from ldb.path import InstanceDir
-from ldb.utils import current_time, load_data_file
+from ldb.utils import current_time
 
 
 def test_commit_new_dataset(
@@ -73,6 +73,7 @@ def test_commit_new_dataset(
 
 
 def test_commit_multiple_versions(data_dir, ldb_instance, workspace_path):
+    client = LDBClient(ldb_instance)
     commit_params = [
         ("false", data_dir / "fashion-mnist/original/has_both/test"),
         ("true", data_dir / "fashion-mnist/original/has_both/train/000[01]*"),
@@ -92,22 +93,13 @@ def test_commit_multiple_versions(data_dir, ldb_instance, workspace_path):
             ],
         )
 
-    collection_file_paths = list(
-        (ldb_instance / InstanceDir.COLLECTIONS).glob("*/*"),
-    )
-    dataset_version_file_paths = list(
-        (ldb_instance / InstanceDir.DATASET_VERSIONS).glob("*/*"),
-    )
-    dataset_file_paths = list((ldb_instance / InstanceDir.DATASETS).glob("*"))
-    for path_list in collection_file_paths, dataset_version_file_paths:
-        path_list.sort(key=lambda p: p.stat().st_mtime or 0)
+    collection_ids = list(client.db.get_collection_id_all())
+    dataset_version_ids = list(client.db.get_dataset_version_id_all())
+    datasets = list(client.db.get_dataset_all())
 
-    dataset_obj = Dataset.parse(load_data_file(dataset_file_paths[0]))
-
-    dataset_version_hashes = [p.parent.name + p.name for p in dataset_version_file_paths]
-    dataset_version_objects = [
-        DatasetVersion.parse(load_data_file(p)) for p in dataset_version_file_paths
-    ]
+    dataset_obj = datasets[0]
+    dataset_version_objects = list(client.db.get_dataset_version_many(dataset_version_ids))
+    dataset_version_objects.sort(key=lambda x: x.commit_info.commit_time)
 
     commit_times = [d.commit_info.commit_time for d in dataset_version_objects]
     auto_pull_values = [d.auto_pull for d in dataset_version_objects]
@@ -120,13 +112,11 @@ def test_commit_multiple_versions(data_dir, ldb_instance, workspace_path):
         name="my-dataset",
         created_by=getpass.getuser(),
         created=commit_times[0],
-        versions=dataset_version_hashes,
+        versions=dataset_version_ids,
     )
 
-    assert len(dataset_file_paths) == 1
-    assert [p.parent.name + p.name for p in collection_file_paths] == [
-        d.collection for d in dataset_version_objects
-    ]
+    assert len(datasets) == 1
+    assert set(collection_ids) == {d.collection for d in dataset_version_objects}
     assert commit_times[0] < commit_times[1] < commit_times[2]
     assert [d.commit_info.commit_message for d in dataset_version_objects] == expected_messages
     assert auto_pull_values == [False, True, False]
