@@ -10,6 +10,8 @@ from funcy.objects import cached_property
 from ldb import config
 from ldb.config import get_default_instance_dir, get_global_base, get_ldb_dir
 from ldb.data_formats import Format
+from ldb.db.duckdb import DuckDB
+from ldb.db.file import FileDB
 from ldb.exceptions import LDBException, LDBInstanceNotFoundError
 from ldb.path import REQUIRED_INSTANCE_DIRS, Filename, GlobalDir
 from ldb.storage import StorageLocation, add_storage
@@ -25,10 +27,14 @@ class LDBClient:
 
     @cached_property
     def db_info(self) -> Tuple[str, str, Type["AbstractDB"]]:
-        from ldb.db.file import FileDB
-
+        duckdb_path = osp.join(self.ldb_dir, "duckdb", "index.db")
         if not self._db_type:
-            self._db_type = "file"
+            if osp.isfile(duckdb_path):
+                self._db_type = "duckdb"
+            else:
+                self._db_type = "file"
+        if self._db_type == "duckdb":
+            return self._db_type, duckdb_path, DuckDB
         if self._db_type == "file":
             return self._db_type, self.ldb_dir, FileDB
         raise ValueError(f"Invalid db type: {self._db_type}")
@@ -149,7 +155,9 @@ def add_public_data_lakes(ldb_dir: Path) -> None:
 
 
 def is_ldb_instance(path: Path) -> bool:
-    return all((path / subdir).is_dir() for subdir in REQUIRED_INSTANCE_DIRS)
+    return osp.isfile(osp.join(path, "duckdb", "index.db")) or all(
+        (path / subdir).is_dir() for subdir in REQUIRED_INSTANCE_DIRS
+    )
 
 
 def get_ldb_instance(path: Optional[Path] = None) -> Path:
