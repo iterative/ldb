@@ -6,15 +6,23 @@ class LDBInstanceNotFoundError(LDBException):
     pass
 
 
-class DatasetError(LDBException):
+class RecordNotFoundError(LDBException):
     pass
 
 
-class DatasetNotFoundError(DatasetError):
+class CollectionNotFoundError(RecordNotFoundError):
     pass
 
 
-class DataObjectNotFoundError(LDBException):
+class DatasetNotFoundError(RecordNotFoundError):
+    pass
+
+
+class DatasetVersionNotFoundError(RecordNotFoundError):
+    pass
+
+
+class DataObjectNotFoundError(RecordNotFoundError):
     pass
 
 
