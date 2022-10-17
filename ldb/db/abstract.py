@@ -229,10 +229,6 @@ class AbstractDB(ABC):
     def write_dataset_assignment(self) -> None:
         ...
 
-    # @abstractmethod
-    # def get_dataset_assignment_many(self, name: str) -> "DatasetVersion":
-    #    ...
-
     @abstractmethod
     def get_dataset(self, name: str) -> "Dataset":
         ...
