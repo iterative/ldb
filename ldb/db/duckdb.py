@@ -112,6 +112,27 @@ class DuckDB(AbstractDB):
             )
             """,
         )
+        self.conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS dataset(
+                id UINTEGER PRIMARY KEY,
+                name VARCHAR UNIQUE,
+                created_by VARCHAR,
+                created TIMESTAMPTZ
+            )
+            """,
+        )
+        self.conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS dataset_assignment(
+                dataset_id UINTEGER,
+                dataset_version_id UINTEGER,
+                version_number UINTEGER,
+                FOREIGN KEY (dataset_id) REFERENCES dataset(id),
+                FOREIGN KEY (dataset_version_id) REFERENCES dataset_version(id),
+            )
+            """,
+        )
         self.conn.commit()
 
         self.add_dataset("root")
@@ -685,10 +706,16 @@ class DuckDB(AbstractDB):
         raise DatasetNotFoundError
 
     def write_dataset_assignment(self) -> None:
-        raise NotImplementedError
+        for name, dataset_versions in self.dataset_version_assignments.items():
+            pass
+            # get or create dataset
+            # add a new version
 
     def get_dataset(self, name: str) -> "Dataset":
-        raise DatasetNotFoundError
+        result = None
+        if result is None:
+            raise DatasetNotFoundError(f"Dataset not found: {name}")
+        return Dataset(result)
 
     def get_dataset_many(self, names: Iterable[str]) -> Iterable["Dataset"]:
         raise NotImplementedError
