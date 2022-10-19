@@ -571,7 +571,7 @@ class AnnotationOnlyInstItem(RawPairInstItem):
     def annotation_content(self) -> JSONDecoded:
         annotation: JSONObject = self.config.client.db.get_annotation(  # type: ignore[assignment]
             self.annotation_hash
-        )
+        )[1]
         fs_protocol: FSProtocol = self.data_object_meta["fs"]["protocol"]
         protocol: str = first_protocol(fs_protocol)
         path: str = self.data_object_meta["fs"]["path"]
