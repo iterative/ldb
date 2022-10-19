@@ -1,18 +1,31 @@
 import json
-from typing import TYPE_CHECKING, Iterable, Iterator, List, Optional, Set, Tuple
+from typing import (
+    TYPE_CHECKING,
+    Iterable,
+    Iterator,
+    List,
+    Optional,
+    Set,
+    Tuple,
+)
+
+import pandas as pd
 
 import duckdb
-import pandas as pd
-from ldb.dataset import CommitInfo
-from ldb.objects.dataset_version import DatasetVersion
-
+from ldb.dataset import CommitInfo, Dataset
 from ldb.db.abstract import (
     AbstractDB,
     AnnotationRecord,
     DataObjectAnnotationRecord,
     DataObjectMetaRecord,
 )
-from ldb.exceptions import DataObjectNotFoundError, DatasetNotFoundError, DatasetVersionNotFoundError
+from ldb.exceptions import (
+    CollectionNotFoundError,
+    DataObjectNotFoundError,
+    DatasetNotFoundError,
+    DatasetVersionNotFoundError,
+)
+from ldb.objects.dataset_version import DatasetVersion
 from ldb.utils import DATA_OBJ_ID_PREFIX, normalize_datetime
 
 if TYPE_CHECKING:
@@ -53,6 +66,9 @@ class DuckDB(AbstractDB):
             CREATE TABLE IF NOT EXISTS dynamic_dataset(id INTEGER PRIMARY KEY, name VARCHAR UNIQUE)
             """,
         )
+        self.conn.execute(
+            "CREATE SEQUENCE IF NOT EXISTS seq_dynamic_dataset_id START 1",
+        )
         # The primary key is commented out for now due to lack of proper update support
         # https://github.com/duckdb/duckdb/issues/3265#issuecomment-1090012268
         # TODO see if there's a workaround, such as deleting, then inserting
@@ -70,10 +86,6 @@ class DuckDB(AbstractDB):
             )
             """,
         )
-        self.conn.execute(
-            "CREATE SEQUENCE IF NOT EXISTS seq_dataset_id START 1",
-        )
-
         self.conn.execute(
             """
             CREATE TABLE IF NOT EXISTS collection(id VARCHAR PRIMARY KEY)
@@ -123,11 +135,14 @@ class DuckDB(AbstractDB):
             """,
         )
         self.conn.execute(
+            "CREATE SEQUENCE IF NOT EXISTS seq_dataset_id START 1",
+        )
+        self.conn.execute(
             """
             CREATE TABLE IF NOT EXISTS dataset_assignment(
-                dataset_id UINTEGER,
-                dataset_version_id UINTEGER,
-                version_number UINTEGER,
+                dataset_id UINTEGER NOT NULL,
+                dataset_version_id VARCHAR NOT NULL,
+                version_number UINTEGER NOT NULL,
                 FOREIGN KEY (dataset_id) REFERENCES dataset(id),
                 FOREIGN KEY (dataset_version_id) REFERENCES dataset_version(id),
             )
@@ -423,7 +438,7 @@ class DuckDB(AbstractDB):
         # if no members check for member set id
         result = self.conn.execute(  # type: ignore[assignment]
             """
-            SELECT data_object_id, annotation_id from dynamic_dataset_member
+            SELECT data_object_id, annotation_id from collection_member
             WHERE collection_id = ?
             """,
             [id],
@@ -479,7 +494,7 @@ class DuckDB(AbstractDB):
             for name in self.dataset_set:
                 try:
                     self.conn.execute(
-                        "INSERT INTO dynamic_dataset (id, name) VALUES(nextval('seq_dataset_id'), ?)",
+                        "INSERT INTO dynamic_dataset (id, name) VALUES(nextval('seq_dynamic_dataset_id'), ?)",
                         [name],
                     )
                 except duckdb.ConstraintException:
@@ -536,7 +551,7 @@ class DuckDB(AbstractDB):
         yield from self.conn.execute(
             """
             SELECT data_object_id, annotation_id FROM dynamic_dataset_member WHERE dataset_id = (
-                SELECT id FROM dynamic_dataset WHERE name = (?)
+                SELECT id FROM dynamic_dataset WHERE name = ?
             )
             """,
             [dataset_name],
@@ -622,16 +637,16 @@ class DuckDB(AbstractDB):
         self.conn.unregister("dataset_version_df")
 
     def get_dataset_version(self, id: str) -> "DatasetVersion":
-        return list(self.get_dataset_member_many([id]))[0]
-        #result = self.conn.execute(
+        return list(self.get_dataset_version_many([id]))[0]
+        # result = self.conn.execute(
         #    """
         #    SELECT * FROM dataset_version WHERE id = ?
         #    """,
         #    [id],
-        #).fetchone()
-        #if result is None:
+        # ).fetchone()
+        # if result is None:
         #    raise DatasetVersionNotFoundError(f"DatasetVersion not found {id}")
-        #(
+        # (
         #    id,
         #    version,
         #    parent,
@@ -642,8 +657,8 @@ class DuckDB(AbstractDB):
         #    commit_time,
         #    commit_message,
         #    auto_pull,
-        #) = result
-        #return DatasetVersion(
+        # ) = result
+        # return DatasetVersion(
         #    version=version,
         #    parent=parent or "",
         #    collection=collection or "",
@@ -656,7 +671,7 @@ class DuckDB(AbstractDB):
         #    ),
         #    auto_pull=auto_pull,
         #    oid=id,
-        #)
+        # )
 
     def get_dataset_version_many(self, ids: Iterable[str]) -> Iterator["DatasetVersion"]:
         df = pd.DataFrame(
@@ -687,7 +702,7 @@ class DuckDB(AbstractDB):
                     commit_time=normalize_datetime(d.commit_time.to_pydatetime()),
                     commit_message=d.commit_message,
                 ),
-                auto_pull=d.auto_pull,
+                auto_pull=bool(d.auto_pull),
                 oid=d.id,
             )
 
@@ -703,25 +718,121 @@ class DuckDB(AbstractDB):
     def get_dataset_version_by_name(
         self, name: str, version: Optional[int] = None
     ) -> Tuple["DatasetVersion", int]:
-        raise DatasetNotFoundError
+        if version is None:
+            result = self.conn.execute(
+                """
+                SELECT dataset_assignment.version_number, dataset_version.*
+                FROM dataset_assignment
+                JOIN dataset ON dataset.id = dataset_assignment.dataset_id
+                JOIN dataset_version on dataset_version.id = dataset_assignment.dataset_version_id
+                WHERE dataset.name = ?
+                ORDER BY dataset_assignment.version_number DESC
+                LIMIT 1
+                """,
+                [name],
+            ).fetchdf()
+        else:
+            result = self.conn.execute(
+                """
+                SELECT dataset_assignment.version_number, dataset_version.*
+                FROM dataset_assignment
+                JOIN dataset ON dataset.id = dataset_assignment.dataset_id
+                JOIN dataset_version on dataset_version.id = dataset_assignment.dataset_version_id
+                WHERE dataset.name = ? and dataset_assignment.version_number = ?
+                """,
+                [name, version],
+            ).fetchdf()
+        if result.empty:
+            raise DatasetNotFoundError(f"Dataset {name} does not have version {version}")
+        d = result.iloc[0]
+        dataset_version = DatasetVersion(
+            version=d.version,
+            parent=d.parent,
+            collection=d.collection,
+            transform_mapping_id=d.transform_mapping_id,
+            tags=d.tags,
+            commit_info=CommitInfo(
+                created_by=d.created_by,
+                commit_time=normalize_datetime(d.commit_time.to_pydatetime()),
+                commit_message=d.commit_message,
+            ),
+            auto_pull=bool(d.auto_pull),
+            oid=d.id,
+        )
+        return dataset_version, d.version_number
 
     def write_dataset_assignment(self) -> None:
         for name, dataset_versions in self.dataset_version_assignments.items():
-            pass
-            # get or create dataset
-            # add a new version
+            data = [(name, d.oid) for d in dataset_versions]
+            df = pd.DataFrame(
+                data,
+                columns=["name", "id"],
+            )
+            print(df)
+            print(dataset_versions)
+            self.conn.register("dataset_version_df", df)
+
+            created_by = dataset_versions[0].commit_info.created_by
+            created = dataset_versions[0].commit_info.commit_time
+            try:
+                self.conn.execute(
+                    """
+                    INSERT INTO dataset (id, name, created_by, created)
+                    VALUES(nextval('seq_dataset_id'), ?, ?, ?)
+                    """,
+                    [name, created_by, created],
+                )
+            except duckdb.ConstraintException:
+                pass
+            self.conn.execute(
+                """
+                INSERT INTO dataset_assignment (
+                    SELECT
+                        dataset.id,
+                        dataset_version_df.id,
+                        COALESCE((SELECT MAX(dataset_assignment.version_number) FROM dataset_assignment WHERE dataset_assignment.dataset_id = dataset.id), 0) + 1,
+                    FROM dataset_version_df
+                    JOIN dataset ON dataset.name = dataset_version_df.name
+                )
+                """
+            )
+            self.conn.unregister("dataset_version_df")
+            self.conn.commit()
 
     def get_dataset(self, name: str) -> "Dataset":
+        result = self.conn.execute(  # type: ignore[assignment]
+            """
+            SELECT * FROM dataset
+            WHERE name = (?)
+            """,
+            [name],
+        ).fetchone()
         result = None
         if result is None:
             raise DatasetNotFoundError(f"Dataset not found: {name}")
-        return Dataset(result)
+        id, name, created_by, created = result
+        version_result = self.conn.execute(  # type: ignore[assignment]
+            """
+            SELECT id FROM dataset_version
+            WHERE dataset_id = (?)
+            """,
+            [id],
+        ).fetchall()
+        versions = [id for (id,) in version_result]
+        return Dataset(
+            name=name,
+            created_by=created_by,
+            created=created,
+            versions=versions,
+        )
 
     def get_dataset_many(self, names: Iterable[str]) -> Iterable["Dataset"]:
-        raise NotImplementedError
+        for name in names:
+            yield self.get_dataset(name)
 
     def get_dataset_all(self) -> Iterable["Dataset"]:
-        raise NotImplementedError
+        for (name,) in self.conn.execute("SELECT name FROM dataset").fetchall():
+            yield self.get_dataset(name)
 
     def write_transform(self) -> None:
         raise NotImplementedError
@@ -739,7 +850,7 @@ class DuckDB(AbstractDB):
         raise NotImplementedError
 
     def get_transform_mapping(self, id: str) -> Iterable[Tuple[str, List[str]]]:
-        raise NotImplementedError
+        return []
 
     def get_transform_mapping_id_all(self) -> Iterable[str]:
         raise NotImplementedError
@@ -759,9 +870,7 @@ class DuckDB(AbstractDB):
         ).fetchone()
         if result is not None:
             id = result[0]
-            raise DataObjectNotFoundError(
-                f"Data object not found: {DATA_OBJ_ID_PREFIX}{id}"
-            )
+            raise DataObjectNotFoundError(f"Data object not found: {DATA_OBJ_ID_PREFIX}{id}")
         self.conn.unregister("data_object_df")
 
     def get_current_annotation_hashes(self, data_object_ids: Iterable[str]) -> Iterable[str]:
@@ -830,7 +939,7 @@ class DuckDB(AbstractDB):
                         AND pair_version.annotation_version = ?
                     )
                 """,
-                [version]
+                [version],
             ).fetchall()
         self.conn.unregister("data_object_id_df")
         yield from result
