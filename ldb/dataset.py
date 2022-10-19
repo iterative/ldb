@@ -360,19 +360,6 @@ def get_annotation(ldb_dir: Path, annotation_hash: str) -> JSONDecoded:
     return json.loads(data)  # type: ignore[no-any-return]
 
 
-def get_annotations(
-    ldb_dir: Path,
-    annotation_hashes: Iterable[str],
-) -> List[JSONDecoded]:
-    annotations = []
-    for annotation_hash in annotation_hashes:
-        if annotation_hash:
-            annotations.append(get_annotation(ldb_dir, annotation_hash))
-        else:
-            annotations.append(None)
-    return annotations
-
-
 def get_data_object_meta(
     ldb_dir: Path,
     data_object_hash: str,
@@ -386,26 +373,6 @@ def get_data_object_meta(
     )
     meta: JSONObject = json.loads(meta_file_path.read_text())
     return meta
-
-
-def get_data_object_metas(
-    ldb_dir: Path,
-    data_object_hashes: Iterable[str],
-) -> List[JSONObject]:
-    meta_objects = []
-    for data_object_hash in data_object_hashes:
-        meta_objects.append(get_data_object_meta(ldb_dir, data_object_hash))
-    return meta_objects
-
-
-class AnnotationCache(LDBMappingCache[str, JSONDecoded]):
-    def get_new(self, key: str) -> JSONDecoded:
-        return get_annotation(self.ldb_dir, key)
-
-
-class DataObjectMetaCache(LDBMappingCache[str, JSONDecoded]):
-    def get_new(self, key: str) -> JSONDecoded:
-        return get_data_object_meta(self.ldb_dir, key)
 
 
 class CollectionOperation(ABC):
@@ -456,8 +423,8 @@ class Shuffle(CollectionOperation):
 
 
 class Sort(CollectionOperation):
-    def __init__(self, ldb_dir: Path, proc_args: List[str]) -> None:
-        self.ldb_dir = ldb_dir
+    def __init__(self, client: "LDBClient", proc_args: List[str]) -> None:
+        self.client = client
         self.proc_args = proc_args
 
     def apply(
@@ -468,7 +435,7 @@ class Sort(CollectionOperation):
             sort_collection,
         )
 
-        return sort_collection(self.ldb_dir, collection, self.proc_args)
+        return sort_collection(self.client, collection, self.proc_args)
 
 
 class Query(CollectionOperation):
@@ -563,10 +530,11 @@ class PipelineData:
 class PipelineBuilder:
     def __init__(
         self,
-        ldb_dir: Path,
+        client: "LDBClient",
         data: Optional[PipelineData] = None,
     ) -> None:
-        self.ldb_dir = ldb_dir
+        self.client = client
+        self.ldb_dir = client.ldb_dir
         if data is None:
             raise ValueError("data cannot be None")
         self.data: PipelineData = data
@@ -607,7 +575,7 @@ class PipelineBuilder:
                 op = Shuffle().apply
             elif op_type == OpType.PIPE:
                 assert isinstance(arg, list)
-                op = Sort(self.ldb_dir, arg).apply
+                op = Sort(self.client, arg).apply
             else:
                 raise ValueError(f"Unknown op type: {op_type}")
             ops.append(op)
@@ -661,13 +629,13 @@ class Pipeline:
     @classmethod
     def from_defs(
         cls,
-        ldb_dir: Path,
+        client: "LDBClient",
         op_defs: Iterable[OpDef],
         data: Optional[PipelineData] = None,
         warn: bool = True,
     ) -> "Pipeline":
         return cls(
-            PipelineBuilder(ldb_dir, data=data).build(op_defs, warn=warn),
+            PipelineBuilder(client, data=data).build(op_defs, warn=warn),
         )
 
     def run(
@@ -718,6 +686,6 @@ def apply_queries_to_collection(
             data_object_ids,
             annotation_ids,
         )
-    return Pipeline.from_defs(Path(client.ldb_dir), op_defs, data=data, warn=warn).run(
+    return Pipeline.from_defs(client, op_defs, data=data, warn=warn).run(
         collection,
     )

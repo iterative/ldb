@@ -3,7 +3,6 @@ import os
 import shutil
 import subprocess
 from contextlib import contextmanager
-from pathlib import Path
 from subprocess import Popen
 from tempfile import TemporaryDirectory
 from typing import (
@@ -24,22 +23,24 @@ from ldb.path import InstanceDir
 from ldb.storage import get_storage_locations
 
 if TYPE_CHECKING:
+    from ldb.core import LDBClient
+
     StrPopen = Popen[str]  # pylint: disable=unsubscriptable-object)
 else:
     StrPopen = Popen
 
 
 def sort_collection(
-    ldb_dir: Path,
+    client: "LDBClient",
     collection: Iterable[Tuple[str, str]],
     proc_args: List[str],
 ) -> Iterator[Tuple[str, str]]:
     collection_dict = dict(collection)
-    storage_locations = get_storage_locations(ldb_dir)
+    storage_locations = get_storage_locations(client.ldb_dir)
     with TemporaryDirectory() as temp_dir:
         result = instantiate_collection_directly(
             InstConfig(
-                ldb_dir=ldb_dir,
+                client=client,
                 storage_locations=storage_locations,
                 dest_dir=temp_dir,
             ),
@@ -52,7 +53,7 @@ def sort_collection(
             result.annotation_paths,
         )
         data = json.dumps(list(zip(*data_sequences)))
-        paths = [str(ldb_dir / InstanceDir.USER_FILTERS)]
+        paths = [str(client.ldb_dir / InstanceDir.USER_FILTERS)]
         for data_obj_hash in run_sort_process(proc_args, data, paths=paths):
             try:
                 annot_hash = collection_dict[data_obj_hash]

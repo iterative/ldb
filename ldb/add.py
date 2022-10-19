@@ -438,7 +438,7 @@ def add(
         # TODO: Handle other formats and transformations
         collection_dict = dict(collection_list)
         i_result = instantiate_collection(
-            ldb_dir,
+            client,
             collection_dict,
             workspace_path,
             fmt=fmt,
@@ -643,7 +643,7 @@ def delete(
         )
     )
     i_result = deinstantiate_collection(
-        ldb_dir, collection_dict, workspace_path, fmt=fmt, params=processed_params
+        client, collection_dict, workspace_path, fmt=fmt, params=processed_params
     )
     num_deinst_data_objects = i_result.num_data_objects_succeeded()
     num_deinst_annotations = i_result.num_annotations_succeeded()
@@ -886,7 +886,7 @@ def sync(
     # TODO: Handle transformations
     collection_dict = dict(collection)
     i_result = instantiate_collection(
-        ldb_dir,
+        client,
         collection_dict,
         workspace_path,
         fmt=fmt,
@@ -907,7 +907,7 @@ def sync(
         )
     )
     i_result = deinstantiate_collection(
-        ldb_dir, collection_dict, workspace_path, fmt=fmt, params=processed_params
+        client, collection_dict, workspace_path, fmt=fmt, params=processed_params
     )
     num_deinst_data_objects = i_result.num_data_objects_succeeded()
     num_deinst_annotations = i_result.num_annotations_succeeded()

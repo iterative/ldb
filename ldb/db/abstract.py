@@ -53,8 +53,8 @@ class AbstractDB(ABC):
         self.write_collection()
         self.write_dataset_version()
         self.write_dataset_assignment()
-        # self.write_transform()
-        # self.write_transform_mapping()
+        self.write_transform()
+        self.write_transform_mapping()
 
     def add_pair(
         self,

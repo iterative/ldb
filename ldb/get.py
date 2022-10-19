@@ -61,7 +61,7 @@ def get(
     transform_infos = paths_to_transforms(client, paths)
     print("Instantiating data...\n")
     result = instantiate_collection(
-        ldb_dir,
+        client,
         dict(collection),
         dest,
         transform_infos=transform_infos,

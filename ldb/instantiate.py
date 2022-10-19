@@ -28,8 +28,9 @@ from fsspec.utils import get_protocol
 from funcy.objects import cached_property
 
 from ldb.add import TransformInfoMapping, paths_to_dataset
+from ldb.core import LDBClient
 from ldb.data_formats import INSTANTIATE_FORMATS, Format
-from ldb.dataset import OpDef, get_annotation
+from ldb.dataset import OpDef
 from ldb.exceptions import LDBException, WorkspaceError
 from ldb.fs.utils import FSProtocol, first_protocol, unstrip_protocol
 from ldb.index.annotation_only import AnnotOnlyParamConfig
@@ -43,9 +44,7 @@ from ldb.typing import JSONDecoded, JSONObject
 from ldb.utils import (
     DATA_OBJ_ID_PREFIX,
     delete_file,
-    get_hash_path,
     json_dumps,
-    load_data_file,
     make_target_dir,
     write_data_file,
 )
@@ -60,7 +59,7 @@ class ItemCopyResult:
 
 @dataclass
 class InstConfig:
-    ldb_dir: Path
+    client: LDBClient
     storage_locations: Collection[StorageLocation]
     dest_dir: Union[str, Path]
     intermediate_dir: Union[str, Path] = ""
@@ -154,7 +153,7 @@ def instantiate(
         include_transforms=fmt in (Format.STRICT, Format.BARE, Format.ANNOT, Format.INFER),
     )
     result = instantiate_collection(
-        ldb_dir,
+        client,
         dict(collection),
         local_dest_path,
         transform_infos=transform_infos,
@@ -170,7 +169,7 @@ def instantiate(
 
 
 def instantiate_collection(
-    ldb_dir: Path,
+    client: LDBClient,
     collection: Mapping[str, Optional[str]],
     dest: Path,
     transform_infos: Optional[TransformInfoMapping] = None,
@@ -195,7 +194,7 @@ def instantiate_collection(
     # fail fast if workspace is not empty
     if clean and dest.exists():
         ensure_path_is_empty_workspace(dest, force)
-    storage_locations = get_storage_locations(ldb_dir)
+    storage_locations = get_storage_locations(client.ldb_dir)
     dest.mkdir(exist_ok=True)
 
     try:
@@ -203,7 +202,7 @@ def instantiate_collection(
         with tempfile.TemporaryDirectory(dir=tmp_dir) as final_tmp_dir:
             with tempfile.TemporaryDirectory(dir=tmp_dir) as raw_tmp_dir:
                 config = InstConfig(
-                    ldb_dir=ldb_dir,
+                    client=client,
                     dest_dir=final_tmp_dir,
                     intermediate_dir=raw_tmp_dir,
                     storage_locations=storage_locations,
@@ -217,7 +216,7 @@ def instantiate_collection(
                     fmt,
                 )
             if apply:
-                paths = [str(ldb_dir / InstanceDir.USER_TRANSFORMS)]
+                paths = [str(client.ldb_dir / InstanceDir.USER_TRANSFORMS)]
                 apply_transform(
                     apply,
                     final_tmp_dir,
@@ -243,7 +242,7 @@ def instantiate_collection(
 
 
 def deinstantiate_collection(
-    ldb_dir: Path,
+    client: LDBClient,
     collection: Mapping[str, Optional[str]],
     dest: Path,
     transform_infos: Optional[TransformInfoMapping] = None,
@@ -256,10 +255,10 @@ def deinstantiate_collection(
         raise ValueError(f"Not a valid instantiation format: {fmt}") from exc
     if params is None:
         params = {}
-    storage_locations = get_storage_locations(ldb_dir)
+    storage_locations = get_storage_locations(client.ldb_dir)
 
     config = InstConfig(
-        ldb_dir=ldb_dir,
+        client=client,
         dest_dir=dest,
         intermediate_dir=dest,
         storage_locations=storage_locations,
@@ -356,11 +355,7 @@ class InstItem:
 
     @cached_property
     def data_object_meta(self) -> JSONObject:
-        data_object_dir = get_hash_path(
-            self.config.ldb_dir / InstanceDir.DATA_OBJECT_INFO,
-            self.data_object_hash,
-        )
-        return load_data_file(data_object_dir / "meta")  # type: ignore[no-any-return] # noqa: E501
+        return self.config.client.db.get_data_object_meta(self.data_object_hash)[1]
 
     @cached_property
     def _prefix_ext(self) -> Tuple[str, str]:
@@ -451,7 +446,7 @@ class RawPairInstItem(InstItem):
 
     @cached_property
     def annotation_content(self) -> JSONDecoded:
-        return get_annotation(self.config.ldb_dir, self.annotation_hash)
+        return self.config.client.db.get_annotation(self.annotation_hash)[1]
 
     @cached_property
     def annotation_content_bytes(self) -> bytes:
@@ -555,7 +550,7 @@ class PairInstItem(RawPairInstItem):
                     data_str,
                     info.transform.value,
                     paths=[
-                        str(self.config.ldb_dir / InstanceDir.USER_TRANSFORMS),
+                        str(self.config.client.ldb_dir / InstanceDir.USER_TRANSFORMS),
                     ],
                     set_cwd=True,
                 )
@@ -574,9 +569,8 @@ class AnnotationOnlyInstItem(RawPairInstItem):
 
     @cached_property
     def annotation_content(self) -> JSONDecoded:
-        annotation: JSONObject = get_annotation(  # type: ignore[assignment]
-            self.config.ldb_dir,
-            self.annotation_hash,
+        annotation: JSONObject = self.config.client.db.get_annotation(  # type: ignore[assignment]
+            self.annotation_hash
         )
         fs_protocol: FSProtocol = self.data_object_meta["fs"]["protocol"]
         protocol: str = first_protocol(fs_protocol)
@@ -1027,7 +1021,7 @@ def copy_label_studio(
     config: InstConfig,
     collection: Mapping[str, Optional[str]],
 ) -> InstantiateResult:
-    ldb_dir = config.ldb_dir
+    ldb_dir = config.client.ldb_dir
     annot_paths = []
     annotations: List[JSONObject] = []
     for data_object_hash, annotation_hash in collection.items():
@@ -1038,7 +1032,7 @@ def copy_label_studio(
                 "Missing annotation for data object: "
                 f"{DATA_OBJ_ID_PREFIX}{data_object_hash}",
             )
-        annot = get_annotation(ldb_dir, annotation_hash)
+        annot = config.client.db.get_annotation(annotation_hash)
         try:
             annot["data"]["data-object-info"]["md5"]  # type: ignore[call-overload, index] # pylint: disable=pointless-statement # noqa: E501
             path_key = annot["data"]["data-object-info"]["path_key"]  # type: ignore[call-overload, index] # noqa: E501
