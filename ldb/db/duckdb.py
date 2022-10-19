@@ -835,7 +835,7 @@ class DuckDB(AbstractDB):
             yield self.get_dataset(name)
 
     def write_transform(self) -> None:
-        raise NotImplementedError
+        pass
 
     def get_transform(self, id: str) -> "Transform":
         raise NotImplementedError
@@ -847,7 +847,7 @@ class DuckDB(AbstractDB):
         raise NotImplementedError
 
     def write_transform_mapping(self) -> None:
-        raise NotImplementedError
+        pass
 
     def get_transform_mapping(self, id: str) -> Iterable[Tuple[str, List[str]]]:
         return []
