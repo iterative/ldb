@@ -110,7 +110,9 @@ def write_data_file(
     overwrite_existing: bool = True,
 ) -> None:
     if overwrite_existing or not os.path.exists(file_path):
-        os.makedirs(os.path.dirname(file_path), exist_ok=True)
+        dirname = os.path.dirname(file_path)
+        if dirname:
+            os.makedirs(dirname, exist_ok=True)
         with open(file_path, "wb") as file:
             file.write(data)
 

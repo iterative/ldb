@@ -68,6 +68,7 @@ class InstConfig:
         default_factory=dict,
     )
     params: Mapping[str, Any] = field(default_factory=dict)
+    add_path: Optional[Union[str, Path]] = None
 
 
 class InstantiateResult(NamedTuple):
@@ -81,6 +82,23 @@ class InstantiateResult(NamedTuple):
 
     def num_annotations_succeeded(self) -> int:
         return sum(bool(a) for a in self.annotation_paths)
+
+
+def get_processed_params(
+    params: Optional[Mapping[str, str]] = None,
+    fmt: str = Format.BARE,
+) -> Mapping[str, Any]:
+    try:
+        fmt = INSTANTIATE_FORMATS[fmt]
+    except KeyError as exc:
+        raise ValueError(f"Not a valid instantiation format: {fmt}") from exc
+    if params is None:
+        params = {}
+    if fmt == Format.INFER:
+        return InferredParamConfig().process_params(params, fmt)
+    if fmt == Format.ANNOT:
+        return AnnotOnlyParamConfig().process_params(params, fmt)
+    return ParamConfig().process_params(params, fmt)
 
 
 def instantiate(
@@ -124,12 +142,7 @@ def instantiate(
         local_dest_path = Path(local_tmp_dir.name)
         print(f"Using local temp dir: {local_tmp_dir.name}")
 
-    if fmt == Format.INFER:
-        processed_params = InferredParamConfig().process_params(params, fmt)
-    elif fmt == Format.ANNOT:
-        processed_params = AnnotOnlyParamConfig().process_params(params, fmt)
-    else:
-        processed_params = ParamConfig().process_params(params, fmt)
+    processed_params = get_processed_params(params, fmt)
 
     if remote_fs is None:
         make_target_dir(dest, parents=make_parent_dirs)
@@ -167,6 +180,7 @@ def instantiate_collection(
     clean: bool = True,
     params: Optional[Mapping[str, Any]] = None,
     tmp_dir: Optional[Union[str, Path]] = None,
+    add_path: Optional[Union[str, Path]] = None,
 ) -> InstantiateResult:
     try:
         fmt = INSTANTIATE_FORMATS[fmt]
@@ -195,6 +209,7 @@ def instantiate_collection(
                     storage_locations=storage_locations,
                     transform_infos=transform_infos or {},
                     params=params,
+                    add_path=add_path,
                 )
                 result = instantiate_collection_directly(
                     config,
@@ -268,7 +283,26 @@ def instantiate_collection_directly(
 ) -> InstantiateResult:
     fmt = INSTANTIATE_FORMATS[fmt]
     if fmt in (Format.STRICT, Format.BARE):
-        return copy_pairs(config, collection, fmt == Format.STRICT, deinstantiate=deinstantiate)
+        return copy_pairs(config, collection, fmt == Format.STRICT, deinstantiate)
+    if fmt == Format.ANNOT:
+        single_file = config.params.get("single-file", False)
+        if single_file:
+            return copy_single_annot(
+                config,
+                collection,
+                deinstantiate,
+            )
+        return copy_annot(
+            config,
+            collection,
+            deinstantiate,
+        )
+    if fmt == Format.INFER:
+        return copy_infer(
+            config,
+            collection,
+            deinstantiate,
+        )
     if deinstantiate:
         warnings.warn(
             f"Deinstantiation not implemented for format: {fmt}",
@@ -276,22 +310,6 @@ def instantiate_collection_directly(
             stacklevel=2,
         )
         return InstantiateResult([], [], 0, 0)
-    if fmt == Format.ANNOT:
-        single_file = config.params.get("single-file", False)
-        if single_file:
-            return copy_single_annot(
-                config,
-                collection,
-            )
-        return copy_annot(
-            config,
-            collection,
-        )
-    if fmt == Format.INFER:
-        return copy_infer(
-            config,
-            collection,
-        )
     if fmt == Format.LABEL_STUDIO:
         return copy_label_studio(
             config,
@@ -306,7 +324,7 @@ def apply_transform(
     output_dir: str,
     paths: Sequence[str] = (),
 ) -> int:
-    from ldb.pipe import open_plugin  # pylint: disable=import-outside-toplevel
+    from ldb.pipe import open_plugin
 
     data = json.dumps(
         [
@@ -412,7 +430,7 @@ def pipe_to_proc(
     paths: Sequence[str] = (),
     set_cwd: bool = True,
 ) -> int:
-    from ldb.pipe import open_plugin  # pylint: disable=import-outside-toplevel
+    from ldb.pipe import open_plugin
 
     with open_plugin(proc_args, paths, set_cwd=set_cwd) as proc:
         stdout, stderr = proc.communicate(data)
@@ -581,12 +599,19 @@ class AnnotationOnlyInstItem(RawPairInstItem):
     def copy_files(self) -> ItemCopyResult:
         return ItemCopyResult(annotation=self.copy_annotation())
 
+    def delete_files(self) -> ItemCopyResult:
+        return ItemCopyResult(annotation=self.delete_annotation_file())
+
 
 @dataclass
 class SingleAnnotationInstItem(AnnotationOnlyInstItem):
     annotation_list: List[JSONDecoded] = field(default_factory=list)
 
     def copy_annotation(self) -> str:
+        self.annotation_list.append(self.annotation_content)
+        return ""
+
+    def delete_annotation_file(self) -> str:
         self.annotation_list.append(self.annotation_content)
         return ""
 
@@ -615,6 +640,9 @@ class InferInstItem(RawPairInstItem):
 
     def copy_files(self) -> ItemCopyResult:
         return ItemCopyResult(data_object=self.copy_data_object())
+
+    def delete_files(self) -> ItemCopyResult:
+        return ItemCopyResult(data_object=self.delete_data_object())
 
 
 @dataclass
@@ -724,6 +752,7 @@ def copy_pairs(
 def copy_annot(
     config: InstConfig,
     collection: Mapping[str, Optional[str]],
+    deinstantiate: bool = False,
 ) -> InstantiateResult:
     items = []
     for data_object_hash, annotation_hash in collection.items():
@@ -736,7 +765,7 @@ def copy_annot(
                     config.transform_infos.get(data_object_hash),
                 ),
             )
-    _, annot_paths = instantiate_items(items)
+    _, annot_paths = instantiate_items(items, deinstantiate)
     return InstantiateResult(
         [],
         annot_paths,
@@ -748,6 +777,7 @@ def copy_annot(
 def copy_single_annot(
     config: InstConfig,
     collection: Mapping[str, Optional[str]],
+    deinstantiate: bool = False,
 ) -> InstantiateResult:
     items = []
     annotation_list: List[JSONDecoded] = []
@@ -762,10 +792,28 @@ def copy_single_annot(
                     annotation_list=annotation_list,
                 ),
             )
-    instantiate_items(items)
+    instantiate_items(items, deinstantiate)
+    dest = Path(os.path.join(config.dest_dir, "dataset.json"))
+    # TODO: Optimize sync to use modify_single_annot only once
+    if config.add_path:
+        src = Path(os.path.join(config.add_path, "dataset.json"))
+        added_count, _ = modify_single_annot(src, dest, annotation_list, [])
+        return InstantiateResult(
+            [],
+            [],
+            0,
+            added_count,
+        )
+    if deinstantiate:
+        _, removed_count = modify_single_annot(dest, dest, [], annotation_list)
+        return InstantiateResult(
+            [],
+            ["R" for _ in range(removed_count)],
+            0,
+            removed_count,
+        )
     annotation = serialize_annotation(annotation_list)
     annotation_bytes = annotation.encode()
-    dest = Path(os.path.join(config.dest_dir, "dataset.json"))
     write_data_file(dest, annotation_bytes)
     return InstantiateResult(
         [],
@@ -775,9 +823,61 @@ def copy_single_annot(
     )
 
 
+def modify_single_annot(
+    src: Union[str, Path],
+    dest: Union[str, Path],
+    add_list: List[JSONDecoded],
+    remove_list: List[JSONDecoded],
+) -> Tuple[int, int]:
+    try:
+        with open(src, "rb") as f:
+            original_annotations = json.load(f)
+    except FileNotFoundError:
+        if add_list:
+            original_annotations = []
+        else:
+            return 0, 0
+    if not isinstance(original_annotations, list):
+        raise LDBException(
+            "For modification of the single-file annotation format "
+            "the annotation file dataset.json must contain a top-level array."
+        )
+    try:
+        add_dict = {a["data-object-info"]["md5"]: a for a in add_list}  # type: ignore
+    except (KeyError, TypeError) as exc:
+        raise ValueError("Missing md5 hashes in add_list") from exc
+    try:
+        remove_hashes_set = {r["data-object-info"]["md5"] for r in remove_list}  # type: ignore # noqa: E501
+    except (KeyError, TypeError) as exc:
+        raise ValueError("Missing md5 hashes in remove_list") from exc
+    try:
+        filtered_annotations_dict = {
+            o["data-object-info"]["md5"]: o
+            for o in original_annotations
+            if o["data-object-info"]["md5"] not in remove_hashes_set
+        }
+    except (KeyError, TypeError) as exc:
+        raise ValueError("Missing md5 hashes in dataset.json entries") from exc
+    filtered_count = len(filtered_annotations_dict)
+    removed_count = len(original_annotations) - filtered_count
+    final_annotations = list({**filtered_annotations_dict, **add_dict}.values())
+    final_count = len(final_annotations)
+    added_count = final_count - filtered_count
+
+    if final_count == 0:
+        if not delete_file(dest):
+            # Set to zero if delete fails
+            removed_count = 0
+    else:
+        annotation_bytes = serialize_annotation(final_annotations).encode()
+        write_data_file(dest, annotation_bytes)
+    return added_count, removed_count
+
+
 def copy_infer(
     config: InstConfig,
     collection: Mapping[str, Optional[str]],
+    deinstantiate: bool = False,
 ) -> InstantiateResult:
     label_key: Sequence[str] = config.params.get("label-key", ["label"])
     base_label: str = config.params.get("base-label", "")
@@ -791,6 +891,12 @@ def copy_infer(
             )
     collection = cast(Mapping[str, str], collection)
     if config.transform_infos:
+        if deinstantiate:
+            warnings.warn(
+                "Deinstantiation not implemented for transformations",
+                RuntimeWarning,
+                stacklevel=2,
+            )
         return _copy_infer_with_transforms(
             config,
             collection,
@@ -802,6 +908,7 @@ def copy_infer(
         collection,
         label_key,
         base_label,
+        deinstantiate,
     )
 
 
@@ -810,6 +917,7 @@ def _copy_infer_without_transforms(
     collection: Mapping[str, str],
     label_key: Sequence[str],
     base_label: str,
+    deinstantiate: bool = False,
 ) -> InstantiateResult:
     items = []
     for data_object_hash, annotation_hash in collection.items():
@@ -822,7 +930,7 @@ def _copy_infer_without_transforms(
                 base_label=base_label,
             ),
         )
-    data_obj_paths, _ = instantiate_items(items)
+    data_obj_paths, _ = instantiate_items(items, deinstantiate)
     return InstantiateResult(
         data_obj_paths,
         [],
@@ -951,14 +1059,7 @@ def copy_label_studio(
                 "data.data-object-info.path_key",
             )
         annotations.append(annot)  # type: ignore[arg-type]
-    path = (
-        LabelStudioInstItem(
-            config,
-            annotations,
-        )
-        .instantiate()
-        .annotation
-    )
+    path = LabelStudioInstItem(config, annotations).instantiate().annotation
     annot_paths.append(path)
     return InstantiateResult(
         [],
