@@ -84,7 +84,7 @@ def choice_str(choices: Iterable[str]) -> str:
     return f"{{{choice_strings}}}"
 
 
-def add_physical_logical_params(parser: ArgumentParser) -> None:
+def add_physical_workflow_arguments(parser: ArgumentParser) -> None:
     group = parser.add_mutually_exclusive_group()
     group.add_argument(
         "--physical",
@@ -100,6 +100,12 @@ def add_physical_logical_params(parser: ArgumentParser) -> None:
         dest="physical",
         help="Use logical workflow without auto-instantiating/deleting objects or annotations",
     )
+    add_data_format_arguments(
+        parser,
+        default="from config or bare-pairs",
+        formats=INSTANTIATE_FORMATS,
+    )
+    add_param_option(parser)
 
 
 def using_physical_workflow(physical: Optional[str]) -> bool:
@@ -109,6 +115,13 @@ def using_physical_workflow(physical: Optional[str]) -> bool:
         return False
     cfg: TOMLDocument = config.load_first() or document()
     return bool(cfg.get("core", {}).get("physical_workflow", False))
+
+
+def physical_workflow_format(fmt: Optional[str]) -> str:
+    if fmt is not None and fmt != "from config or bare-pairs":
+        return fmt
+    cfg: TOMLDocument = config.load_first() or document()
+    return str(cfg.get("core", {}).get("default_physical_format", Format.BARE))
 
 
 def add_data_obj_params(

@@ -29,6 +29,7 @@ from tomlkit.toml_document import TOMLDocument
 
 from ldb import config
 from ldb.core import LDBClient, get_ldb_instance
+from ldb.data_formats import Format
 from ldb.dataset import (
     OpDef,
     apply_queries,
@@ -366,6 +367,8 @@ def add(
     ldb_dir: Optional[Path] = None,
     warn: bool = False,
     physical_workflow: bool = False,
+    fmt: str = Format.BARE,
+    params: Optional[Mapping[str, str]] = None,
 ) -> AddResult:
     if not paths:
         if not query_args:
@@ -425,11 +428,24 @@ def add(
     num_inst_data_objects = 0
     num_inst_annotations = 0
     if physical_workflow:
-        from ldb.instantiate import instantiate_collection
+        from ldb.instantiate import (
+            get_processed_params,
+            instantiate_collection,
+        )
+
+        processed_params = get_processed_params(params, fmt)
 
         # TODO: Handle other formats and transformations
         collection_dict = dict(collection_list)
-        i_result = instantiate_collection(ldb_dir, collection_dict, workspace_path, clean=False)
+        i_result = instantiate_collection(
+            ldb_dir,
+            collection_dict,
+            workspace_path,
+            fmt=fmt,
+            clean=False,
+            params=processed_params,
+            add_path=workspace_path,
+        )
         num_inst_data_objects = i_result.num_data_objects
         num_inst_annotations = i_result.num_annotations
     return AddResult(
@@ -577,6 +593,8 @@ def delete(
     paths: Sequence[str],
     query_args: Iterable[OpDef],
     physical_workflow: bool = False,
+    fmt: str = Format.BARE,
+    params: Optional[Mapping[str, str]] = None,
 ) -> None:
     if not paths and not query_args:
         raise LDBException(
@@ -600,14 +618,6 @@ def delete(
 
     print(f"Removing from working dataset {ds_ident} at ws:{workspace_path}")
 
-    if physical_workflow:
-        from ldb.instantiate import deinstantiate_collection
-
-        # TODO: Handle other formats and transformations
-        collection_dict = {a: "Any" for a in data_object_hashes}
-        i_result = deinstantiate_collection(ldb_dir, collection_dict, workspace_path)
-        num_deinst_data_objects = i_result.num_data_objects_succeeded()
-        num_deinst_annotations = i_result.num_annotations_succeeded()
     num_deleted = delete_from_collection_dir(
         collection_dir_path,
         data_object_hashes,
@@ -618,9 +628,27 @@ def delete(
         data_object_hashes,
     )
     print(f"  Removed data objects:  {num_deleted:9d}")
-    if physical_workflow:
-        print(f"  Deleted data objects:  {num_deinst_data_objects:9d}")
-        print(f"  Deleted annotations:   {num_deinst_annotations:9d}")
+    if not physical_workflow:
+        return
+
+    from ldb.instantiate import deinstantiate_collection, get_processed_params
+
+    processed_params = get_processed_params(params, fmt)
+
+    # TODO: Handle transformations
+    collection_dict = dict(
+        zip(
+            data_object_hashes,
+            client.db.get_current_annotation_hashes(data_object_hashes),
+        )
+    )
+    i_result = deinstantiate_collection(
+        ldb_dir, collection_dict, workspace_path, fmt=fmt, params=processed_params
+    )
+    num_deinst_data_objects = i_result.num_data_objects_succeeded()
+    num_deinst_annotations = i_result.num_annotations_succeeded()
+    print(f"  Deleted data objects:  {num_deinst_data_objects:9d}")
+    print(f"  Deleted annotations:   {num_deinst_annotations:9d}")
 
 
 def delete_from_index(
@@ -798,6 +826,8 @@ def sync(
     paths: Sequence[str],
     query_args: Iterable[OpDef],
     physical_workflow: bool = False,
+    fmt: str = Format.BARE,
+    params: Optional[Mapping[str, str]] = None,
 ) -> None:
     if not paths:
         paths = ["."]
@@ -841,24 +871,45 @@ def sync(
         data_object_hashes,
     )
     print(f"  Removed data objects:  {num_deleted:9d}")
-    if physical_workflow:
-        from ldb.instantiate import (
-            deinstantiate_collection,
-            instantiate_collection,
+
+    if not physical_workflow:
+        return
+
+    from ldb.instantiate import (
+        deinstantiate_collection,
+        get_processed_params,
+        instantiate_collection,
+    )
+
+    processed_params = get_processed_params(params, fmt)
+
+    # TODO: Handle transformations
+    collection_dict = dict(collection)
+    i_result = instantiate_collection(
+        ldb_dir,
+        collection_dict,
+        workspace_path,
+        fmt=fmt,
+        clean=False,
+        params=processed_params,
+        add_path=workspace_path,
+    )
+    num_inst_data_objects = i_result.num_data_objects
+    num_inst_annotations = i_result.num_annotations
+    print(f"  Copied data objects:   {num_inst_data_objects:9d}")
+    print(f"  Copied annotations:    {num_inst_annotations:9d}")
+
+    # TODO: Handle transformations
+    collection_dict = dict(
+        zip(
+            deleted_data_object_hashes,
+            client.db.get_current_annotation_hashes(deleted_data_object_hashes),
         )
-
-        # TODO: Handle other formats and transformations
-        collection_dict = dict(collection)
-        i_result = instantiate_collection(ldb_dir, collection_dict, workspace_path, clean=False)
-        num_inst_data_objects = i_result.num_data_objects
-        num_inst_annotations = i_result.num_annotations
-        print(f"  Copied data objects:   {num_inst_data_objects:9d}")
-        print(f"  Copied annotations:    {num_inst_annotations:9d}")
-
-        # TODO: Handle other formats and transformations
-        collection_dict = {a: "Any" for a in deleted_data_object_hashes}
-        i_result = deinstantiate_collection(ldb_dir, collection_dict, workspace_path)
-        num_deinst_data_objects = i_result.num_data_objects_succeeded()
-        num_deinst_annotations = i_result.num_annotations_succeeded()
-        print(f"  Deleted data objects:  {num_deinst_data_objects:9d}")
-        print(f"  Deleted annotations:   {num_deinst_annotations:9d}")
+    )
+    i_result = deinstantiate_collection(
+        ldb_dir, collection_dict, workspace_path, fmt=fmt, params=processed_params
+    )
+    num_deinst_data_objects = i_result.num_data_objects_succeeded()
+    num_deinst_annotations = i_result.num_annotations_succeeded()
+    print(f"  Deleted data objects:  {num_deinst_data_objects:9d}")
+    print(f"  Deleted annotations:   {num_deinst_annotations:9d}")

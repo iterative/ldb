@@ -9,6 +9,7 @@ from funcy.objects import cached_property
 
 from ldb import config
 from ldb.config import get_default_instance_dir, get_global_base, get_ldb_dir
+from ldb.data_formats import Format
 from ldb.exceptions import LDBException, LDBInstanceNotFoundError
 from ldb.path import REQUIRED_INSTANCE_DIRS, Filename, GlobalDir
 from ldb.storage import StorageLocation, add_storage
@@ -54,6 +55,7 @@ def init(
     auto_index: bool = False,
     db_type: str = "",
     physical_workflow: bool = False,
+    default_physical_format: str = Format.BARE,
 ) -> Path:
     """
     Create a new LDB instance.
@@ -94,6 +96,7 @@ def init(
             "read_any_cloud_location": read_any_cloud_location,
             "auto_index": auto_index,
             "physical_workflow": physical_workflow,
+            "default_physical_format": default_physical_format,
         }
     print(f"Initialized LDB instance at {repr(os.fspath(path))}")
     return path

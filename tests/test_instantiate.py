@@ -1,8 +1,15 @@
 import json
 import os
+import os.path
 import sys
+from typing import List
 
+import pytest
+
+from ldb.exceptions import LDBException
+from ldb.instantiate import modify_single_annot
 from ldb.main import main
+from ldb.typing import JSONDecoded
 from ldb.utils import DATASET_PREFIX, ROOT
 
 from .utils import DATA_DIR, SCRIPTS_DIR, get_workspace_counts
@@ -123,3 +130,112 @@ def test_instantiate_infer(workspace_path):
     ret = main(["instantiate", "-m", "infer"])
     assert ret == 0
     assert get_workspace_counts(workspace_path) == (23, 0)
+
+
+def test_instantiate_annot_single_file(workspace_path, index_original):
+    cmd_args = [
+        "add",
+        "id:3c679fd1b8537dc7da1272a085e388e6",
+        "id:982814b9116dce7882dfc31636c3ff7a",
+        "id:ebbc6c0cebb66738942ee56513f9ee2f",
+        "id:1e0759182b328fd22fcdb5e6beb54adf",
+    ]
+    ret = main(cmd_args)
+    assert ret == 0
+    cmd_args = ["instantiate", "-m", "annot", "-p", "single-file=true"]
+    ret = main(cmd_args)
+    assert ret == 0
+    assert get_workspace_counts(workspace_path) == (0, 1)
+
+    with open(os.path.join(workspace_path, "dataset.json"), encoding="utf-8") as f:
+        annotations = sorted(json.load(f), key=lambda a: a["annotation"]["label"])  # type: ignore # noqa: E501
+
+    assert len(annotations) == 2
+    assert annotations[0]["annotation"]["label"] == 4
+    assert annotations[0]["data-object-info"]["md5"] == "982814b9116dce7882dfc31636c3ff7a"
+    assert annotations[1]["annotation"]["label"] == 7
+    assert annotations[1]["data-object-info"]["md5"] == "ebbc6c0cebb66738942ee56513f9ee2f"
+
+
+def test_modify_single_annot(tmp_path):
+    filename = os.path.join(tmp_path, "dataset.json")
+
+    original_list: List[JSONDecoded] = [
+        {
+            "data-object-info": {
+                "md5": "ebbc6c0cebb66738942ee56513f9ee2f",
+            }
+        },
+        {
+            "data-object-info": {
+                "md5": "1e0759182b328fd22fcdb5e6beb54adf",
+            }
+        },
+    ]
+    add_list: List[JSONDecoded] = [
+        {
+            "data-object-info": {
+                "md5": "982814b9116dce7882dfc31636c3ff7a",
+            }
+        }
+    ]
+    remove_list: List[JSONDecoded] = [
+        {
+            "data-object-info": {
+                "md5": "1e0759182b328fd22fcdb5e6beb54adf",
+            }
+        }
+    ]
+    expected_list: List[JSONDecoded] = [
+        {
+            "data-object-info": {
+                "md5": "982814b9116dce7882dfc31636c3ff7a",
+            }
+        },
+        {
+            "data-object-info": {
+                "md5": "ebbc6c0cebb66738942ee56513f9ee2f",
+            }
+        },
+    ]
+
+    # Test without dataset.json
+    assert modify_single_annot(filename, filename, [], []) == (0, 0)
+
+    with open(filename, "w", encoding="utf-8") as f:
+        json.dump({"property": "Not a top-level array"}, f)
+
+    # Test invalid dataset.json
+    with pytest.raises(LDBException):
+        modify_single_annot(filename, filename, [], [])
+
+    with open(filename, "w", encoding="utf-8") as f:
+        json.dump([{"data": "missing"}], f)
+
+    # Test invalid add
+    with pytest.raises(ValueError):
+        modify_single_annot(filename, filename, [{"no": "hash"}], [])
+
+    # Test invalid remove
+    with pytest.raises(ValueError):
+        modify_single_annot(filename, filename, [], [{"no": "hash"}])
+
+    # Test invalid original
+    with pytest.raises(ValueError):
+        modify_single_annot(filename, filename, [], [])
+
+    with open(filename, "w", encoding="utf-8") as f:
+        json.dump(original_list, f)
+
+    # Test full valid original
+    assert modify_single_annot(filename, filename, add_list, remove_list) == (1, 1)
+
+    with open(filename, encoding="utf-8") as f:
+        new_annotations = json.load(f)
+
+    assert sorted(new_annotations, key=lambda a: a["data-object-info"]["md5"]) == expected_list  # type: ignore # noqa: E501
+
+    # Test delete dataset.json if all annotations removed
+    assert modify_single_annot(filename, filename, [], expected_list) == (0, 2)
+
+    assert os.path.exists(filename) is False

@@ -5,7 +5,8 @@ from typing import TYPE_CHECKING, Iterable
 from ldb.add import sync
 from ldb.cli_utils import (
     add_data_obj_params,
-    add_physical_logical_params,
+    add_physical_workflow_arguments,
+    physical_workflow_format,
     using_physical_workflow,
 )
 
@@ -21,6 +22,8 @@ def sync_command(options: Namespace) -> None:
         options.paths,
         options.query_args,
         physical_workflow=using_physical_workflow(options.physical),
+        fmt=physical_workflow_format(options.format),
+        params=dict(options.params),
     )
 
 
@@ -33,6 +36,6 @@ def add_parser(
         parents=parents,
         help="Sync workspace to data objects under a certain path",
     )
-    add_physical_logical_params(parser)
+    add_physical_workflow_arguments(parser)
     add_data_obj_params(parser, dest="query_args")
     parser.set_defaults(func=sync_command)
