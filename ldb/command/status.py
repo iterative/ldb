@@ -3,7 +3,7 @@ from argparse import ArgumentParser, Namespace
 from pathlib import Path
 from typing import TYPE_CHECKING, Iterable
 
-from ldb.core import get_ldb_instance
+from ldb.core import LDBClient, get_ldb_instance
 from ldb.dataset import get_collection_size
 from ldb.diff import format_summary, simple_diff, summarize_diff
 from ldb.path import WorkspacePath
@@ -20,6 +20,7 @@ if TYPE_CHECKING:
 def status_command(options: Namespace) -> None:
     dataset = options.dataset
     ldb_dir = get_ldb_instance()
+    client = LDBClient(ldb_dir)
     ws_status = status(ldb_dir, dataset)
     ds_identifier = format_dataset_identifier(
         ws_status.dataset_name,
@@ -43,7 +44,7 @@ def status_command(options: Namespace) -> None:
         if workspace_ds.parent:
             summary_items = summarize_diff(
                 simple_diff(
-                    ldb_dir,
+                    client,
                     f"{WORKSPACE_DATASET_PREFIX}{os.fspath(workspace_path)}",
                     workspace_ds.parent,
                 ),

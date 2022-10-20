@@ -3,6 +3,7 @@ from enum import IntEnum
 from pathlib import Path
 from typing import Dict, Iterable, Iterator, Optional, Tuple
 
+from ldb.core import LDBClient
 from ldb.dataset import Dataset, get_collection
 from ldb.exceptions import LDBException
 from ldb.path import InstanceDir, WorkspacePath
@@ -40,37 +41,38 @@ class DiffItem(SimpleDiffItem):
 
 
 def get_diff_collection(
-    ldb_dir: Path,
+    client: "LDBClient",
     dataset: str,
 ) -> Dict[str, Optional[str]]:
     if dataset.startswith(DATASET_PREFIX):
-        return get_collection(
-            ldb_dir,
-            get_dataset_version_hash(ldb_dir, dataset),
-        )
+        name, version_num = parse_dataset_identifier(dataset)
+        ds_version_obj = client.db.get_dataset_version_by_name(name, version_num)[0]
+        return dict(client.db.get_collection(ds_version_obj.collection))
     if dataset.startswith(WORKSPACE_DATASET_PREFIX):
         return collection_dir_to_object(
             Path(dataset[len(WORKSPACE_DATASET_PREFIX) :]) / WorkspacePath.COLLECTION,
         )
-    return get_collection(ldb_dir, dataset)
+    ds_version_obj = client.db.get_dataset_version(dataset)
+    return dict(client.db.get_collection(ds_version_obj.collection))
 
 
 def get_diff_collections(
-    ldb_dir: Path,
+    client: "LDBClient",
     dataset1: str = "",
     dataset2: str = "",
     workspace_path: str = ".",
 ) -> Tuple[Dict[str, Optional[str]], Dict[str, Optional[str]]]:
     if dataset1:
-        collection1 = get_diff_collection(ldb_dir, dataset1)
+        collection1 = get_diff_collection(client, dataset1)
         if dataset2:
-            return collection1, get_diff_collection(ldb_dir, dataset2)
+            return collection1, get_diff_collection(client, dataset2)
     elif dataset2:
         raise Exception
     else:
         workspace_dataset = load_workspace_dataset(Path(workspace_path))
         if workspace_dataset.parent:
-            collection1 = get_collection(ldb_dir, workspace_dataset.parent)
+            ds_version_obj = client.db.get_dataset_version(workspace_dataset.parent)
+            collection1 = dict(client.db.get_collection(ds_version_obj.collection))
         else:
             collection1 = {}
     collection2 = collection_dir_to_object(
@@ -85,10 +87,11 @@ def diff(
     dataset2: str = "",
     workspace_path: str = ".",
 ) -> Iterator[DiffItem]:
+    client = LDBClient(ldb_dir)
     return full_diff(
-        ldb_dir,
+        client,
         simple_diff(
-            ldb_dir,
+            client,
             dataset1,
             dataset2,
             workspace_path,
@@ -112,33 +115,13 @@ def summarize_diff(
     return additions, deletions, modifications
 
 
-def get_dataset_version_hash(ldb_dir: Path, dataset_identifier: str) -> str:
-    ds_name, ds_version_num = parse_dataset_identifier(dataset_identifier)
-    dataset_obj = Dataset.parse(
-        load_data_file(ldb_dir / InstanceDir.DATASETS / ds_name),
-    )
-    if ds_version_num is None:
-        return dataset_obj.versions[-1]
-    try:
-        return dataset_obj.versions[ds_version_num - 1]
-    except IndexError as exc:
-        latest_dataset = format_dataset_identifier(
-            ds_name,
-            len(dataset_obj.versions),
-        )
-        raise LDBException(
-            f"{dataset_identifier} does not exist\nThe latest version is {latest_dataset}"
-        ) from exc
-
-
 def full_diff(
-    ldb_dir: Path,
+    client: "LDBClient",
     simple_diff_items: Iterable[SimpleDiffItem],
 ) -> Iterator[DiffItem]:
-    data_object_info_path = ldb_dir / InstanceDir.DATA_OBJECT_INFO
     for item in simple_diff_items:
         annotation_version1 = get_annotation_version(
-            ldb_dir,
+            client,
             item.data_object_hash,
             item.annotation_hash1,
         )
@@ -146,17 +129,11 @@ def full_diff(
             annotation_version2 = annotation_version1
         else:
             annotation_version2 = get_annotation_version(
-                ldb_dir,
+                client,
                 item.data_object_hash,
                 item.annotation_hash2,
             )
-        data_object_meta = load_data_file(
-            get_hash_path(
-                data_object_info_path,
-                item.data_object_hash,
-            )
-            / "meta",
-        )
+        data_object_meta = client.db.get_data_object_meta(item.data_object_hash)[1]
         yield DiffItem(
             data_object_hash=item.data_object_hash,
             annotation_hash1=item.annotation_hash1,
@@ -169,31 +146,24 @@ def full_diff(
 
 
 def get_annotation_version(
-    ldb_dir: Path,
+    client: "LDBClient",
     data_object_hash: str,
     annotation_hash: str,
 ) -> int:
     if annotation_hash:
-        annotation_meta = load_data_file(
-            get_hash_path(
-                ldb_dir / InstanceDir.DATA_OBJECT_INFO,
-                data_object_hash,
-            )
-            / "annotations"
-            / annotation_hash,
-        )
-        return annotation_meta["version"]  # type: ignore[no-any-return]
+        meta = client.db.get_pair_meta(data_object_hash, annotation_hash)[2]
+        return meta["version"]  # type: ignore[no-any-return]
     return 0
 
 
 def simple_diff(
-    ldb_dir: Path,
+    client: "LDBClient",
     dataset1: str = "",
     dataset2: str = "",
     workspace_path: str = ".",
 ) -> Iterator[SimpleDiffItem]:
     collection1, collection2 = get_diff_collections(
-        ldb_dir,
+        client,
         dataset1,
         dataset2,
         workspace_path,

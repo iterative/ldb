@@ -31,7 +31,11 @@ from ldb.add import TransformInfoMapping, paths_to_dataset
 from ldb.core import LDBClient
 from ldb.data_formats import INSTANTIATE_FORMATS, Format
 from ldb.dataset import OpDef
-from ldb.exceptions import LDBException, WorkspaceError
+from ldb.exceptions import (
+    AnnotationNotFoundError,
+    LDBException,
+    WorkspaceError,
+)
 from ldb.fs.utils import FSProtocol, first_protocol, unstrip_protocol
 from ldb.index.annotation_only import AnnotOnlyParamConfig
 from ldb.index.inferred import InferredParamConfig
@@ -446,7 +450,10 @@ class RawPairInstItem(InstItem):
 
     @cached_property
     def annotation_content(self) -> JSONDecoded:
-        return self.config.client.db.get_annotation(self.annotation_hash)[1]
+        record = self.config.client.db.get_annotation(self.annotation_hash)
+        if record is None:
+            return None
+        return record[1]
 
     @cached_property
     def annotation_content_bytes(self) -> bytes:
@@ -569,9 +576,11 @@ class AnnotationOnlyInstItem(RawPairInstItem):
 
     @cached_property
     def annotation_content(self) -> JSONDecoded:
-        annotation: JSONObject = self.config.client.db.get_annotation(  # type: ignore[assignment]
-            self.annotation_hash
-        )[1]
+        annot_id = self.annotation_hash
+        record = self.config.client.db.get_annotation(annot_id)
+        if record is None:
+            raise AnnotationNotFoundError(f"Annotation not found: {self.annotation_hash}")
+        annotation: JSONObject = record[1]  # type: ignore[assignment]
         fs_protocol: FSProtocol = self.data_object_meta["fs"]["protocol"]
         protocol: str = first_protocol(fs_protocol)
         path: str = self.data_object_meta["fs"]["path"]
@@ -685,6 +694,15 @@ def instantiate_items(
     items: Collection[InstItem],
     deinstantiate: bool = False,
 ) -> Tuple[List[str], List[str]]:
+    # access the cached_property to do db access outside of multithreading
+    # TODO prefetch data_object_meta and annotation content and set when
+    # creating each item
+    for item in items:
+        item.data_object_meta
+        try:
+            item.annotation_content
+        except AttributeError:
+            pass
     with ThreadPoolExecutor(max_workers=4 * (os.cpu_count() or 1)) as pool:
         with get_progressbar(transient=True) as progress:
             task = progress.add_task(
@@ -1032,7 +1050,10 @@ def copy_label_studio(
                 "Missing annotation for data object: "
                 f"{DATA_OBJ_ID_PREFIX}{data_object_hash}",
             )
-        annot = config.client.db.get_annotation(annotation_hash)
+        record = config.client.db.get_annotation(annotation_hash)
+        if record is None:
+            raise AnnotationNotFoundError(f"Annotation not found: {annotation_hash}")
+        annot = record[1]
         try:
             annot["data"]["data-object-info"]["md5"]  # type: ignore[call-overload, index] # pylint: disable=pointless-statement # noqa: E501
             path_key = annot["data"]["data-object-info"]["path_key"]  # type: ignore[call-overload, index] # noqa: E501

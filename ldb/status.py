@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable, Optional, Tuple
 
+from ldb.core import LDBClient
 from ldb.dataset import (
     CommitInfo,
     DatasetVersion,
@@ -30,6 +31,7 @@ class WorkspaceStatus:
 
 
 def status(ldb_dir: Path, dataset: str) -> WorkspaceStatus:
+    client = LDBClient(ldb_dir)
     item_gen: Iterable[Tuple[str, Optional[str]]]
     if not dataset:
         workspace_path = Path(".")
@@ -46,34 +48,14 @@ def status(ldb_dir: Path, dataset: str) -> WorkspaceStatus:
         ds_name, opt_ds_version = parse_dataset_identifier(dataset)
         ds_version = opt_ds_version or 0
         if ds_name == ROOT:
-            item_gen = get_collection_dir_items(
-                ldb_dir / InstanceDir.DATA_OBJECT_INFO,
-                is_workspace=False,
-            )
+            item_gen = client.db.get_root_collection()
             auto_pull = False
             commit_info = None
         else:
-            dataset_obj = get_dataset(ldb_dir, ds_name)
-            if not ds_version:
-                ds_version = len(dataset_obj.versions)
-            dataset_version_hash = get_dataset_version_hash(
-                dataset_obj,
-                ds_version,
+            dataset_version_obj, ds_version = client.db.get_dataset_version_by_name(
+                ds_name, ds_version
             )
-            dataset_version_obj = DatasetVersion.parse(
-                load_data_file(
-                    get_hash_path(
-                        ldb_dir / InstanceDir.DATASET_VERSIONS,
-                        dataset_version_hash,
-                    ),
-                ),
-            )
-            item_gen = load_data_file(
-                get_hash_path(
-                    ldb_dir / InstanceDir.COLLECTIONS,
-                    dataset_version_obj.collection,
-                ),
-            ).items()
+            item_gen = client.db.get_collection(dataset_version_obj.collection)
             auto_pull = dataset_version_obj.auto_pull
             commit_info = dataset_version_obj.commit_info
 

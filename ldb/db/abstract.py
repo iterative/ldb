@@ -76,6 +76,8 @@ class AbstractDB(ABC):
                 annotation_meta,
             )
             self.set_current_annot(data_object_hash, annotation.oid)
+        else:
+            self.set_current_annot(data_object_hash, None)
 
     def add_data_object_meta(self, id: str, value: "DataObjectMetaT") -> None:
         self.data_object_meta_list.append((id, value))

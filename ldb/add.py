@@ -309,18 +309,22 @@ def data_object_for_add(
 
 def path_for_add(client: LDBClient, paths: Sequence[str]) -> AddInput:
     data_object_hash_iter, data_object_hash_iter2 = tee(
-        data_object_hashes_from_path(paths, get_storage_locations(client.ldb_dir)),
+        h.value for h in
+        data_object_hashes_from_path(paths, get_storage_locations(client.ldb_dir))
     )
     transforms: Optional[Dict[str, Sequence[str]]]
     try:
-        # TODO include filepath info in error message
-        annotation_hashes = list(
-            client.db.get_current_annotation_hashes(h.value for h in data_object_hash_iter)
+        annot_mapping = dict(
+            zip(
+                data_object_hash_iter,
+                client.db.get_current_annotation_hashes(data_object_hash_iter2)
+            )
         )
     except DataObjectNotFoundError as exc:
         cfg: TOMLDocument = config.load_first() or document()
         auto_index: bool = cfg.get("core", {}).get("auto_index", False)
         if not auto_index:
+            # TODO include filepath info in error message
             raise DataObjectNotFoundError(
                 f"{exc!s}\n\n"
                 "Encountered data object not previously indexed by LDB. "
@@ -340,7 +344,8 @@ def path_for_add(client: LDBClient, paths: Sequence[str]) -> AddInput:
         message = indexing_result.summary()
         transforms = indexing_result.transforms
     else:
-        data_object_hashes = [h.value for h in data_object_hash_iter2]
+        data_object_hashes = annot_mapping.keys()
+        annotation_hashes = annot_mapping.values()
         message = ""
         transforms = None
 

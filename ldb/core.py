@@ -13,7 +13,7 @@ from ldb.data_formats import Format
 from ldb.db.duckdb import DuckDB
 from ldb.db.file import FileDB
 from ldb.exceptions import LDBException, LDBInstanceNotFoundError
-from ldb.path import REQUIRED_INSTANCE_DIRS, Filename, GlobalDir
+from ldb.path import FILE_DB_DIRS, USER_DIRS, Filename, GlobalDir
 from ldb.storage import StorageLocation, add_storage
 
 if TYPE_CHECKING:
@@ -95,6 +95,8 @@ def init(
             )
     client = LDBClient(path, db_type=db_type)
     os.makedirs(osp.dirname(client.db_path), exist_ok=True)
+    for subdir in USER_DIRS:
+        os.makedirs(osp.join(path, subdir))
     client.db.init()
 
     with config.edit(path / Filename.CONFIG) as cfg:
@@ -156,7 +158,7 @@ def add_public_data_lakes(ldb_dir: Path) -> None:
 
 def is_ldb_instance(path: Path) -> bool:
     return osp.isfile(osp.join(path, "duckdb", "index.db")) or all(
-        (path / subdir).is_dir() for subdir in REQUIRED_INSTANCE_DIRS
+        (path / subdir).is_dir() for subdir in FILE_DB_DIRS
     )
 
 

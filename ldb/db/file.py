@@ -28,7 +28,7 @@ from ldb.exceptions import (
     RecordNotFoundError,
 )
 from ldb.objects.dataset_version import DatasetVersion
-from ldb.path import INSTANCE_DIRS, InstanceDir
+from ldb.path import FILE_DB_DIRS, InstanceDir
 from ldb.transform import Transform
 from ldb.utils import DATA_OBJ_ID_PREFIX, load_data_file, write_data_file
 
@@ -54,7 +54,7 @@ class FileDB(AbstractDB):
         return id[:3], id[3:]
 
     def init(self) -> None:
-        for subdir in INSTANCE_DIRS:
+        for subdir in FILE_DB_DIRS:
             os.makedirs(osp.join(self.ldb_dir, subdir))
 
     def write_data_object_meta(self) -> None:
@@ -207,8 +207,9 @@ class FileDB(AbstractDB):
             yield data_object_id, annotation_id or ""
 
     def set_current_annot(self, id: str, annot_id: str) -> None:
-        path = osp.join(self.data_object_dir, *self.oid_parts(id), "current")
-        write_data_file(path, annot_id.encode(), True)
+        if annot_id:
+            path = osp.join(self.data_object_dir, *self.oid_parts(id), "current")
+            write_data_file(path, annot_id.encode(), True)
 
     def ls_collection(
         self, collection: Iterable[Tuple[str, Optional[str]]]
@@ -264,7 +265,7 @@ class FileDB(AbstractDB):
             dataset_obj = self.get_dataset(name)
         except FileNotFoundError as exc:
             raise DatasetNotFoundError(name) from exc
-        if version is None:
+        if not version:
             dataset_version_hash = dataset_obj.versions[-1]
             version = len(dataset_obj.versions)
         else:

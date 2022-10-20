@@ -26,6 +26,10 @@ class DataObjectNotFoundError(RecordNotFoundError):
     pass
 
 
+class AnnotationNotFoundError(RecordNotFoundError):
+    pass
+
+
 class WorkspaceError(LDBException):
     pass
 

@@ -1,7 +1,7 @@
 from argparse import ArgumentParser, Namespace
 from typing import TYPE_CHECKING, Iterable
 
-from ldb.core import get_ldb_instance
+from ldb.core import LDBClient, get_ldb_instance
 from ldb.diff import (
     DiffItem,
     DiffType,
@@ -21,16 +21,17 @@ if TYPE_CHECKING:
 
 def diff_command(options: Namespace) -> None:
     ldb_dir = get_ldb_instance()
+    client = LDBClient(ldb_dir)
     items = list(
         simple_diff(
-            ldb_dir,
+            client,
             options.dataset1,
             options.dataset2,
             ".",
         ),
     )
     if not options.summary:
-        for diff_item in full_diff(ldb_dir, items):
+        for diff_item in full_diff(client, items):
             row = format_diff_item(diff_item, options.verbose)
             if row:
                 print(row)

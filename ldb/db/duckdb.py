@@ -37,7 +37,7 @@ class DuckDB(AbstractDB):
     def __init__(self, path: str) -> None:
         super().__init__(path)
         self.dataset_set: Set[str] = set()
-        self.dataset_member_by_name_list: List[Tuple[str, str, str]] = []
+        self.dataset_member_by_name_list: List[Tuple[str, str, str, bool]] = []
         self.conn = duckdb.connect(self.path)
 
     def init(self) -> None:
@@ -76,8 +76,8 @@ class DuckDB(AbstractDB):
         self.conn.execute(
             """
             CREATE TABLE IF NOT EXISTS dynamic_dataset_member(
-                dataset_id INTEGER,
-                data_object_id VARCHAR,
+                dataset_id INTEGER NOT NULL,
+                data_object_id VARCHAR NOT NULL,
                 annotation_id VARCHAR,
                 -- PRIMARY KEY (dataset_id, data_object_id),
                 FOREIGN KEY (dataset_id) REFERENCES dynamic_dataset(id),
@@ -440,6 +440,7 @@ class DuckDB(AbstractDB):
             """
             SELECT data_object_id, annotation_id from collection_member
             WHERE collection_id = ?
+            ORDER BY data_object_id
             """,
             [id],
         ).fetchall()
@@ -483,9 +484,10 @@ class DuckDB(AbstractDB):
         name: str,
         data_object_id: str,
         annotation_id: str,
+        update: bool,
     ) -> None:
         self.dataset_member_by_name_list.append(
-            (name, data_object_id, annotation_id),
+            (name, data_object_id, annotation_id, update),
         )
 
     def write_dataset(self) -> None:
@@ -507,7 +509,7 @@ class DuckDB(AbstractDB):
         if self.dataset_member_by_name_list:
             df = pd.DataFrame(
                 self.dataset_member_by_name_list,
-                columns=["name", "data_object_id", "annotation_id"],
+                columns=["name", "data_object_id", "annotation_id", "update"],
             )
             self.conn.register("dataset_member_by_name_df", df)
             self.conn.begin()
@@ -522,6 +524,7 @@ class DuckDB(AbstractDB):
                         dataset_member_by_name_df.annotation_id as annotation_id
                     FROM dataset_member_by_name_df
                     JOIN dynamic_dataset ON dataset_member_by_name_df.name = dynamic_dataset.name
+                    WHERE dataset_member_by_name_df.update
                 ) q
                 WHERE dynamic_dataset_member.dataset_id = q.dataset_id
                     AND dynamic_dataset_member.data_object_id = q.data_object_id
@@ -553,6 +556,7 @@ class DuckDB(AbstractDB):
             SELECT data_object_id, annotation_id FROM dynamic_dataset_member WHERE dataset_id = (
                 SELECT id FROM dynamic_dataset WHERE name = ?
             )
+            ORDER BY data_object_id
             """,
             [dataset_name],
         ).fetchall()
@@ -561,7 +565,7 @@ class DuckDB(AbstractDB):
         return self.get_dataset_member_many("root")
 
     def set_current_annot(self, id: str, annot_id: str) -> None:
-        self.add_dataset_member_by_name("root", id, annot_id)
+        self.add_dataset_member_by_name("root", id, annot_id, bool(annot_id))
 
     def ls_collection(
         self, collection: Iterable[Tuple[str, Optional[str]]]
@@ -768,8 +772,6 @@ class DuckDB(AbstractDB):
                 data,
                 columns=["name", "id"],
             )
-            print(df)
-            print(dataset_versions)
             self.conn.register("dataset_version_df", df)
 
             created_by = dataset_versions[0].commit_info.created_by
@@ -879,16 +881,17 @@ class DuckDB(AbstractDB):
             columns=["id"],
         )
         self.conn.register("data_object_df", df)
+        # TODO ensure all data objects exist
         result = self.conn.execute(
             """
-            SELECT data_object_df.id, coalesce(dynamic_dataset_member.annotation_id, '')
+            SELECT coalesce(dynamic_dataset_member.annotation_id, '')
             FROM data_object_df
             LEFT JOIN dynamic_dataset_member ON data_object_df.id = dynamic_dataset_member.data_object_id
             """,
-            ["root"],
         ).fetchall()
         self.conn.unregister("data_object_df")
-        yield from result
+        for (id,) in result:
+            yield id
 
     def get_annotation_version_hashes(
         self, data_object_ids: Iterable[str], version: int = -1

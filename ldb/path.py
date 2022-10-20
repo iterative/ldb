@@ -32,7 +32,7 @@ class WorkspacePath:
     TMP = BASE / "tmp"
 
 
-REQUIRED_INSTANCE_DIRS = (
+FILE_DB_DIRS = (
     InstanceDir.DATA_OBJECT_INFO,
     InstanceDir.DATASETS,
     InstanceDir.OBJECTS,
@@ -41,8 +41,7 @@ REQUIRED_INSTANCE_DIRS = (
     InstanceDir.TRANSFORMS,
     InstanceDir.DATASET_VERSIONS,
 )
-INSTANCE_DIRS = (
-    *REQUIRED_INSTANCE_DIRS,
+USER_DIRS = (
     InstanceDir.USER_FUNCTIONS,
     InstanceDir.USER_FILTERS,
     InstanceDir.USER_TRANSFORMS,
