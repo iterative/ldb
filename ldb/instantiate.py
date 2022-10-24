@@ -303,17 +303,11 @@ def instantiate_collection_directly(
             collection,
             deinstantiate,
         )
-    if deinstantiate:
-        warnings.warn(
-            f"Deinstantiation not implemented for format: {fmt}",
-            RuntimeWarning,
-            stacklevel=2,
-        )
-        return InstantiateResult([], [], 0, 0)
     if fmt == Format.LABEL_STUDIO:
         return copy_label_studio(
             config,
             collection,
+            deinstantiate,
         )
     raise ValueError(f"Not a valid instantiation format: {fmt}")
 
@@ -826,9 +820,16 @@ def copy_single_annot(
 def modify_single_annot(
     src: Union[str, Path],
     dest: Union[str, Path],
-    add_list: List[JSONDecoded],
-    remove_list: List[JSONDecoded],
+    add_list: Sequence[JSONDecoded],
+    remove_list: Sequence[JSONDecoded],
+    key: Sequence[str] = ("data-object-info", "md5"),
 ) -> Tuple[int, int]:
+    def get_key(obj: JSONDecoded, key: Sequence[str]) -> str:
+        final_key = key[-1]
+        for k in key[:-1]:
+            obj = obj[k]  # type: ignore
+        return str(obj[final_key])  # type: ignore
+
     try:
         with open(src, "rb") as f:
             original_annotations = json.load(f)
@@ -843,18 +844,18 @@ def modify_single_annot(
             "the annotation file dataset.json must contain a top-level array."
         )
     try:
-        add_dict = {a["data-object-info"]["md5"]: a for a in add_list}  # type: ignore
+        add_dict = {get_key(a, key): a for a in add_list}
     except (KeyError, TypeError) as exc:
         raise ValueError("Missing md5 hashes in add_list") from exc
     try:
-        remove_hashes_set = {r["data-object-info"]["md5"] for r in remove_list}  # type: ignore # noqa: E501
+        remove_hashes_set = {get_key(r, key) for r in remove_list}
     except (KeyError, TypeError) as exc:
         raise ValueError("Missing md5 hashes in remove_list") from exc
     try:
         filtered_annotations_dict = {
-            o["data-object-info"]["md5"]: o
+            get_key(o, key): o
             for o in original_annotations
-            if o["data-object-info"]["md5"] not in remove_hashes_set
+            if get_key(o, key) not in remove_hashes_set
         }
     except (KeyError, TypeError) as exc:
         raise ValueError("Missing md5 hashes in dataset.json entries") from exc
@@ -1026,9 +1027,9 @@ def infer_dir(
 def copy_label_studio(
     config: InstConfig,
     collection: Mapping[str, Optional[str]],
+    deinstantiate: bool = False,
 ) -> InstantiateResult:
     ldb_dir = config.ldb_dir
-    annot_paths = []
     annotations: List[JSONObject] = []
     for data_object_hash, annotation_hash in collection.items():
         if not annotation_hash:
@@ -1059,11 +1060,34 @@ def copy_label_studio(
                 "data.data-object-info.path_key",
             )
         annotations.append(annot)  # type: ignore[arg-type]
-    path = LabelStudioInstItem(config, annotations).instantiate().annotation
-    annot_paths.append(path)
+    item = LabelStudioInstItem(config, annotations)
+    dest = item.annotation_dest
+    # TODO: Optimize sync to use modify_single_annot only once
+    if config.add_path:
+        src = Path(os.path.join(config.add_path, "annotations.json"))
+        added_count, _ = modify_single_annot(
+            src, dest, annotations, [], ("data", "data-object-info", "md5")
+        )
+        return InstantiateResult(
+            [],
+            [],
+            0,
+            added_count,
+        )
+    if deinstantiate:
+        _, removed_count = modify_single_annot(
+            dest, dest, [], annotations, ("data", "data-object-info", "md5")
+        )
+        return InstantiateResult(
+            [],
+            ["R" for _ in range(removed_count)],
+            0,
+            removed_count,
+        )
+    path = item.instantiate().annotation
     return InstantiateResult(
         [],
-        annot_paths,
+        [path],
         0,
         len(annotations),
     )

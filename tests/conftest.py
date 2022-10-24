@@ -165,6 +165,13 @@ def index_original(ldb_instance: Path, data_dir: Path) -> Path:
 
 
 @pytest.fixture
+def index_original_for_label_studio(ldb_instance: Path, data_dir: Path) -> Path:
+    dir_to_index = data_dir / "label-studio/original"
+    main(["index", "-m", "strict", os.fspath(dir_to_index)])
+    return dir_to_index
+
+
+@pytest.fixture
 def staged_ds_a(workspace_path: Path, index_original: Path) -> str:
     ds_identifier = f"{DATASET_PREFIX}a"
     main(["stage", ds_identifier])
