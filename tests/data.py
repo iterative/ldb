@@ -59,3 +59,35 @@ QUERY_DATA = {
     **SIMPLE_QUERY_DATA,
     **PIPE_QUERY_DATA,
 }
+LABEL_STUDIO_ANNOTATIONS = {
+    "25": {
+        "data": {
+            "label": 4,
+            "image": "00025.png",
+            "data-object-info": {
+                "md5": "982814b9116dce7882dfc31636c3ff7a",
+                "path_key": "data.image",
+            },
+        }
+    },
+    "47": {
+        "data": {
+            "label": 7,
+            "image": "00047.png",
+            "data-object-info": {
+                "md5": "ebbc6c0cebb66738942ee56513f9ee2f",
+                "path_key": "data.image",
+            },
+        }
+    },
+    "70": {
+        "data": {
+            "label": 1,
+            "image": "00070.png",
+            "data-object-info": {
+                "md5": "b056f7ef766d698aee2542150f1add72",
+                "path_key": "data.image",
+            },
+        }
+    },
+}

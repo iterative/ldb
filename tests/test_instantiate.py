@@ -12,6 +12,7 @@ from ldb.main import main
 from ldb.typing import JSONDecoded
 from ldb.utils import DATASET_PREFIX, ROOT
 
+from .data import LABEL_STUDIO_ANNOTATIONS
 from .utils import DATA_DIR, SCRIPTS_DIR, get_workspace_counts
 
 
@@ -239,3 +240,24 @@ def test_modify_single_annot(tmp_path):
     assert modify_single_annot(filename, filename, [], expected_list) == (0, 2)
 
     assert os.path.exists(filename) is False
+
+
+def test_instantiate_label_studio(workspace_path, index_original_for_label_studio):
+    cmd_args = [
+        "add",
+        "id:982814b9116dce7882dfc31636c3ff7a",
+        "id:ebbc6c0cebb66738942ee56513f9ee2f",
+    ]
+    ret = main(cmd_args)
+    assert ret == 0
+    cmd_args = ["instantiate", "-m", "label-studio"]
+    ret = main(cmd_args)
+    assert ret == 0
+    assert get_workspace_counts(workspace_path) == (0, 1)
+
+    with open(os.path.join(workspace_path, "annotations.json"), encoding="utf-8") as f:
+        annotations = sorted(json.load(f), key=lambda a: a["data"]["label"])  # type: ignore
+
+    assert len(annotations) == 2
+    assert annotations[0] == LABEL_STUDIO_ANNOTATIONS["25"]
+    assert annotations[1] == LABEL_STUDIO_ANNOTATIONS["47"]

@@ -6,7 +6,7 @@ import pytest
 from ldb.main import main
 from ldb.utils import DATASET_PREFIX, ROOT
 
-from .data import QUERY_DATA
+from .data import LABEL_STUDIO_ANNOTATIONS, QUERY_DATA
 from .utils import (
     DATA_DIR,
     get_staged_object_file_paths,
@@ -267,3 +267,62 @@ def test_add_del_physical_annot_single_file(workspace_path, index_original):
     assert annotations[0]["data-object-info"]["md5"] == "982814b9116dce7882dfc31636c3ff7a"
     assert annotations[1]["annotation"]["label"] == 7
     assert annotations[1]["data-object-info"]["md5"] == "ebbc6c0cebb66738942ee56513f9ee2f"
+
+
+def test_add_del_physical_label_studio(workspace_path, index_original_for_label_studio):
+    # Test add physical label studio, which is a single file of annotations
+    cmd_args = [
+        "add",
+        "id:982814b9116dce7882dfc31636c3ff7a",
+        "id:ebbc6c0cebb66738942ee56513f9ee2f",
+        "--physical",
+        "-m",
+        "label-studio",
+    ]
+    ret = main(cmd_args)
+    assert ret == 0
+    assert get_workspace_counts(workspace_path) == (0, 1)
+
+    with open(os.path.join(workspace_path, "annotations.json"), encoding="utf-8") as f:
+        annotations = sorted(json.load(f), key=lambda a: a["data"]["label"])  # type: ignore
+
+    assert len(annotations) == 2
+    assert annotations[0] == LABEL_STUDIO_ANNOTATIONS["25"]
+    assert annotations[1] == LABEL_STUDIO_ANNOTATIONS["47"]
+
+    # Test remove annotations from that single file
+    cmd_args = [
+        "del",
+        "id:ebbc6c0cebb66738942ee56513f9ee2f",
+        "--physical",
+        "-m",
+        "label-studio",
+    ]
+    ret = main(cmd_args)
+    assert ret == 0
+    assert get_workspace_counts(workspace_path) == (0, 1)
+
+    with open(os.path.join(workspace_path, "annotations.json"), encoding="utf-8") as f:
+        annotations = sorted(json.load(f), key=lambda a: a["data"]["label"])  # type: ignore
+
+    assert len(annotations) == 1
+    assert annotations[0] == LABEL_STUDIO_ANNOTATIONS["25"]
+
+    # Test add more annotations to that single file (preserving existing annotations)
+    cmd_args = [
+        "add",
+        "id:b056f7ef766d698aee2542150f1add72",
+        "--physical",
+        "-m",
+        "label-studio",
+    ]
+    ret = main(cmd_args)
+    assert ret == 0
+    assert get_workspace_counts(workspace_path) == (0, 1)
+
+    with open(os.path.join(workspace_path, "annotations.json"), encoding="utf-8") as f:
+        annotations = sorted(json.load(f), key=lambda a: a["data"]["label"])  # type: ignore
+
+    assert len(annotations) == 2
+    assert annotations[0] == LABEL_STUDIO_ANNOTATIONS["70"]
+    assert annotations[1] == LABEL_STUDIO_ANNOTATIONS["25"]
