@@ -103,11 +103,11 @@ jobs:
           [[ "$RUNNER_OS" != "Windows" ]] && source ./venv/bin/activate || source ./venv/Scripts/activate
           pytest
   build:
+    if: ${{ github.actor != 'dependabot[bot]' &&  github.actor != 'renovate[bot]' }}
     environment: pypi
     permissions:
       contents: write
       id-token: write
-    if: ${{ github.actor != 'dependabot[bot]' &&  github.actor != 'renovate[bot]' }}
     runs-on: ubuntu-latest
     needs: [lint, test]
     steps:
