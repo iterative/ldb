@@ -20,21 +20,21 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: checkout repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: set up python 3.10
         id: setup-python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.10'
       - name: venv cache
         id: venv-cache
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ./venv
           key: ${{ runner.os }}-python${{ steps.setup-python.outputs.python-version }}-venv-lint-${{ hashFiles('setup.cfg') }}
       - name: pre-commit cache
         id: pre-commit-cache
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ~/.cache/pre-commit
           key: ${{ runner.os }}-python${{ steps.setup-python.outputs.python-version }}-pre-commit-${{ hashFiles('.pre-commit-config.yaml') }}
@@ -61,15 +61,15 @@ jobs:
         python-version: ['3.8', '3.9', '3.10']
     steps:
       - name: checkout repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: set up python ${{ matrix.python-version }}
         id: setup-python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
       - name: venv cache
         id: venv-cache
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ./venv
           key: ${{ runner.os }}-python${{ steps.setup-python.outputs.python-version }}-venv-test-${{ hashFiles('setup.cfg') }}
@@ -82,7 +82,7 @@ jobs:
           python -m pip install '.[test-setup,test]'
       - name: test data cache
         id: test-data-cache
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ./data
           key: test-data-${{ hashFiles('data.dvc') }}
@@ -92,7 +92,7 @@ jobs:
           [[ "$RUNNER_OS" != "Windows" ]] && source ./venv/bin/activate || source ./venv/Scripts/activate
           dvc pull
       - name: ml model cache
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ~/.cache/clip/RN50.pt
@@ -112,9 +112,9 @@ jobs:
     needs: [lint, test]
     steps:
       - name: checkout repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: set up python 3.10
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.10'
       - name: install dependencies
